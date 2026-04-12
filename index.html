@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Web CSGO - Full Control</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
+        canvas { display: block; }
+        
+        /* 准星和 UI */
+        #crosshair { position: fixed; top: 50%; left: 50%; width: 4px; height: 4px; background: #00ff00; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none; z-index: 10; box-shadow: 0 0 5px #00ff00; }
+        #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #00ff00; pointer-events: none; }
+        #crosshair::before { top: -8px; left: 1px; width: 2px; height: 20px; }
+        #crosshair::after { left: -8px; top: 1px; width: 20px; height: 2px; }
+        
+        #ui { position: fixed; top: 10px; left: 10px; color: white; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 5px; }
+        
+        /* 枪口火光 */
+        #muzzle-flash { position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
+    </style>
+</head>
+<body>
+    <div id="ui">左半屏: 移动 | 右半屏: 视角 & 点击开火</div>
+    <div id="crosshair"></div>
+    <div id="muzzle-flash"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // --- 1. 骨架与大脑的连接：初始化 3D 世界 ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87ceeb); // 天蓝色
+        scene.fog = new THREE.Fog(0x87ceeb, 10, 50); // 加上一点雾，更有感觉
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.y = 1.6; // 你的身高
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // 灯光
+        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
+        scene.add(light);
+
+        // 地板
+        const floor = new THREE.Mesh(
+            new THREE.PlaneGeometry(200, 200),
+            new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 })
+        );
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+
+        // 生成随机障碍物 (你的敌人或者掩体)
+        for(let i = 0; i < 30; i++) {
+            const box = new THREE.Mesh(
+                new THREE.BoxGeometry(2, Math.random()*3 + 1, 2), 
+                new THREE.MeshStandardMaterial({color: Math.random() * 0xffffff})
+            );
+            box.position.set(Math.random()*60-30, box.geometry.parameters.height/2, Math.random()*60-30);
+            scene.add(box);
+        }
+
+        // --- 2. 武器系统：你的枪 ---
+        const gunGroup = new THREE.Group();
+        const gunMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(0.1, 0.15, 0.6),
+            new THREE.MeshStandardMaterial({ color: 0x111111 })
+        );
+        gunMesh.position.set(0.3, -0.2, -0.5); // 把枪放在右下角
+        gunGroup.add(gunMesh);
+        camera.add(gunGroup);
+        scene.add(camera);
+
+        // --- 3. 大脑控制：iPad 双摇杆触控逻辑 ---
+        let moveInput = { x: 0, y: 0 };
+        let lookInput = { x: 0, y: 0 };
+        let touches = { left: null, right: null };
+        let isShooting = false;
+
+        document.addEventListener('touchstart', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                if (t.clientX < window.innerWidth / 2) {
+                    // 左半边：记录摇杆中心点
+                    touches.left = { id: t.identifier, startX: t.clientX, startY: t.clientY };
+                } else {
+                    // 右半边：准备视角转动或射击
+                    touches.right = { id: t.identifier, lastX: t.clientX, lastY: t.clientY, isTap: true };
+                }
+            }
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                // 处理移动
+                if (touches.left && t.identifier === touches.left.id) {
+                    moveInput.x = (t.clientX - touches.left.startX) * 0.01;
+                    moveInput.y = (t.clientY - touches.left.startY) * 0.01;
+                }
+                // 处理视角转动
+                if (touches.right && t.identifier === touches.right.id) {
+                    touches.right.isTap = false; // 滑动了就不算点击开火了
+                    const deltaX = t.clientX - touches.right.lastX;
+                    const deltaY = t.clientY - touches.right.lastY;
+                    
+                    camera.rotation.y -= deltaX * 0.005;
+                    // 限制上下看，防止脖子折断
+                    camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x - deltaY * 0.005));
+                    
+                    touches.right.lastX = t.clientX;
+                    touches.right.lastY = t.clientY;
+                }
+            }
+        });
+
+        document.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                if (touches.left && t.identifier === touches.left.id) {
+                    touches.left = null;
+                    moveInput = { x: 0, y: 0 }; // 松开停止移动
+                }
+                if (touches.right && t.identifier === touches.right.id) {
+                    if (touches.right.isTap) shoot(); // 如果没滑动直接松手，判定为开火
+                    touches.right = null;
+                }
+            }
+        });
+
+        // --- 4. 射击动画逻辑 ---
+        const flashUI = document.getElementById('muzzle-flash');
+        function shoot() {
+            if (isShooting) return;
+            isShooting = true;
+            
+            // 枪管后坐力动画 (向后退)
+            gunMesh.position.z = -0.3; 
+            
+            // 屏幕闪烁
+            flashUI.style.opacity = '1';
+            setTimeout(() => { flashUI.style.opacity = '0'; }, 50);
+            
+            // 简单的后坐力恢复
+            setTimeout(() => { isShooting = false; }, 150);
+        }
+
+        // --- 5. 游戏主循环 (每秒 60 次执行大脑指令) ---
+        // 注意：我们必须手动控制摄像机的旋转顺序，否则视角会歪
+        camera.rotation.order = 'YXZ'; 
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 恢复后坐力 (把枪推回原位)
+            if (!isShooting) {
+                gunMesh.position.z += (-0.5 - gunMesh.position.z) * 0.2;
+            }
+
+            // 处理走路逻辑 (基于当前摄像机的朝向移动)
+            if (touches.left) {
+                // 限制最大速度
+                const speedX = Math.max(-0.1, Math.min(0.1, moveInput.x));
+                const speedY = Math.max(-0.1, Math.min(0.1, moveInput.y));
+                
+                camera.translateZ(speedY);
+                camera.translateX(speedX);
+                // 保持身高不变
+                camera.position.y = 1.6; 
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // 处理屏幕翻转
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // 启动引擎！
+        animate();
+    </script>
+</body>
+</html>
