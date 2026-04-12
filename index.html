@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - Dust 2 (GPS Mode)</title>
+    <title>Web CSGO - Dust 2</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -11,18 +11,29 @@
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #00ff00; pointer-events: none; }
         #crosshair::before { top: -8px; left: 1px; width: 2px; height: 20px; }
         #crosshair::after { left: -8px; top: 1px; width: 20px; height: 2px; }
+        
         #ui { position: fixed; top: 10px; left: 10px; color: white; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 14px; text-shadow: 1px 1px 0 #000; }
         
-        /* 👇 新增：GPS 坐标显示器 👇 */
-        #coords { position: fixed; top: 40px; left: 10px; color: #ff4444; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.8); padding: 5px 10px; border-radius: 5px; font-size: 14px; font-weight: bold; font-family: monospace; }
-        
+        /* 👇 新增：阵营选择按钮的样式 👇 */
+        #team-select { position: fixed; top: 50px; left: 10px; z-index: 15; display: flex; gap: 10px; }
+        button { padding: 10px 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 5px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        #btn-red { background-color: #d32f2f; }
+        #btn-blue { background-color: #1976d2; }
+        #btn-red:active { background-color: #b71c1c; }
+        #btn-blue:active { background-color: #0d47a1; }
+
         #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 20; pointer-events: none; text-shadow: 2px 2px 4px #000; }
         #muzzle-flash { position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
     </style>
 </head>
 <body>
-    <div id="ui">【幽灵找点模式】穿墙找到好位置，记下坐标！</div>
-    <div id="coords">X: 0.00 | Y: 1.25 | Z: 0.00</div>
+    <div id="ui">实体墙壁已开启，开始跑图！</div>
+    
+    <div id="team-select">
+        <button id="btn-red">加入红队 (T)</button>
+        <button id="btn-blue">加入蓝队 (CT)</button>
+    </div>
+
     <div id="loading">Map Loading 0%</div>
     <div id="crosshair"></div>
     <div id="muzzle-flash"></div>
@@ -37,9 +48,8 @@
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
         
-        // 🎯 目标修改点：找到满意的坐标后，把数字填进这里
-        // 如果你觉得出生点太矮或太高，可以调整中间的 Y 值 (目前是 1.25)
-        camera.position.set(0, 1.25, 0); 
+        // 默认出生在蓝队 (CT) 的位置
+        camera.position.set(2, 1.25, 15); 
         camera.rotation.order = 'YXZ'; 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -79,12 +89,13 @@
             },
             function (xhr) {
                 if (xhr.lengthComputable) {
-                    loadingUI.innerText = '加载骨架 ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
+                    loadingUI.innerText = '加载地图 ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
                 }
             },
             function (error) { loadingUI.innerText = '加载失败!'; loadingUI.style.color = 'red'; }
         );
 
+        // 武器系统
         const gunGroup = new THREE.Group();
         const gunMesh = new THREE.Mesh(
             new THREE.BoxGeometry(0.1, 0.15, 0.6),
@@ -95,11 +106,24 @@
         camera.add(gunGroup);
         scene.add(camera);
 
+        // 👇 阵营传送功能 👇
+        document.getElementById('btn-red').addEventListener('click', () => {
+            camera.position.set(38, 1.25, 55); // 传送到红队坐标
+        });
+        
+        document.getElementById('btn-blue').addEventListener('click', () => {
+            camera.position.set(2, 1.25, 15);  // 传送到蓝队坐标
+        });
+
+        // 触控系统
         let moveInput = { x: 0, y: 0 };
         let touches = { left: null, right: null };
         let isShooting = false;
 
         document.addEventListener('touchstart', (e) => {
+            // 如果点击的是按钮，不要触发视角转动
+            if(e.target.tagName === 'BUTTON') return; 
+
             for (let t of e.changedTouches) {
                 if (t.clientX < window.innerWidth / 2) touches.left = { id: t.identifier, startX: t.clientX, startY: t.clientY };
                 else touches.right = { id: t.identifier, lastX: t.clientX, lastY: t.clientY, isTap: true };
@@ -142,6 +166,7 @@
             setTimeout(() => { isShooting = false; }, 150);
         }
 
+        // 碰撞检测雷达
         function checkCollision(startPos, endPos) {
             if (!mapMesh) return false; 
             const checkStart = startPos.clone(); checkStart.y = 0.5; 
@@ -156,38 +181,29 @@
             return false; 
         }
 
-        const coordsUI = document.getElementById('coords');
-
         function animate() {
             requestAnimationFrame(animate);
 
             if (!isShooting) gunMesh.position.z += (-0.5 - gunMesh.position.z) * 0.2;
 
             if (touches.left) {
-                // 加快一点速度方便你找路
-                const speedX = Math.max(-0.4, Math.min(0.4, moveInput.x));
-                const speedY = Math.max(-0.4, Math.min(0.4, moveInput.y));
+                const speedX = Math.max(-0.15, Math.min(0.15, moveInput.x));
+                const speedY = Math.max(-0.15, Math.min(0.15, moveInput.y));
                 
                 let oldPosition = camera.position.clone();
 
                 camera.translateZ(speedY);
-                // ⚠️ 为了方便找出生点，这里暂时关掉了 Z 轴碰撞！
-                // 找到点之后，把下面这行开头的双斜杠删掉：
-                // if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
+                // 👇 物理碰撞已恢复！ 👇
+                if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
                 
                 oldPosition = camera.position.clone();
 
                 camera.translateX(speedX);
-                // ⚠️ 为了方便找出生点，这里暂时关掉了 X 轴碰撞！
-                // 找到点之后，把下面这行开头的双斜杠删掉：
-                // if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
+                // 👇 物理碰撞已恢复！ 👇
+                if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
 
-                // 强制保持身高
                 camera.position.y = 1.25; 
             }
-
-            // 更新左上角的 GPS 坐标显示
-            coordsUI.innerText = `X: ${camera.position.x.toFixed(2)} | Y: ${camera.position.y.toFixed(2)} | Z: ${camera.position.z.toFixed(2)}`;
 
             renderer.render(scene, camera);
         }
