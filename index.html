@@ -21,7 +21,6 @@
         #btn-red:active { background-color: #b71c1c; }
         #btn-blue:active { background-color: #0d47a1; }
 
-        /* 👇 新增：右上角 X Z 坐标显示器样式 👇 */
         #coords-display {
             position: fixed;
             top: 10px;
@@ -47,7 +46,7 @@
     </style>
 </head>
 <body>
-    <div id="ui">移动视角时可实时查看右上角的坐标！</div>
+    <div id="ui">红队出生点已更新为 X:11, Z:4</div>
     
     <div id="coords-display">X: 0.00 | Z: 0.00</div>
 
@@ -131,12 +130,13 @@
         camera.add(gunGroup);
         scene.add(camera);
 
-        document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(38, 1.25, 55); });
+        // 👇 红队坐标已更新为 11, 4 👇
+        document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(11, 1.25, 4); });
         document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(2, 1.25, 15); });
 
         const joyBase = document.getElementById('joystick-base');
         const joyStick = document.getElementById('joystick-stick');
-        const coordsDisplay = document.getElementById('coords-display'); // 获取坐标显示元素
+        const coordsDisplay = document.getElementById('coords-display'); 
         const joyMaxRadius = 50; 
 
         let moveInput = { x: 0, y: 0 };
@@ -254,7 +254,6 @@
                 }
             }
 
-            // 👇 新增：每帧更新右上角的坐标显示 👇
             coordsDisplay.innerText = `X: ${camera.position.x.toFixed(1)} | Z: ${camera.position.z.toFixed(1)}`;
 
             renderer.render(scene, camera);
