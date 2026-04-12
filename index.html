@@ -3,29 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - Dust 2 (Mini Player)</title>
+    <title>Web CSGO - Dust 2 (Collision)</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
-        
-        /* 准星 UI */
         #crosshair { position: fixed; top: 50%; left: 50%; width: 4px; height: 4px; background: #00ff00; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none; z-index: 10; box-shadow: 0 0 5px #00ff00; }
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #00ff00; pointer-events: none; }
         #crosshair::before { top: -8px; left: 1px; width: 2px; height: 20px; }
         #crosshair::after { left: -8px; top: 1px; width: 20px; height: 2px; }
-        
-        /* 顶部提示 UI */
         #ui { position: fixed; top: 10px; left: 10px; color: white; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 14px; text-shadow: 1px 1px 0 #000; }
-        
-        /* 加载进度文字 */
         #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 20; pointer-events: none; text-shadow: 2px 2px 4px #000; }
-        
-        /* 枪口火光 */
         #muzzle-flash { position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
     </style>
 </head>
 <body>
-    <div id="ui">正在召唤 de_dust2...</div>
+    <div id="ui">正在召唤有实体墙壁的 de_dust2...</div>
     <div id="loading">Map Loading 0%</div>
     <div id="crosshair"></div>
     <div id="muzzle-flash"></div>
@@ -34,14 +26,11 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
 
     <script>
-        // --- 1. 初始化 3D 场景 ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb); 
         scene.fog = new THREE.Fog(0x87ceeb, 10, 300); 
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-        
-        // 👇👇👇 修改点 1：出生点高度从 5 改成 1.25 (缩小到 1/4) 👇👇👇
         camera.position.set(0, 1.25, 0); 
         camera.rotation.order = 'YXZ'; 
 
@@ -49,7 +38,6 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. 增强光照 ---
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); 
         scene.add(ambientLight);
         
@@ -57,7 +45,10 @@
         dirLight.position.set(100, 200, 50);
         scene.add(dirLight);
 
-        // --- 3. 核心：加载 de_dust2.obj 地图 ---
+        // 👇 增加两个全局变量，用来装“地图物理实体”和“碰撞雷达”
+        let mapMesh = null;
+        const raycaster = new THREE.Raycaster();
+
         const objLoader = new THREE.OBJLoader();
         const loadingUI = document.getElementById('loading');
         const mapUrl = 'de_dust2.obj'; 
@@ -66,7 +57,7 @@
             mapUrl,
             function (object) {
                 loadingUI.style.display = 'none';
-                document.getElementById('ui').innerText = "Dust 2 加载完毕！| 左侧移动，右侧看/射击";
+                document.getElementById('ui').innerText = "加载完毕！现在你无法穿墙了";
 
                 const sandMaterial = new THREE.MeshStandardMaterial({ 
                     color: 0xd2b48c, 
@@ -75,19 +66,17 @@
                 });
 
                 object.traverse(function (child) {
-                    if (child.isMesh) {
-                        child.material = sandMaterial;
-                    }
+                    if (child.isMesh) child.material = sandMaterial;
                 });
 
-                // 地图缩放比例保持不变
                 object.scale.set(0.02, 0.02, 0.02); 
                 object.position.set(0, 0, 0);
-
-                // 让地图在 X 轴上躺平
                 object.rotation.x = -Math.PI / 2; 
 
                 scene.add(object);
+                
+                // 👇 把加载好的地图存起来，作为碰撞检测的目标
+                mapMesh = object; 
             },
             function (xhr) {
                 if (xhr.lengthComputable) {
@@ -96,13 +85,12 @@
                 }
             },
             function (error) {
-                loadingUI.innerText = '加载失败! 请确认文件名';
+                loadingUI.innerText = '加载失败!';
                 loadingUI.style.color = 'red';
-                console.error(error);
             }
         );
 
-        // --- 4. 武器系统 ---
+        // 武器系统
         const gunGroup = new THREE.Group();
         const gunMesh = new THREE.Mesh(
             new THREE.BoxGeometry(0.1, 0.15, 0.6),
@@ -113,7 +101,7 @@
         camera.add(gunGroup);
         scene.add(camera);
 
-        // --- 5. iPad 触控系统 ---
+        // 触控系统
         let moveInput = { x: 0, y: 0 };
         let touches = { left: null, right: null };
         let isShooting = false;
@@ -128,7 +116,6 @@
         document.addEventListener('touchmove', (e) => {
             for (let t of e.changedTouches) {
                 if (touches.left && t.identifier === touches.left.id) {
-                    // 摇杆输入灵敏度
                     moveInput.x = (t.clientX - touches.left.startX) * 0.02;
                     moveInput.y = (t.clientY - touches.left.startY) * 0.02;
                 }
@@ -152,7 +139,6 @@
             }
         });
 
-        // 开火特效
         const flashUI = document.getElementById('muzzle-flash');
         function shoot() {
             if (isShooting) return;
@@ -163,20 +149,67 @@
             setTimeout(() => { isShooting = false; }, 150);
         }
 
-        // --- 6. 游戏主循环 ---
+        // 👇 核心：碰撞检测函数
+        function checkCollision(startPos, endPos) {
+            if (!mapMesh) return false; // 如果地图还没加载完，不检测
+            
+            // 把检测高度放在膝盖/腰部 (y = 0.5)，防止被地上的小箱子绊倒
+            const checkStart = startPos.clone();
+            checkStart.y = 0.5; 
+            const checkEnd = endPos.clone();
+            checkEnd.y = 0.5;
+
+            // 计算你要走的方向和距离
+            const direction = new THREE.Vector3().subVectors(checkEnd, checkStart);
+            const distance = direction.length();
+            if (distance === 0) return false;
+            
+            direction.normalize(); // 变成单位向量
+            
+            // 像雷达一样发射射线
+            raycaster.set(checkStart, direction);
+            
+            // 检查这根射线有没有戳到 mapMesh (地图)
+            const intersects = raycaster.intersectObject(mapMesh, true);
+            
+            // 如果撞到了东西，并且距离小于你要走的距离 + 0.2（玩家身体厚度）
+            if (intersects.length > 0 && intersects[0].distance < distance + 0.2) {
+                return true; // 撞墙了！
+            }
+            return false; // 安全！
+        }
+
+        // 游戏主循环
         function animate() {
             requestAnimationFrame(animate);
 
             if (!isShooting) gunMesh.position.z += (-0.5 - gunMesh.position.z) * 0.2;
 
             if (touches.left) {
-                // 👇👇👇 修改点 2：把最大移动速度从 0.4 降到 0.15，匹配缩小后的身体 👇👇👇
                 const speedX = Math.max(-0.15, Math.min(0.15, moveInput.x));
                 const speedY = Math.max(-0.15, Math.min(0.15, moveInput.y));
-                camera.translateZ(speedY);
-                camera.translateX(speedX);
                 
-                // 👇👇👇 修改点 3：行走时强制保持的摄像机高度，从 5 改成 1.25 👇👇👇
+                // 记录移动前的位置
+                let oldPosition = camera.position.clone();
+
+                // 1. 先尝试前后移动 (Z轴)
+                camera.translateZ(speedY);
+                if (checkCollision(oldPosition, camera.position)) {
+                    // 如果撞墙了，撤销Z轴的移动
+                    camera.position.copy(oldPosition); 
+                }
+                
+                // 更新老位置
+                oldPosition = camera.position.clone();
+
+                // 2. 再尝试左右移动 (X轴)
+                camera.translateX(speedX);
+                if (checkCollision(oldPosition, camera.position)) {
+                    // 如果撞墙了，撤销X轴的移动
+                    camera.position.copy(oldPosition); 
+                }
+
+                // 强制保持身高，不能飞天或遁地
                 camera.position.y = 1.25; 
             }
 
