@@ -66,7 +66,7 @@
     </style>
 </head>
 <body>
-    <div id="ui">智能物理引擎上线，彻底修复斜坡漏底BUG！</div>
+    <div id="ui">物理引擎锁定：等待地图加载...</div>
     
     <div id="coords-display">X: 0.00 | Z: 0.00</div>
 
@@ -94,6 +94,7 @@
         scene.fog = new THREE.Fog(0x87ceeb, 10, 300); 
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        // 设置初始位置
         camera.position.set(2, 1.25, 15); 
         camera.rotation.order = 'YXZ'; 
 
@@ -113,12 +114,14 @@
 
         const objLoader = new THREE.OBJLoader();
         const loadingUI = document.getElementById('loading');
+        const statusUI = document.getElementById('ui');
         const mapUrl = 'de_dust2.obj'; 
 
         objLoader.load(
             mapUrl,
             function (object) {
                 loadingUI.style.display = 'none';
+                statusUI.innerText = "地图已加载，物理引擎就绪！";
                 
                 const sandMaterial = new THREE.MeshStandardMaterial({ 
                     color: 0xd2b48c, roughness: 0.9, side: THREE.DoubleSide 
@@ -169,7 +172,7 @@
         
         function handleJump(e) {
             e.preventDefault(); 
-            if (isGrounded) {
+            if (isGrounded && mapMesh) { // 没地图不准跳
                 yVelocity = jumpStrength;
                 isGrounded = false;
             }
@@ -181,6 +184,7 @@
         let touches = { left: null, right: null };
         let isShooting = false;
 
+        // ... 省略中间的摇杆控制逻辑，保持不变 ...
         document.addEventListener('touchstart', (e) => {
             if(e.target.tagName === 'BUTTON') return; 
             for (let t of e.changedTouches) {
@@ -201,15 +205,12 @@
                 if (touches.left && t.identifier === touches.left.id) {
                     let deltaX = t.clientX - touches.left.startX;
                     let deltaY = t.clientY - touches.left.startY;
-
                     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
                     if (distance > joyMaxRadius) {
                         deltaX = (deltaX / distance) * joyMaxRadius;
                         deltaY = (deltaY / distance) * joyMaxRadius;
                     }
-
                     joyStick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
-
                     moveInput.x = (deltaX / joyMaxRadius) * 0.15;
                     moveInput.y = (deltaY / joyMaxRadius) * 0.15;
                 }
@@ -226,9 +227,7 @@
         document.addEventListener('touchend', (e) => {
             for (let t of e.changedTouches) {
                 if (touches.left && t.identifier === touches.left.id) { 
-                    touches.left = null; 
-                    moveInput = { x: 0, y: 0 }; 
-                    joyBase.style.display = 'none';
+                    touches.left = null; moveInput = { x: 0, y: 0 }; joyBase.style.display = 'none';
                 }
                 if (touches.right && t.identifier === touches.right.id) {
                     if (touches.right.isTap) shoot();
@@ -247,21 +246,17 @@
             setTimeout(() => { isShooting = false; }, 150);
         }
 
-        // 🟢 修复1：加粗玩家体积，防止轻易从边缘掉落
         function checkCollision(startPos, endPos) {
             if (!mapMesh) return false; 
             const currentY = camera.position.y;
-            const checkStart = startPos.clone(); 
-            checkStart.y = currentY - 0.5; // 在腰部高度进行碰撞检测，避免被楼梯绊住
-            const checkEnd = endPos.clone(); 
-            checkEnd.y = currentY - 0.5;
+            const checkStart = startPos.clone(); checkStart.y = currentY - 0.5;
+            const checkEnd = endPos.clone(); checkEnd.y = currentY - 0.5;
             const direction = new THREE.Vector3().subVectors(checkEnd, checkStart);
             const distance = direction.length();
             if (distance === 0) return false;
             direction.normalize(); 
             raycaster.set(checkStart, direction);
             const intersects = raycaster.intersectObject(mapMesh, true);
-            // 将判定距离从 0.2 加大到 0.4，相当于玩家变成了一个稍胖的圆柱体
             if (intersects.length > 0 && intersects[0].distance < distance + 0.4) return true; 
             return false; 
         }
@@ -269,7 +264,14 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            // 虚空安全网（掉下去自动重生）
+            // 🟢 关键修复：如果地图没加载完，强行重置位置和速度，防止偷跑
+            if (!mapMesh) {
+                camera.position.set(2, 1.25, 15);
+                yVelocity = 0;
+                renderer.render(scene, camera);
+                return; 
+            }
+
             if (camera.position.y < -10) {
                 camera.position.set(2, 1.25, 15);
                 yVelocity = 0;
@@ -279,67 +281,48 @@
 
             if (touches.left) {
                 let oldPosition = camera.position.clone();
-
                 camera.translateZ(moveInput.y);
                 if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
-                
                 oldPosition = camera.position.clone();
-
                 camera.translateX(moveInput.x);
                 if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
             }
 
+            // 物理计算
             yVelocity += gravity;
             camera.position.y += yVelocity;
 
-            // 🟢 修复2：智能重力与地板检测逻辑
-            if (mapMesh) {
-                const rayOrigin = camera.position.clone();
-                // 抬高射线起点，保证走下陡坡时依然能扫到地面
-                rayOrigin.y += 1.5; 
-                downRaycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
-                const intersects = downRaycaster.intersectObject(mapMesh, true);
-                
-                let onGround = false;
-
-                if (intersects.length > 0) {
-                    let groundIntersect = null;
-                    
-                    // 核心过滤：遍历所有碰撞到的面，忽略垂直的墙壁，只找朝上的地板/斜坡
-                    for (let i = 0; i < intersects.length; i++) {
-                        // normal.y > 0.1 代表这是一个斜坡或者平地，而不是完全直立的墙壁
-                        if (intersects[i].face && intersects[i].face.normal.y > 0.1) {
-                            groundIntersect = intersects[i];
-                            break; 
-                        }
-                    }
-
-                    if (groundIntersect) {
-                        const groundHeight = groundIntersect.point.y;
-                        const targetY = groundHeight + 1.25; // 加上玩家身高
-                        
-                        // 防飞天：不允许瞬间吸附到比头顶还高的地方
-                        if (targetY <= camera.position.y + 1.2) {
-                            // 落地判定：如果相机的Y坐标即将低于或等于目标地板高度
-                            if (camera.position.y <= targetY) {
-                                // 稍微加快吸附速度，让你在斜坡上走得更稳
-                                camera.position.y += (targetY - camera.position.y) * 0.5; 
-                                isGrounded = true;
-                                onGround = true;
-                                if (yVelocity < 0) yVelocity = 0; 
-                            }
-                        }
+            const rayOrigin = camera.position.clone();
+            rayOrigin.y += 1.5; 
+            downRaycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
+            const intersects = downRaycaster.intersectObject(mapMesh, true);
+            
+            let onGround = false;
+            if (intersects.length > 0) {
+                let groundIntersect = null;
+                for (let i = 0; i < intersects.length; i++) {
+                    if (intersects[i].face && intersects[i].face.normal.y > 0.1) {
+                        groundIntersect = intersects[i];
+                        break; 
                     }
                 }
-                
-                // 如果没有检测到任何合法的地板面，说明玩家真的悬空了
-                if (!onGround) {
-                    isGrounded = false;
+
+                if (groundIntersect) {
+                    const groundHeight = groundIntersect.point.y;
+                    const targetY = groundHeight + 1.25; 
+                    if (targetY <= camera.position.y + 1.2) {
+                        if (camera.position.y <= targetY) {
+                            camera.position.y += (targetY - camera.position.y) * 0.5; 
+                            isGrounded = true;
+                            onGround = true;
+                            if (yVelocity < 0) yVelocity = 0; 
+                        }
+                    }
                 }
             }
+            if (!onGround) isGrounded = false;
 
             coordsDisplay.innerText = `X: ${camera.position.x.toFixed(1)} | Z: ${camera.position.z.toFixed(1)}`;
-
             renderer.render(scene, camera);
         }
 
