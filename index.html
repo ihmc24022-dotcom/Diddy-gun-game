@@ -80,12 +80,15 @@
                     }
                 });
 
-                // ⚠️ 缩放比例 (Scale)：真实的 CSGO 地图极其巨大，需要缩小。
-                // 如果进去发现满屏灰色卡住了，把这里的数字改得更小 (比如 0.01)
-                // 如果感觉自己像个巨人，就把数字改大 (比如 0.05)
+                // ⚠️ 缩放比例
                 object.scale.set(0.02, 0.02, 0.02); 
                 
+                // ⚠️ 位置
                 object.position.set(0, 0, 0);
+
+                // 🔄 旋转：让地图沿 Y 轴向右旋转 90 度
+                object.rotation.y = -Math.PI / 2; 
+
                 scene.add(object);
             },
             function (xhr) {
