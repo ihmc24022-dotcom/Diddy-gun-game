@@ -14,7 +14,6 @@
         
         #ui { position: fixed; top: 10px; left: 10px; color: white; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 14px; text-shadow: 1px 1px 0 #000; }
         
-        /* 👇 新增：阵营选择按钮的样式 👇 */
         #team-select { position: fixed; top: 50px; left: 10px; z-index: 15; display: flex; gap: 10px; }
         button { padding: 10px 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 5px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         #btn-red { background-color: #d32f2f; }
@@ -27,7 +26,7 @@
     </style>
 </head>
 <body>
-    <div id="ui">实体墙壁已开启，开始跑图！</div>
+    <div id="ui">重力与楼梯系统已开启！试试走上 A 大或中路斜坡</div>
     
     <div id="team-select">
         <button id="btn-red">加入红队 (T)</button>
@@ -47,8 +46,6 @@
         scene.fog = new THREE.Fog(0x87ceeb, 10, 300); 
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-        
-        // 默认出生在蓝队 (CT) 的位置
         camera.position.set(2, 1.25, 15); 
         camera.rotation.order = 'YXZ'; 
 
@@ -63,7 +60,11 @@
         scene.add(dirLight);
 
         let mapMesh = null;
+        
+        // 📡 两个雷达：一个看前面有没有墙，一个看脚下有没有地
         const raycaster = new THREE.Raycaster();
+        const downRaycaster = new THREE.Raycaster(); 
+
         const objLoader = new THREE.OBJLoader();
         const loadingUI = document.getElementById('loading');
         const mapUrl = 'de_dust2.obj'; 
@@ -106,13 +107,12 @@
         camera.add(gunGroup);
         scene.add(camera);
 
-        // 👇 阵营传送功能 👇
+        // 阵营传送
         document.getElementById('btn-red').addEventListener('click', () => {
-            camera.position.set(38, 1.25, 55); // 传送到红队坐标
+            camera.position.set(38, 1.25, 55); 
         });
-        
         document.getElementById('btn-blue').addEventListener('click', () => {
-            camera.position.set(2, 1.25, 15);  // 传送到蓝队坐标
+            camera.position.set(2, 1.25, 15);  
         });
 
         // 触控系统
@@ -121,9 +121,7 @@
         let isShooting = false;
 
         document.addEventListener('touchstart', (e) => {
-            // 如果点击的是按钮，不要触发视角转动
             if(e.target.tagName === 'BUTTON') return; 
-
             for (let t of e.changedTouches) {
                 if (t.clientX < window.innerWidth / 2) touches.left = { id: t.identifier, startX: t.clientX, startY: t.clientY };
                 else touches.right = { id: t.identifier, lastX: t.clientX, lastY: t.clientY, isTap: true };
@@ -166,17 +164,24 @@
             setTimeout(() => { isShooting = false; }, 150);
         }
 
-        // 碰撞检测雷达
+        // 🛑 修改点 1：调整水平防撞雷达的高度
         function checkCollision(startPos, endPos) {
             if (!mapMesh) return false; 
-            const checkStart = startPos.clone(); checkStart.y = 0.5; 
-            const checkEnd = endPos.clone(); checkEnd.y = 0.5;
+            
+            // 把检测高度提升到胸口/眼睛的高度 (即摄像机的高度)，而不是膝盖
+            // 这样矮小的台阶就不会触发“撞墙检测”了！
+            const currentY = camera.position.y;
+            const checkStart = startPos.clone(); checkStart.y = currentY; 
+            const checkEnd = endPos.clone(); checkEnd.y = currentY;
+            
             const direction = new THREE.Vector3().subVectors(checkEnd, checkStart);
             const distance = direction.length();
             if (distance === 0) return false;
+            
             direction.normalize(); 
             raycaster.set(checkStart, direction);
             const intersects = raycaster.intersectObject(mapMesh, true);
+            
             if (intersects.length > 0 && intersects[0].distance < distance + 0.2) return true; 
             return false; 
         }
@@ -193,16 +198,31 @@
                 let oldPosition = camera.position.clone();
 
                 camera.translateZ(speedY);
-                // 👇 物理碰撞已恢复！ 👇
                 if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
                 
                 oldPosition = camera.position.clone();
 
                 camera.translateX(speedX);
-                // 👇 物理碰撞已恢复！ 👇
                 if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
+            }
 
-                camera.position.y = 1.25; 
+            // 🛑 修改点 2：新增“上下楼与重力系统”
+            if (mapMesh) {
+                // 从玩家头顶偏上一点的位置，垂直向下发射射线
+                const rayOrigin = camera.position.clone();
+                rayOrigin.y += 1.0; 
+                
+                downRaycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
+                const intersects = downRaycaster.intersectObject(mapMesh, true);
+                
+                if (intersects.length > 0) {
+                    // intersects[0].point.y 就是脚下真正地面的高度
+                    const groundHeight = intersects[0].point.y;
+                    const targetY = groundHeight + 1.25; // 目标高度 = 地面 + 身高(1.25)
+                    
+                    // 使用 lerp (线性插值) 平滑移动，防止上下楼梯时画面疯狂抖动让你晕 3D
+                    camera.position.y += (targetY - camera.position.y) * 0.3;
+                }
             }
 
             renderer.render(scene, camera);
