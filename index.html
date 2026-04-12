@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - Dust 2</title>
+    <title>Web CSGO - Dust 2 (Mini Player)</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -40,7 +40,9 @@
         scene.fog = new THREE.Fog(0x87ceeb, 10, 300); 
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-        camera.position.set(0, 5, 0); 
+        
+        // 👇👇👇 修改点 1：出生点高度从 5 改成 1.25 (缩小到 1/4) 👇👇👇
+        camera.position.set(0, 1.25, 0); 
         camera.rotation.order = 'YXZ'; 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -58,7 +60,7 @@
         // --- 3. 核心：加载 de_dust2.obj 地图 ---
         const objLoader = new THREE.OBJLoader();
         const loadingUI = document.getElementById('loading');
-        const mapUrl = 'de_dust2.obj'; // 确保这里是你上传的文件名
+        const mapUrl = 'de_dust2.obj'; 
 
         objLoader.load(
             mapUrl,
@@ -78,13 +80,11 @@
                     }
                 });
 
-                // 缩放比例
+                // 地图缩放比例保持不变
                 object.scale.set(0.02, 0.02, 0.02); 
-                
-                // 位置
                 object.position.set(0, 0, 0);
 
-                // 👇👇👇 核心修改：让地图在 X 轴上躺平 👇👇👇
+                // 让地图在 X 轴上躺平
                 object.rotation.x = -Math.PI / 2; 
 
                 scene.add(object);
@@ -128,6 +128,7 @@
         document.addEventListener('touchmove', (e) => {
             for (let t of e.changedTouches) {
                 if (touches.left && t.identifier === touches.left.id) {
+                    // 摇杆输入灵敏度
                     moveInput.x = (t.clientX - touches.left.startX) * 0.02;
                     moveInput.y = (t.clientY - touches.left.startY) * 0.02;
                 }
@@ -169,12 +170,14 @@
             if (!isShooting) gunMesh.position.z += (-0.5 - gunMesh.position.z) * 0.2;
 
             if (touches.left) {
-                const speedX = Math.max(-0.4, Math.min(0.4, moveInput.x));
-                const speedY = Math.max(-0.4, Math.min(0.4, moveInput.y));
+                // 👇👇👇 修改点 2：把最大移动速度从 0.4 降到 0.15，匹配缩小后的身体 👇👇👇
+                const speedX = Math.max(-0.15, Math.min(0.15, moveInput.x));
+                const speedY = Math.max(-0.15, Math.min(0.15, moveInput.y));
                 camera.translateZ(speedY);
                 camera.translateX(speedX);
-                // 这里固定了摄像机高度，如果进入后视角太低或太高，调整这里的数字
-                camera.position.y = 5; 
+                
+                // 👇👇👇 修改点 3：行走时强制保持的摄像机高度，从 5 改成 1.25 👇👇👇
+                camera.position.y = 1.25; 
             }
 
             renderer.render(scene, camera);
