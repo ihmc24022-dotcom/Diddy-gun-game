@@ -66,7 +66,7 @@
     </style>
 </head>
 <body>
-    <div id="ui">跳跃力度已调整为 0.15！</div>
+    <div id="ui">已修复飞天与掉入虚空的BUG！</div>
     
     <div id="coords-display">X: 0.00 | Z: 0.00</div>
 
@@ -152,8 +152,8 @@
         camera.add(gunGroup);
         scene.add(camera);
 
-        document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(11, 1.25, 4); });
-        document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(2, 1.25, 15); });
+        document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(11, 1.25, 4); yVelocity = 0; });
+        document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(2, 1.25, 15); yVelocity = 0; });
 
         const joyBase = document.getElementById('joystick-base');
         const joyStick = document.getElementById('joystick-stick');
@@ -163,7 +163,6 @@
         let yVelocity = 0; 
         let isGrounded = false;
         const gravity = -0.012; 
-        // 👇 这里已按要求将跳跃力度修改为了 0.15 👇
         const jumpStrength = 0.15; 
 
         const btnJump = document.getElementById('btn-jump');
@@ -266,6 +265,12 @@
         function animate() {
             requestAnimationFrame(animate);
 
+            // 👇 新增：虚空安全网。如果你掉出地图下方，自动复活到蓝队出生点 👇
+            if (camera.position.y < -10) {
+                camera.position.set(2, 1.25, 15);
+                yVelocity = 0;
+            }
+
             if (!isShooting) gunMesh.position.z += (-0.5 - gunMesh.position.z) * 0.2;
 
             if (touches.left) {
@@ -285,7 +290,8 @@
 
             if (mapMesh) {
                 const rayOrigin = camera.position.clone();
-                rayOrigin.y += 2.0; 
+                // 👇 优化：将射线起始点从头顶降低到腰部附近，避免扫到太高的墙顶导致“飞天” 👇
+                rayOrigin.y += 0.5; 
                 downRaycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
                 const intersects = downRaycaster.intersectObject(mapMesh, true);
                 
@@ -293,13 +299,21 @@
                     const groundHeight = intersects[0].point.y;
                     const targetY = groundHeight + 1.25; 
                     
-                    if (camera.position.y <= targetY) {
-                        camera.position.y += (targetY - camera.position.y) * 0.4; 
-                        isGrounded = true;
-                        if (yVelocity < 0) yVelocity = 0; 
+                    // 👇 优化：防飞天限制。只有当检测到的高度低于你的腰部（相对高度<1.0）时，才认为是真正的地面 👇
+                    if (targetY <= camera.position.y + 1.0) {
+                        if (camera.position.y <= targetY) {
+                            camera.position.y += (targetY - camera.position.y) * 0.4; 
+                            isGrounded = true;
+                            if (yVelocity < 0) yVelocity = 0; 
+                        } else {
+                            isGrounded = false;
+                        }
                     } else {
+                        // 检测到的地方太高，说明贴脸扫到墙壁了，当做悬空处理，不进行强制拉扯
                         isGrounded = false;
                     }
+                } else {
+                    isGrounded = false; // 没扫到地图，重力生效继续下落
                 }
             }
 
