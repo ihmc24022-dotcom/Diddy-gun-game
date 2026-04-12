@@ -36,42 +36,40 @@
     <script>
         // --- 1. 初始化 3D 场景 ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb); // 天蓝色背景
-        scene.fog = new THREE.Fog(0x87ceeb, 10, 300); // 距离太远的加上雾气，节省性能
+        scene.background = new THREE.Color(0x87ceeb); 
+        scene.fog = new THREE.Fog(0x87ceeb, 10, 300); 
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-        camera.position.set(0, 5, 0); // 出生点稍微高一点，防止卡在地里
+        camera.position.set(0, 5, 0); 
         camera.rotation.order = 'YXZ'; 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. 增强光照 (让没有贴图的灰模也能看清轮廓) ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); // 全局泛光
+        // --- 2. 增强光照 ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); 
         scene.add(ambientLight);
         
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); // 模拟太阳光
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); 
         dirLight.position.set(100, 200, 50);
         scene.add(dirLight);
 
         // --- 3. 核心：加载 de_dust2.obj 地图 ---
         const objLoader = new THREE.OBJLoader();
         const loadingUI = document.getElementById('loading');
-        const mapUrl = 'de_dust2.obj'; // 你的地图文件名
+        const mapUrl = 'de_dust2.obj'; // 确保这里是你上传的文件名
 
         objLoader.load(
             mapUrl,
             function (object) {
-                // 加载成功后隐藏提示字
                 loadingUI.style.display = 'none';
                 document.getElementById('ui').innerText = "Dust 2 加载完毕！| 左侧移动，右侧看/射击";
 
-                // 给整个地图刷上一层类似沙子的颜色
                 const sandMaterial = new THREE.MeshStandardMaterial({ 
                     color: 0xd2b48c, 
                     roughness: 0.9,
-                    side: THREE.DoubleSide // 双面渲染，防止有些墙壁是从反面看的
+                    side: THREE.DoubleSide 
                 });
 
                 object.traverse(function (child) {
@@ -80,14 +78,14 @@
                     }
                 });
 
-                // ⚠️ 缩放比例
+                // 缩放比例
                 object.scale.set(0.02, 0.02, 0.02); 
                 
-                // ⚠️ 位置
+                // 位置
                 object.position.set(0, 0, 0);
 
-                // 🔄 旋转：让地图沿 Y 轴向右旋转 90 度
-                object.rotation.y = -Math.PI / 2; 
+                // 👇👇👇 核心修改：让地图在 X 轴上躺平 👇👇👇
+                object.rotation.x = -Math.PI / 2; 
 
                 scene.add(object);
             },
@@ -130,7 +128,6 @@
         document.addEventListener('touchmove', (e) => {
             for (let t of e.changedTouches) {
                 if (touches.left && t.identifier === touches.left.id) {
-                    // 控制移速
                     moveInput.x = (t.clientX - touches.left.startX) * 0.02;
                     moveInput.y = (t.clientY - touches.left.startY) * 0.02;
                 }
@@ -169,23 +166,20 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            // 枪械后坐力恢复
             if (!isShooting) gunMesh.position.z += (-0.5 - gunMesh.position.z) * 0.2;
 
-            // 移动计算
             if (touches.left) {
                 const speedX = Math.max(-0.4, Math.min(0.4, moveInput.x));
                 const speedY = Math.max(-0.4, Math.min(0.4, moveInput.y));
                 camera.translateZ(speedY);
                 camera.translateX(speedX);
-                // 保持视角在固定高度，如果太矮可以把这里的 5 改大
+                // 这里固定了摄像机高度，如果进入后视角太低或太高，调整这里的数字
                 camera.position.y = 5; 
             }
 
             renderer.render(scene, camera);
         }
 
-        // 适配屏幕翻转
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
