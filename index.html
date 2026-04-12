@@ -21,16 +21,46 @@
         #btn-red:active { background-color: #b71c1c; }
         #btn-blue:active { background-color: #0d47a1; }
 
+        /* 👇 新增：摇杆 UI 样式 👇 */
+        #joystick-base {
+            position: fixed;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none; /* 让触摸事件穿透到底层 */
+            display: none; /* 默认隐藏 */
+            z-index: 30;
+        }
+        #joystick-stick {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+
         #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 20; pointer-events: none; text-shadow: 2px 2px 4px #000; }
         #muzzle-flash { position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
     </style>
 </head>
 <body>
-    <div id="ui">重力与楼梯系统已开启！试试走上 A 大或中路斜坡</div>
+    <div id="ui">动态摇杆已加入！触摸屏幕左半边试试看。</div>
     
     <div id="team-select">
         <button id="btn-red">加入红队 (T)</button>
         <button id="btn-blue">加入蓝队 (CT)</button>
+    </div>
+
+    <div id="joystick-base">
+        <div id="joystick-stick"></div>
     </div>
 
     <div id="loading">Map Loading 0%</div>
@@ -60,8 +90,6 @@
         scene.add(dirLight);
 
         let mapMesh = null;
-        
-        // 📡 两个雷达：一个看前面有没有墙，一个看脚下有没有地
         const raycaster = new THREE.Raycaster();
         const downRaycaster = new THREE.Raycaster(); 
 
@@ -96,7 +124,6 @@
             function (error) { loadingUI.innerText = '加载失败!'; loadingUI.style.color = 'red'; }
         );
 
-        // 武器系统
         const gunGroup = new THREE.Group();
         const gunMesh = new THREE.Mesh(
             new THREE.BoxGeometry(0.1, 0.15, 0.6),
@@ -107,15 +134,14 @@
         camera.add(gunGroup);
         scene.add(camera);
 
-        // 阵营传送
-        document.getElementById('btn-red').addEventListener('click', () => {
-            camera.position.set(38, 1.25, 55); 
-        });
-        document.getElementById('btn-blue').addEventListener('click', () => {
-            camera.position.set(2, 1.25, 15);  
-        });
+        document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(38, 1.25, 55); });
+        document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(2, 1.25, 15); });
 
-        // 触控系统
+        // 获取摇杆的 HTML 元素
+        const joyBase = document.getElementById('joystick-base');
+        const joyStick = document.getElementById('joystick-stick');
+        const joyMaxRadius = 50; // 摇杆最大可拉动距离（100px直径的一半）
+
         let moveInput = { x: 0, y: 0 };
         let touches = { left: null, right: null };
         let isShooting = false;
@@ -123,16 +149,41 @@
         document.addEventListener('touchstart', (e) => {
             if(e.target.tagName === 'BUTTON') return; 
             for (let t of e.changedTouches) {
-                if (t.clientX < window.innerWidth / 2) touches.left = { id: t.identifier, startX: t.clientX, startY: t.clientY };
-                else touches.right = { id: t.identifier, lastX: t.clientX, lastY: t.clientY, isTap: true };
+                if (t.clientX < window.innerWidth / 2) {
+                    touches.left = { id: t.identifier, startX: t.clientX, startY: t.clientY };
+                    // 👇 显示摇杆，并把它放到你手指按下的位置 👇
+                    joyBase.style.display = 'block';
+                    joyBase.style.left = t.clientX + 'px';
+                    joyBase.style.top = t.clientY + 'px';
+                    joyStick.style.transform = `translate(-50%, -50%)`;
+                } else {
+                    touches.right = { id: t.identifier, lastX: t.clientX, lastY: t.clientY, isTap: true };
+                }
             }
         });
 
         document.addEventListener('touchmove', (e) => {
             for (let t of e.changedTouches) {
                 if (touches.left && t.identifier === touches.left.id) {
-                    moveInput.x = (t.clientX - touches.left.startX) * 0.02;
-                    moveInput.y = (t.clientY - touches.left.startY) * 0.02;
+                    // 👇 计算手指拉动的距离 👇
+                    let deltaX = t.clientX - touches.left.startX;
+                    let deltaY = t.clientY - touches.left.startY;
+
+                    // 计算拉动的直线距离（勾股定理）
+                    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    
+                    // 如果拉得太远，把小球限制在底座的圆圈内
+                    if (distance > joyMaxRadius) {
+                        deltaX = (deltaX / distance) * joyMaxRadius;
+                        deltaY = (deltaY / distance) * joyMaxRadius;
+                    }
+
+                    // 移动 UI 摇杆的小球
+                    joyStick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
+
+                    // 把摇杆的偏移转换成游戏里的移动速度 (最大速度设定为 0.15)
+                    moveInput.x = (deltaX / joyMaxRadius) * 0.15;
+                    moveInput.y = (deltaY / joyMaxRadius) * 0.15;
                 }
                 if (touches.right && t.identifier === touches.right.id) {
                     touches.right.isTap = false; 
@@ -146,7 +197,12 @@
 
         document.addEventListener('touchend', (e) => {
             for (let t of e.changedTouches) {
-                if (touches.left && t.identifier === touches.left.id) { touches.left = null; moveInput = { x: 0, y: 0 }; }
+                if (touches.left && t.identifier === touches.left.id) { 
+                    touches.left = null; 
+                    moveInput = { x: 0, y: 0 }; 
+                    // 👇 手指松开，隐藏摇杆 👇
+                    joyBase.style.display = 'none';
+                }
                 if (touches.right && t.identifier === touches.right.id) {
                     if (touches.right.isTap) shoot();
                     touches.right = null;
@@ -164,24 +220,17 @@
             setTimeout(() => { isShooting = false; }, 150);
         }
 
-        // 🛑 修改点 1：调整水平防撞雷达的高度
         function checkCollision(startPos, endPos) {
             if (!mapMesh) return false; 
-            
-            // 把检测高度提升到胸口/眼睛的高度 (即摄像机的高度)，而不是膝盖
-            // 这样矮小的台阶就不会触发“撞墙检测”了！
             const currentY = camera.position.y;
             const checkStart = startPos.clone(); checkStart.y = currentY; 
             const checkEnd = endPos.clone(); checkEnd.y = currentY;
-            
             const direction = new THREE.Vector3().subVectors(checkEnd, checkStart);
             const distance = direction.length();
             if (distance === 0) return false;
-            
             direction.normalize(); 
             raycaster.set(checkStart, direction);
             const intersects = raycaster.intersectObject(mapMesh, true);
-            
             if (intersects.length > 0 && intersects[0].distance < distance + 0.2) return true; 
             return false; 
         }
@@ -192,35 +241,27 @@
             if (!isShooting) gunMesh.position.z += (-0.5 - gunMesh.position.z) * 0.2;
 
             if (touches.left) {
-                const speedX = Math.max(-0.15, Math.min(0.15, moveInput.x));
-                const speedY = Math.max(-0.15, Math.min(0.15, moveInput.y));
-                
+                // 因为摇杆已经做好了限速，所以直接读取 moveInput 即可
                 let oldPosition = camera.position.clone();
 
-                camera.translateZ(speedY);
+                camera.translateZ(moveInput.y);
                 if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
                 
                 oldPosition = camera.position.clone();
 
-                camera.translateX(speedX);
+                camera.translateX(moveInput.x);
                 if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
             }
 
-            // 🛑 修改点 2：新增“上下楼与重力系统”
             if (mapMesh) {
-                // 从玩家头顶偏上一点的位置，垂直向下发射射线
                 const rayOrigin = camera.position.clone();
                 rayOrigin.y += 1.0; 
-                
                 downRaycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
                 const intersects = downRaycaster.intersectObject(mapMesh, true);
                 
                 if (intersects.length > 0) {
-                    // intersects[0].point.y 就是脚下真正地面的高度
                     const groundHeight = intersects[0].point.y;
-                    const targetY = groundHeight + 1.25; // 目标高度 = 地面 + 身高(1.25)
-                    
-                    // 使用 lerp (线性插值) 平滑移动，防止上下楼梯时画面疯狂抖动让你晕 3D
+                    const targetY = groundHeight + 1.25; 
                     camera.position.y += (targetY - camera.position.y) * 0.3;
                 }
             }
