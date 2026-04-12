@@ -41,7 +41,6 @@
         #joystick-base { position: fixed; width: 100px; height: 100px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 30; }
         #joystick-stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: rgba(0, 0, 0, 0.9); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px rgba(0,0,0,0.8); pointer-events: none; }
 
-        /* 👇 新增：跳跃按钮样式 👇 */
         #btn-jump {
             position: fixed;
             bottom: 40px;
@@ -58,7 +57,7 @@
             cursor: pointer;
             user-select: none;
             -webkit-user-select: none;
-            touch-action: manipulation; /* 优化触摸体验 */
+            touch-action: manipulation; 
         }
         #btn-jump:active { background: rgba(255, 255, 255, 0.3); }
 
@@ -67,7 +66,7 @@
     </style>
 </head>
 <body>
-    <div id="ui">加入了真实的重力与跳跃功能！</div>
+    <div id="ui">Jump strength adjusted to 0.15!</div>
     
     <div id="coords-display">X: 0.00 | Z: 0.00</div>
 
@@ -161,25 +160,23 @@
         const coordsDisplay = document.getElementById('coords-display'); 
         const joyMaxRadius = 50; 
 
-        // 👇 新增：跳跃与重力物理变量 👇
         let yVelocity = 0; 
         let isGrounded = false;
-        const gravity = -0.012; // 重力加速度
-        const jumpStrength = 0.22; // 跳跃力度
+        const gravity = -0.012; 
+        // 👇 Changed this from 0.22 to 0.15 as requested 👇
+        const jumpStrength = 0.15; 
 
-        // 监听跳跃按钮点击
         const btnJump = document.getElementById('btn-jump');
         
         function handleJump(e) {
             e.preventDefault(); 
-            // 只有在地面上才能起跳
             if (isGrounded) {
                 yVelocity = jumpStrength;
                 isGrounded = false;
             }
         }
         btnJump.addEventListener('touchstart', handleJump);
-        btnJump.addEventListener('mousedown', handleJump); // 兼容电脑鼠标点击
+        btnJump.addEventListener('mousedown', handleJump); 
 
         let moveInput = { x: 0, y: 0 };
         let touches = { left: null, right: null };
@@ -283,12 +280,10 @@
                 if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
             }
 
-            // 👇 新增：每帧应用物理重力 👇
             yVelocity += gravity;
             camera.position.y += yVelocity;
 
             if (mapMesh) {
-                // 从头顶略高处往下发射探测射线
                 const rayOrigin = camera.position.clone();
                 rayOrigin.y += 2.0; 
                 downRaycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
@@ -298,14 +293,11 @@
                     const groundHeight = intersects[0].point.y;
                     const targetY = groundHeight + 1.25; 
                     
-                    // 当玩家处于地面以下，或者即将接触地面时
                     if (camera.position.y <= targetY) {
-                        // 平滑地将玩家贴合到地面/楼梯上
                         camera.position.y += (targetY - camera.position.y) * 0.4; 
                         isGrounded = true;
-                        if (yVelocity < 0) yVelocity = 0; // 停止下落
+                        if (yVelocity < 0) yVelocity = 0; 
                     } else {
-                        // 玩家在空中
                         isGrounded = false;
                     }
                 }
