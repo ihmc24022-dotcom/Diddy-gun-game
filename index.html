@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - Dust 2 (Collision)</title>
+    <title>Web CSGO - Dust 2 (GPS Mode)</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -12,12 +12,17 @@
         #crosshair::before { top: -8px; left: 1px; width: 2px; height: 20px; }
         #crosshair::after { left: -8px; top: 1px; width: 20px; height: 2px; }
         #ui { position: fixed; top: 10px; left: 10px; color: white; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 14px; text-shadow: 1px 1px 0 #000; }
+        
+        /* 👇 新增：GPS 坐标显示器 👇 */
+        #coords { position: fixed; top: 40px; left: 10px; color: #ff4444; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.8); padding: 5px 10px; border-radius: 5px; font-size: 14px; font-weight: bold; font-family: monospace; }
+        
         #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 20; pointer-events: none; text-shadow: 2px 2px 4px #000; }
         #muzzle-flash { position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
     </style>
 </head>
 <body>
-    <div id="ui">正在召唤有实体墙壁的 de_dust2...</div>
+    <div id="ui">【幽灵找点模式】穿墙找到好位置，记下坐标！</div>
+    <div id="coords">X: 0.00 | Y: 1.25 | Z: 0.00</div>
     <div id="loading">Map Loading 0%</div>
     <div id="crosshair"></div>
     <div id="muzzle-flash"></div>
@@ -31,6 +36,9 @@
         scene.fog = new THREE.Fog(0x87ceeb, 10, 300); 
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        
+        // 🎯 目标修改点：找到满意的坐标后，把数字填进这里
+        // 如果你觉得出生点太矮或太高，可以调整中间的 Y 值 (目前是 1.25)
         camera.position.set(0, 1.25, 0); 
         camera.rotation.order = 'YXZ'; 
 
@@ -40,15 +48,12 @@
 
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); 
         scene.add(ambientLight);
-        
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); 
         dirLight.position.set(100, 200, 50);
         scene.add(dirLight);
 
-        // 👇 增加两个全局变量，用来装“地图物理实体”和“碰撞雷达”
         let mapMesh = null;
         const raycaster = new THREE.Raycaster();
-
         const objLoader = new THREE.OBJLoader();
         const loadingUI = document.getElementById('loading');
         const mapUrl = 'de_dust2.obj'; 
@@ -57,14 +62,10 @@
             mapUrl,
             function (object) {
                 loadingUI.style.display = 'none';
-                document.getElementById('ui').innerText = "加载完毕！现在你无法穿墙了";
-
+                
                 const sandMaterial = new THREE.MeshStandardMaterial({ 
-                    color: 0xd2b48c, 
-                    roughness: 0.9,
-                    side: THREE.DoubleSide 
+                    color: 0xd2b48c, roughness: 0.9, side: THREE.DoubleSide 
                 });
-
                 object.traverse(function (child) {
                     if (child.isMesh) child.material = sandMaterial;
                 });
@@ -74,23 +75,16 @@
                 object.rotation.x = -Math.PI / 2; 
 
                 scene.add(object);
-                
-                // 👇 把加载好的地图存起来，作为碰撞检测的目标
                 mapMesh = object; 
             },
             function (xhr) {
                 if (xhr.lengthComputable) {
-                    const percentComplete = xhr.loaded / xhr.total * 100;
-                    loadingUI.innerText = '加载骨架 ' + Math.round(percentComplete) + '%';
+                    loadingUI.innerText = '加载骨架 ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
                 }
             },
-            function (error) {
-                loadingUI.innerText = '加载失败!';
-                loadingUI.style.color = 'red';
-            }
+            function (error) { loadingUI.innerText = '加载失败!'; loadingUI.style.color = 'red'; }
         );
 
-        // 武器系统
         const gunGroup = new THREE.Group();
         const gunMesh = new THREE.Mesh(
             new THREE.BoxGeometry(0.1, 0.15, 0.6),
@@ -101,7 +95,6 @@
         camera.add(gunGroup);
         scene.add(camera);
 
-        // 触控系统
         let moveInput = { x: 0, y: 0 };
         let touches = { left: null, right: null };
         let isShooting = false;
@@ -149,69 +142,52 @@
             setTimeout(() => { isShooting = false; }, 150);
         }
 
-        // 👇 核心：碰撞检测函数
         function checkCollision(startPos, endPos) {
-            if (!mapMesh) return false; // 如果地图还没加载完，不检测
-            
-            // 把检测高度放在膝盖/腰部 (y = 0.5)，防止被地上的小箱子绊倒
-            const checkStart = startPos.clone();
-            checkStart.y = 0.5; 
-            const checkEnd = endPos.clone();
-            checkEnd.y = 0.5;
-
-            // 计算你要走的方向和距离
+            if (!mapMesh) return false; 
+            const checkStart = startPos.clone(); checkStart.y = 0.5; 
+            const checkEnd = endPos.clone(); checkEnd.y = 0.5;
             const direction = new THREE.Vector3().subVectors(checkEnd, checkStart);
             const distance = direction.length();
             if (distance === 0) return false;
-            
-            direction.normalize(); // 变成单位向量
-            
-            // 像雷达一样发射射线
+            direction.normalize(); 
             raycaster.set(checkStart, direction);
-            
-            // 检查这根射线有没有戳到 mapMesh (地图)
             const intersects = raycaster.intersectObject(mapMesh, true);
-            
-            // 如果撞到了东西，并且距离小于你要走的距离 + 0.2（玩家身体厚度）
-            if (intersects.length > 0 && intersects[0].distance < distance + 0.2) {
-                return true; // 撞墙了！
-            }
-            return false; // 安全！
+            if (intersects.length > 0 && intersects[0].distance < distance + 0.2) return true; 
+            return false; 
         }
 
-        // 游戏主循环
+        const coordsUI = document.getElementById('coords');
+
         function animate() {
             requestAnimationFrame(animate);
 
             if (!isShooting) gunMesh.position.z += (-0.5 - gunMesh.position.z) * 0.2;
 
             if (touches.left) {
-                const speedX = Math.max(-0.15, Math.min(0.15, moveInput.x));
-                const speedY = Math.max(-0.15, Math.min(0.15, moveInput.y));
+                // 加快一点速度方便你找路
+                const speedX = Math.max(-0.4, Math.min(0.4, moveInput.x));
+                const speedY = Math.max(-0.4, Math.min(0.4, moveInput.y));
                 
-                // 记录移动前的位置
                 let oldPosition = camera.position.clone();
 
-                // 1. 先尝试前后移动 (Z轴)
                 camera.translateZ(speedY);
-                if (checkCollision(oldPosition, camera.position)) {
-                    // 如果撞墙了，撤销Z轴的移动
-                    camera.position.copy(oldPosition); 
-                }
+                // ⚠️ 为了方便找出生点，这里暂时关掉了 Z 轴碰撞！
+                // 找到点之后，把下面这行开头的双斜杠删掉：
+                // if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
                 
-                // 更新老位置
                 oldPosition = camera.position.clone();
 
-                // 2. 再尝试左右移动 (X轴)
                 camera.translateX(speedX);
-                if (checkCollision(oldPosition, camera.position)) {
-                    // 如果撞墙了，撤销X轴的移动
-                    camera.position.copy(oldPosition); 
-                }
+                // ⚠️ 为了方便找出生点，这里暂时关掉了 X 轴碰撞！
+                // 找到点之后，把下面这行开头的双斜杠删掉：
+                // if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
 
-                // 强制保持身高，不能飞天或遁地
+                // 强制保持身高
                 camera.position.y = 1.25; 
             }
+
+            // 更新左上角的 GPS 坐标显示
+            coordsUI.innerText = `X: ${camera.position.x.toFixed(2)} | Y: ${camera.position.y.toFixed(2)} | Z: ${camera.position.z.toFixed(2)}`;
 
             renderer.render(scene, camera);
         }
