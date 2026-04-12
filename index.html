@@ -21,17 +21,18 @@
         #btn-red:active { background-color: #b71c1c; }
         #btn-blue:active { background-color: #0d47a1; }
 
-        /* 👇 新增：摇杆 UI 样式 👇 */
+        /* 👇 修改点：黑色摇杆 UI 样式 👇 */
         #joystick-base {
             position: fixed;
             width: 100px;
             height: 100px;
-            background: rgba(255, 255, 255, 0.15);
-            border: 2px solid rgba(255, 255, 255, 0.4);
+            /* 黑色半透明底座 */
+            background: rgba(0, 0, 0, 0.4); 
+            border: 2px solid rgba(0, 0, 0, 0.7);
             border-radius: 50%;
             transform: translate(-50%, -50%);
-            pointer-events: none; /* 让触摸事件穿透到底层 */
-            display: none; /* 默认隐藏 */
+            pointer-events: none;
+            display: none; 
             z-index: 30;
         }
         #joystick-stick {
@@ -40,10 +41,11 @@
             left: 50%;
             width: 40px;
             height: 40px;
-            background: rgba(255, 255, 255, 0.7);
+            /* 深黑色实体小球 */
+            background: rgba(0, 0, 0, 0.9); 
             border-radius: 50%;
             transform: translate(-50%, -50%);
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            box-shadow: 0 0 10px rgba(0,0,0,0.8);
             pointer-events: none;
         }
 
@@ -52,7 +54,7 @@
     </style>
 </head>
 <body>
-    <div id="ui">动态摇杆已加入！触摸屏幕左半边试试看。</div>
+    <div id="ui">黑色动态摇杆已实装！</div>
     
     <div id="team-select">
         <button id="btn-red">加入红队 (T)</button>
@@ -137,10 +139,9 @@
         document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(38, 1.25, 55); });
         document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(2, 1.25, 15); });
 
-        // 获取摇杆的 HTML 元素
         const joyBase = document.getElementById('joystick-base');
         const joyStick = document.getElementById('joystick-stick');
-        const joyMaxRadius = 50; // 摇杆最大可拉动距离（100px直径的一半）
+        const joyMaxRadius = 50; 
 
         let moveInput = { x: 0, y: 0 };
         let touches = { left: null, right: null };
@@ -151,7 +152,6 @@
             for (let t of e.changedTouches) {
                 if (t.clientX < window.innerWidth / 2) {
                     touches.left = { id: t.identifier, startX: t.clientX, startY: t.clientY };
-                    // 👇 显示摇杆，并把它放到你手指按下的位置 👇
                     joyBase.style.display = 'block';
                     joyBase.style.left = t.clientX + 'px';
                     joyBase.style.top = t.clientY + 'px';
@@ -165,23 +165,17 @@
         document.addEventListener('touchmove', (e) => {
             for (let t of e.changedTouches) {
                 if (touches.left && t.identifier === touches.left.id) {
-                    // 👇 计算手指拉动的距离 👇
                     let deltaX = t.clientX - touches.left.startX;
                     let deltaY = t.clientY - touches.left.startY;
 
-                    // 计算拉动的直线距离（勾股定理）
                     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-                    
-                    // 如果拉得太远，把小球限制在底座的圆圈内
                     if (distance > joyMaxRadius) {
                         deltaX = (deltaX / distance) * joyMaxRadius;
                         deltaY = (deltaY / distance) * joyMaxRadius;
                     }
 
-                    // 移动 UI 摇杆的小球
                     joyStick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
 
-                    // 把摇杆的偏移转换成游戏里的移动速度 (最大速度设定为 0.15)
                     moveInput.x = (deltaX / joyMaxRadius) * 0.15;
                     moveInput.y = (deltaY / joyMaxRadius) * 0.15;
                 }
@@ -200,7 +194,6 @@
                 if (touches.left && t.identifier === touches.left.id) { 
                     touches.left = null; 
                     moveInput = { x: 0, y: 0 }; 
-                    // 👇 手指松开，隐藏摇杆 👇
                     joyBase.style.display = 'none';
                 }
                 if (touches.right && t.identifier === touches.right.id) {
@@ -241,7 +234,6 @@
             if (!isShooting) gunMesh.position.z += (-0.5 - gunMesh.position.z) * 0.2;
 
             if (touches.left) {
-                // 因为摇杆已经做好了限速，所以直接读取 moveInput 即可
                 let oldPosition = camera.position.clone();
 
                 camera.translateZ(moveInput.y);
