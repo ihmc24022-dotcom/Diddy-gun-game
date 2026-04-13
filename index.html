@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - Dust 2 FFC976 Edition</title>
+    <title>Web CSGO - Dust 2 FFC976 Edition (USP Added)</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -87,6 +87,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
         const scene = new THREE.Scene();
@@ -115,12 +116,13 @@
         const loadingUI = document.getElementById('loading');
         const mapUrl = 'de_dust2.obj'; 
 
+        // 加载地图
         objLoader.load(
             mapUrl,
             function (object) {
                 loadingUI.style.display = 'none';
                 const sandMaterial = new THREE.MeshStandardMaterial({ 
-                    color: 0xFFC976, // ✅ Updated map color
+                    color: 0xFFC976, 
                     roughness: 0.9, side: THREE.DoubleSide 
                 });
                 object.traverse(function (child) {
@@ -140,15 +142,22 @@
             function (error) { loadingUI.innerText = '加载失败!'; loadingUI.style.color = 'red'; }
         );
 
+        // ✅ 武器加载与设置
         const gunGroup = new THREE.Group();
-        const gunMesh = new THREE.Mesh(
-            new THREE.BoxGeometry(0.1, 0.15, 0.6),
-            new THREE.MeshStandardMaterial({ color: 0x222222 })
-        );
-        gunMesh.position.set(0.3, -0.2, -0.5); 
-        gunGroup.add(gunMesh);
         camera.add(gunGroup);
         scene.add(camera);
+
+        let loadedGunModel = null;
+        let defaultGunZ = -0.4; 
+
+        const gltfLoader = new THREE.GLTFLoader();
+        gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb', function (gltf) {
+            loadedGunModel = gltf.scene;
+            loadedGunModel.scale.set(1.5, 1.5, 1.5); // 调整武器大小
+            loadedGunModel.position.set(0.2, -0.15, defaultGunZ); // 设置武器在相机前的相对位置
+            loadedGunModel.rotation.y = Math.PI; // 让枪口朝前
+            gunGroup.add(loadedGunModel);
+        });
 
         document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(11, 1.25, 4); yVelocity = 0; });
         document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(2, 1.25, 15); yVelocity = 0; });
@@ -234,9 +243,12 @@
 
         const flashUI = document.getElementById('muzzle-flash');
         function shoot() {
-            if (isShooting) return;
+            if (isShooting || !loadedGunModel) return; // 确保模型加载完毕才允许射击
             isShooting = true;
-            gunMesh.position.z = -0.3; 
+            
+            // ✅ 让加载的模型产生后坐力
+            loadedGunModel.position.z = defaultGunZ + 0.08; 
+            
             flashUI.style.opacity = '1';
             setTimeout(() => { flashUI.style.opacity = '0'; }, 50);
             setTimeout(() => { isShooting = false; }, 150);
@@ -266,7 +278,10 @@
                 yVelocity = 0;
             }
 
-            if (!isShooting) gunMesh.position.z += (-0.5 - gunMesh.position.z) * 0.2;
+            // ✅ 枪械后坐力恢复动画
+            if (!isShooting && loadedGunModel) {
+                loadedGunModel.position.z += (defaultGunZ - loadedGunModel.position.z) * 0.2;
+            }
 
             if (touches.left) {
                 let oldPosition = camera.position.clone();
@@ -277,7 +292,6 @@
                 if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
             }
 
-            // 💡 关键改动：只有当地图加载完成后，重力才生效
             if (mapMesh) {
                 yVelocity += gravity;
                 camera.position.y += yVelocity;
