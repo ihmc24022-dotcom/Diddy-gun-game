@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - Dust 2</title>
+    <title>Web CSGO - Dust 2 GLB</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -66,7 +66,7 @@
     </style>
 </head>
 <body>
-    <div id="ui">已恢复经典版本，并优化了初始加载逻辑。</div>
+    <div id="ui">已升级 GLB 引擎，享受高清材质地图！</div>
     
     <div id="coords-display">X: 0.00 | Z: 0.00</div>
 
@@ -86,7 +86,7 @@
     <div id="muzzle-flash"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
         const scene = new THREE.Scene();
@@ -111,23 +111,32 @@
         const raycaster = new THREE.Raycaster();
         const downRaycaster = new THREE.Raycaster(); 
 
-        const objLoader = new THREE.OBJLoader();
+        // 👇 修改：使用 GLTFLoader 加载 GLB 文件 👇
+        const gltfLoader = new THREE.GLTFLoader();
         const loadingUI = document.getElementById('loading');
-        const mapUrl = 'de_dust2.obj'; 
+        const mapUrl = 'de_dust2_-_cs_map.glb'; 
 
-        objLoader.load(
+        gltfLoader.load(
             mapUrl,
-            function (object) {
+            function (gltf) {
                 loadingUI.style.display = 'none';
-                const sandMaterial = new THREE.MeshStandardMaterial({ 
-                    color: 0xd2b48c, roughness: 0.9, side: THREE.DoubleSide 
-                });
+                
+                // GLB 的模型根节点存放在 gltf.scene 里
+                const object = gltf.scene;
+
+                // 我们不再强制覆盖材质，让 GLB 显示它原本华丽的贴图
                 object.traverse(function (child) {
-                    if (child.isMesh) child.material = sandMaterial;
+                    if (child.isMesh) {
+                        // 如果需要开启阴影可以在这里加： child.receiveShadow = true;
+                    }
                 });
+
+                // 注意：GLB 的尺寸可能跟以前的 OBJ 不一样。
+                // 我先保留之前的缩放比例。如果进去发现变成了“巨人”或“蚂蚁”，修改这里的数值。
                 object.scale.set(0.02, 0.02, 0.02); 
                 object.position.set(0, 0, 0);
                 object.rotation.x = -Math.PI / 2; 
+
                 scene.add(object);
                 mapMesh = object; 
             },
@@ -136,7 +145,11 @@
                     loadingUI.innerText = '加载地图 ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
                 }
             },
-            function (error) { loadingUI.innerText = '加载失败!'; loadingUI.style.color = 'red'; }
+            function (error) { 
+                console.error(error);
+                loadingUI.innerText = '加载失败! 检查控制台报错。'; 
+                loadingUI.style.color = 'red'; 
+            }
         );
 
         const gunGroup = new THREE.Group();
@@ -259,7 +272,6 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            // 虚空安全网
             if (camera.position.y < -10) {
                 camera.position.set(2, 1.25, 15);
                 yVelocity = 0;
@@ -276,7 +288,6 @@
                 if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
             }
 
-            // 💡 关键改动：只有当地图加载完成后，重力才生效
             if (mapMesh) {
                 yVelocity += gravity;
                 camera.position.y += yVelocity;
