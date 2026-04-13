@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - Dust 2 GLB</title>
+    <title>Web CSGO - Flight Mode</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -12,70 +12,59 @@
         #crosshair::before { top: -8px; left: 1px; width: 2px; height: 20px; }
         #crosshair::after { left: -8px; top: 1px; width: 20px; height: 2px; }
         
-        #ui { position: fixed; top: 10px; left: 10px; color: white; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 14px; text-shadow: 1px 1px 0 #000; }
+        #ui { position: fixed; top: 10px; left: 10px; color: #00ff00; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 14px; text-shadow: 1px 1px 0 #000; font-weight: bold; }
         
         #team-select { position: fixed; top: 50px; left: 10px; z-index: 15; display: flex; gap: 10px; }
         button { padding: 10px 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 5px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         #btn-red { background-color: #d32f2f; }
         #btn-blue { background-color: #1976d2; }
-        #btn-red:active { background-color: #b71c1c; }
-        #btn-blue:active { background-color: #0d47a1; }
 
-        #coords-display {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            border: 1px solid #00ff00;
-            color: #00ff00;
-            padding: 8px 15px;
-            border-radius: 5px;
-            font-family: monospace;
-            font-size: 16px;
-            font-weight: bold;
-            pointer-events: none;
-            z-index: 20;
-            text-shadow: 0 0 5px #00ff00;
-        }
+        #coords-display { position: fixed; top: 10px; right: 10px; background: rgba(0, 0, 0, 0.7); border: 1px solid #00ff00; color: #00ff00; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 16px; font-weight: bold; pointer-events: none; z-index: 20; }
 
         #joystick-base { position: fixed; width: 100px; height: 100px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 30; }
         #joystick-stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: rgba(0, 0, 0, 0.9); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px rgba(0,0,0,0.8); pointer-events: none; }
 
-        #btn-jump {
+        /* 👇 新增：飞行上升和下降按钮 👇 */
+        .flight-btn {
             position: fixed;
-            bottom: 40px;
-            right: 40px;
-            width: 70px;
-            height: 70px;
-            background: rgba(0, 0, 0, 0.4);
-            border: 2px solid rgba(0, 0, 0, 0.7);
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: rgba(0, 150, 255, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.7);
             border-radius: 50%;
             color: white;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
             z-index: 30;
             cursor: pointer;
             user-select: none;
             -webkit-user-select: none;
-            touch-action: manipulation; 
+            touch-action: manipulation;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-        #btn-jump:active { background: rgba(255, 255, 255, 0.3); }
+        .flight-btn:active { background: rgba(0, 150, 255, 0.9); }
+        #btn-up { bottom: 110px; }
+        #btn-down { bottom: 30px; }
 
         #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 20; pointer-events: none; text-shadow: 2px 2px 4px #000; }
         #muzzle-flash { position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
     </style>
 </head>
 <body>
-    <div id="ui">地图已校准：恢复之前的尺寸和角度</div>
+    <div id="ui">🚀 飞行模式已激活！可以穿墙与升空！</div>
     
-    <div id="coords-display">X: 0.00 | Z: 0.00</div>
+    <div id="coords-display">X: 0.00 | Y: 0.00</div>
 
     <div id="team-select">
-        <button id="btn-red">加入红队 (T)</button>
-        <button id="btn-blue">加入蓝队 (CT)</button>
+        <button id="btn-red">传送点 A</button>
+        <button id="btn-blue">传送点 B</button>
     </div>
 
-    <button id="btn-jump">JUMP</button>
+    <div id="btn-up" class="flight-btn">UP</div>
+    <div id="btn-down" class="flight-btn">DOWN</div>
 
     <div id="joystick-base">
         <div id="joystick-stick"></div>
@@ -94,23 +83,19 @@
         scene.fog = new THREE.Fog(0x87ceeb, 10, 300); 
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-        camera.position.set(2, 1.25, 15); 
+        // 初始位置设高一点，方便俯瞰
+        camera.position.set(0, 10, 0); 
         camera.rotation.order = 'YXZ'; 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // 环境光稍微调亮一点，让贴图更清晰
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); 
         scene.add(ambientLight);
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); 
         dirLight.position.set(100, 200, 50);
         scene.add(dirLight);
-
-        let mapMesh = null;
-        const raycaster = new THREE.Raycaster();
-        const downRaycaster = new THREE.Raycaster(); 
 
         const gltfLoader = new THREE.GLTFLoader();
         const loadingUI = document.getElementById('loading');
@@ -120,30 +105,20 @@
             mapUrl,
             function (gltf) {
                 loadingUI.style.display = 'none';
-                
                 const object = gltf.scene;
-
-                // 👇 关键修改区 👇
-                // 1. 保持和你之前一样的缩放比例
                 object.scale.set(0.02, 0.02, 0.02); 
-                // 2. 位置不变
                 object.position.set(0, 0, 0);
-                // 3. 删除了导致地图竖起来的 rotation.x 代码，让 GLB 自带的正常角度生效
-                // 👆 关键修改区 👆
-
                 scene.add(object);
-                mapMesh = object; 
             },
             function (xhr) {
                 if (xhr.lengthComputable) {
                     loadingUI.innerText = '加载地图 ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
+                } else {
+                    const mb = (xhr.loaded / 1024 / 1024).toFixed(1);
+                    loadingUI.innerText = `加载中... ${mb} MB`;
                 }
             },
-            function (error) { 
-                console.error(error);
-                loadingUI.innerText = '加载失败!'; 
-                loadingUI.style.color = 'red'; 
-            }
+            function (error) { loadingUI.innerText = '加载失败!'; loadingUI.style.color = 'red'; }
         );
 
         const gunGroup = new THREE.Group();
@@ -156,36 +131,41 @@
         camera.add(gunGroup);
         scene.add(camera);
 
-        document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(11, 1.25, 4); yVelocity = 0; });
-        document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(2, 1.25, 15); yVelocity = 0; });
+        document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(11, 5, 4); });
+        document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(2, 5, 15); });
 
         const joyBase = document.getElementById('joystick-base');
         const joyStick = document.getElementById('joystick-stick');
         const coordsDisplay = document.getElementById('coords-display'); 
         const joyMaxRadius = 50; 
 
-        let yVelocity = 0; 
-        let isGrounded = false;
-        const gravity = -0.012; 
-        const jumpStrength = 0.15; 
-
-        const btnJump = document.getElementById('btn-jump');
-        
-        function handleJump(e) {
-            e.preventDefault(); 
-            if (isGrounded) {
-                yVelocity = jumpStrength;
-                isGrounded = false;
-            }
-        }
-        btnJump.addEventListener('touchstart', handleJump);
-        btnJump.addEventListener('mousedown', handleJump); 
-
         let moveInput = { x: 0, y: 0 };
         let touches = { left: null, right: null };
         let isShooting = false;
+        
+        // 飞行控制变量
+        let isFlyingUp = false;
+        let isFlyingDown = false;
+        const flySpeed = 0.2; // 上升下降的速度
+
+        // 绑定上下飞行按钮
+        const btnUp = document.getElementById('btn-up');
+        const btnDown = document.getElementById('btn-down');
+
+        btnUp.addEventListener('touchstart', (e) => { e.preventDefault(); isFlyingUp = true; });
+        btnUp.addEventListener('touchend', (e) => { e.preventDefault(); isFlyingUp = false; });
+        btnUp.addEventListener('mousedown', () => { isFlyingUp = true; });
+        btnUp.addEventListener('mouseup', () => { isFlyingUp = false; });
+        btnUp.addEventListener('mouseleave', () => { isFlyingUp = false; });
+
+        btnDown.addEventListener('touchstart', (e) => { e.preventDefault(); isFlyingDown = true; });
+        btnDown.addEventListener('touchend', (e) => { e.preventDefault(); isFlyingDown = false; });
+        btnDown.addEventListener('mousedown', () => { isFlyingDown = true; });
+        btnDown.addEventListener('mouseup', () => { isFlyingDown = false; });
+        btnDown.addEventListener('mouseleave', () => { isFlyingDown = false; });
 
         document.addEventListener('touchstart', (e) => {
+            if(e.target.tagName === 'DIV' && e.target.classList.contains('flight-btn')) return;
             if(e.target.tagName === 'BUTTON') return; 
             for (let t of e.changedTouches) {
                 if (t.clientX < window.innerWidth / 2) {
@@ -211,8 +191,10 @@
                         deltaY = (deltaY / distance) * joyMaxRadius;
                     }
                     joyStick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
-                    moveInput.x = (deltaX / joyMaxRadius) * 0.15;
-                    moveInput.y = (deltaY / joyMaxRadius) * 0.15;
+                    
+                    // 稍微加快一点飞行模式下的摇杆速度
+                    moveInput.x = (deltaX / joyMaxRadius) * 0.25;
+                    moveInput.y = (deltaY / joyMaxRadius) * 0.25;
                 }
                 if (touches.right && t.identifier === touches.right.id) {
                     touches.right.isTap = false; 
@@ -248,70 +230,24 @@
             setTimeout(() => { isShooting = false; }, 150);
         }
 
-        function checkCollision(startPos, endPos) {
-            if (!mapMesh) return false; 
-            const currentY = camera.position.y;
-            const checkStart = startPos.clone(); checkStart.y = currentY; 
-            const checkEnd = endPos.clone(); checkEnd.y = currentY;
-            const direction = new THREE.Vector3().subVectors(checkEnd, checkStart);
-            const distance = direction.length();
-            if (distance === 0) return false;
-            direction.normalize(); 
-            raycaster.set(checkStart, direction);
-            const intersects = raycaster.intersectObject(mapMesh, true);
-            if (intersects.length > 0 && intersects[0].distance < distance + 0.2) return true; 
-            return false; 
-        }
-
         function animate() {
             requestAnimationFrame(animate);
 
-            if (camera.position.y < -10) {
-                camera.position.set(2, 1.25, 15);
-                yVelocity = 0;
-            }
-
             if (!isShooting) gunMesh.position.z += (-0.5 - gunMesh.position.z) * 0.2;
 
+            // 摇杆控制飞行 (包含视角方向)
             if (touches.left) {
-                let oldPosition = camera.position.clone();
+                // 完全移除碰撞检测，直接移动！
                 camera.translateZ(moveInput.y);
-                if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
-                oldPosition = camera.position.clone();
                 camera.translateX(moveInput.x);
-                if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
             }
 
-            if (mapMesh) {
-                yVelocity += gravity;
-                camera.position.y += yVelocity;
+            // 右侧按钮垂直升降
+            if (isFlyingUp) camera.position.y += flySpeed;
+            if (isFlyingDown) camera.position.y -= flySpeed;
 
-                const rayOrigin = camera.position.clone();
-                rayOrigin.y += 0.5; 
-                downRaycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
-                const intersects = downRaycaster.intersectObject(mapMesh, true);
-                
-                if (intersects.length > 0) {
-                    const groundHeight = intersects[0].point.y;
-                    const targetY = groundHeight + 1.25; 
-                    
-                    if (targetY <= camera.position.y + 1.0) {
-                        if (camera.position.y <= targetY) {
-                            camera.position.y += (targetY - camera.position.y) * 0.4; 
-                            isGrounded = true;
-                            if (yVelocity < 0) yVelocity = 0; 
-                        } else {
-                            isGrounded = false;
-                        }
-                    } else {
-                        isGrounded = false;
-                    }
-                } else {
-                    isGrounded = false;
-                }
-            }
-
-            coordsDisplay.innerText = `X: ${camera.position.x.toFixed(1)} | Z: ${camera.position.z.toFixed(1)}`;
+            // 右上角现在显示 X坐标 和 高度(Y)
+            coordsDisplay.innerText = `X: ${camera.position.x.toFixed(1)} | 高度: ${camera.position.y.toFixed(1)}`;
             renderer.render(scene, camera);
         }
 
