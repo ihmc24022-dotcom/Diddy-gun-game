@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO Online (Single HTML)</title>
+    <title>Web CSGO Online (Smooth Version)</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -52,7 +52,7 @@
     </script>
 </head>
 <body>
-    <div id="ui">多人在线版 (Diddy Gun Game)</div>
+    <div id="ui">多人在线版 (平滑插值版)</div>
     <div id="online-count">在线人数: 连接中...</div>
     
     <div id="coords-display">X: 0.00 | Z: 0.00</div>
@@ -78,15 +78,12 @@
         import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-        // 直接从 Firebase 官方 CDN 引入最新模块
+        // Firebase 模块
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getDatabase, ref, set, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        // ==========================================
-        // 3. FIREBASE 初始化
-        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyAX5TKLKkC_oHklROdhSB5QtdGZIu_9yIo",
             authDomain: "diddy-gun-game.firebaseapp.com",
@@ -104,11 +101,9 @@
         const database = getDatabase(app);
 
         let myUid = null;
-        let remotePlayers = {}; 
+        let remotePlayers = {}; // 用于存储其他玩家的数据 (包含模型和目标坐标)
 
-        // ==========================================
-        // 4. THREE.JS 初始化
-        // ==========================================
+        // Three.js 初始化
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb); 
         scene.fog = new THREE.Fog(0x87ceeb, 10, 300); 
@@ -142,7 +137,7 @@
         const gltfLoader = new GLTFLoader();
         const loadingUI = document.getElementById('loading');
 
-        // 加载模型 (确保这些文件和你的 HTML 文件在同一个文件夹里)
+        // 加载地图
         objLoader.load('de_dust2.obj', function (object) {
             const sandMaterial = new THREE.MeshStandardMaterial({ color: 0xFFC976, roughness: 0.9, side: THREE.DoubleSide });
             object.traverse(function (child) { if (child.isMesh) child.material = sandMaterial; });
@@ -162,6 +157,7 @@
         let myBody = null;
         let isTPS = false; 
 
+        // 加载自己
         gltfLoader.load('dancing_banana.glb', function (gltf) {
             myBody = gltf.scene;
             myBody.scale.set(2.5, 2.5, 2.5); 
@@ -177,6 +173,7 @@
             playerContainer.add(myBody); 
         });
 
+        // 加载枪
         const gunGroup = new THREE.Group();
         camera.add(gunGroup); 
         let loadedGunModel = null;
@@ -192,16 +189,14 @@
         });
 
         // ==========================================
-        // 5. 网络同步逻辑
+        // 核心修改：网络同步与插值 (Lerp)
         // ==========================================
         signInAnonymously(auth).catch(error => console.error("Firebase Login Error:", error));
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 myUid = user.uid;
-                console.log("Connected as:", myUid);
                 const myRef = ref(database, `players/${myUid}`);
-                
                 onDisconnect(myRef).remove();
 
                 const playersRef = ref(database, 'players');
@@ -213,13 +208,14 @@
                         onlineCount++;
                         if (uid === myUid) continue; 
 
+                        // 1. 如果是新玩家，创建模型并记录【目标坐标】
                         if (!remotePlayers[uid] && remotePlayers[uid] !== "loading") {
                             remotePlayers[uid] = "loading"; 
                             gltfLoader.load('dancing_banana.glb', function(gltf) {
                                 let networkBanana = gltf.scene;
                                 networkBanana.scale.set(2.5, 2.5, 2.5);
-                                networkBanana.position.set(data[uid].x, data[uid].y, data[uid].z);
-                                networkBanana.rotation.y = data[uid].rotY || 0;
+                                networkBanana.position.set(data[uid].x, data[uid].y - 1.25, data[uid].z);
+                                networkBanana.rotation.y = data[uid].rotY + Math.PI || 0;
 
                                 if (gltf.animations && gltf.animations.length > 0) {
                                     let mixer = new THREE.AnimationMixer(networkBanana);
@@ -227,20 +223,28 @@
                                     mixers.push(mixer);
                                 }
                                 scene.add(networkBanana);
-                                remotePlayers[uid] = networkBanana;
+                                
+                                // 改动：把模型和它的"目标坐标"存起来，而不是只存模型
+                                remotePlayers[uid] = {
+                                    model: networkBanana,
+                                    targetPos: new THREE.Vector3(data[uid].x, data[uid].y - 1.25, data[uid].z),
+                                    targetRotY: data[uid].rotY + Math.PI
+                                };
                             });
                         } 
+                        // 2. 如果玩家已经在场，更新他的【目标坐标】，不要直接移动他
                         else if (remotePlayers[uid] && remotePlayers[uid] !== "loading") {
-                            let p = remotePlayers[uid];
-                            p.position.set(data[uid].x, data[uid].y - 1.25, data[uid].z); 
-                            p.rotation.y = data[uid].rotY + Math.PI; 
+                            let rp = remotePlayers[uid];
+                            rp.targetPos.set(data[uid].x, data[uid].y - 1.25, data[uid].z); 
+                            rp.targetRotY = data[uid].rotY + Math.PI; 
                         }
                     }
 
+                    // 3. 清理断线玩家
                     for (let uid in remotePlayers) {
                         if (!data[uid] && uid !== myUid) {
                             if (remotePlayers[uid] !== "loading") {
-                                scene.remove(remotePlayers[uid]);
+                                scene.remove(remotePlayers[uid].model); // 删掉模型
                             }
                             delete remotePlayers[uid];
                         }
@@ -251,9 +255,7 @@
             }
         });
 
-        // ==========================================
-        // 6. 游戏控制逻辑
-        // ==========================================
+        // 控制代码
         document.getElementById('btn-view').addEventListener('click', (e) => {
             e.stopPropagation(); 
             isTPS = !isTPS;
@@ -361,6 +363,12 @@
             }
         });
 
+        // 支持电脑端鼠标左键开枪 (刚才加上去的)
+        document.addEventListener('mousedown', (e) => {
+            if(e.target.tagName === 'BUTTON' || e.target.closest('#team-select')) return; 
+            if (e.button === 0) { shoot(); }
+        });
+
         const flashUI = document.getElementById('muzzle-flash');
         const hitMarker = document.getElementById('hit-marker');
 
@@ -378,10 +386,11 @@
             camera.getWorldDirection(shootDir);
             shootRaycaster.set(shootOrigin, shootDir);
 
+            // 改动：适配新的 remotePlayers 数据结构
             let networkTargets = [];
             for (let uid in remotePlayers) {
-                if (remotePlayers[uid] !== "loading") {
-                    networkTargets.push(remotePlayers[uid]);
+                if (remotePlayers[uid] !== "loading" && remotePlayers[uid].model) {
+                    networkTargets.push(remotePlayers[uid].model);
                 }
             }
 
@@ -417,7 +426,7 @@
             const delta = clock.getDelta();
             mixers.forEach(mixer => mixer.update(delta));
 
-            // 定期上传玩家位置给 Firebase
+            // 上传自己坐标
             if (myUid && Date.now() - lastSyncTime > 66) {
                 const myRef = ref(database, `players/${myUid}`);
                 set(myRef, {
@@ -427,6 +436,22 @@
                     rotY: playerContainer.rotation.y
                 });
                 lastSyncTime = Date.now();
+            }
+
+            // ========================================================
+            // 让其他玩家【平滑移动 (Lerp)】的核心代码
+            // ========================================================
+            for (let uid in remotePlayers) {
+                let rp = remotePlayers[uid];
+                if (rp !== "loading" && rp.model) {
+                    // 位置插值：以 0.2 的速度滑向目标坐标
+                    rp.model.position.lerp(rp.targetPos, 0.2); 
+                    
+                    // 旋转插值：计算最短的旋转角度，平滑转身
+                    let diff = rp.targetRotY - rp.model.rotation.y;
+                    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+                    rp.model.rotation.y += diff * 0.2; 
+                }
             }
 
             if (playerContainer.position.y < -10) { playerContainer.position.set(2, 1.25, 15); yVelocity = 0; }
