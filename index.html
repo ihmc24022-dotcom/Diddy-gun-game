@@ -7,24 +7,30 @@
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
+        
+        /* 准星 */
         #crosshair { position: fixed; top: 50%; left: 50%; width: 4px; height: 4px; background: #00ff00; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none; z-index: 10; box-shadow: 0 0 5px #00ff00; }
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #00ff00; pointer-events: none; }
         #crosshair::before { top: -8px; left: 1px; width: 2px; height: 20px; }
         #crosshair::after { left: -8px; top: 1px; width: 20px; height: 2px; }
         
+        /* 顶部提示语 */
         #ui { position: fixed; top: 10px; left: 10px; color: #00ff00; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 14px; text-shadow: 1px 1px 0 #000; font-weight: bold; }
         
+        /* 坐标显示器 */
+        #coords-display { position: fixed; top: 10px; right: 10px; background: rgba(0, 0, 0, 0.7); border: 1px solid #00ff00; color: #00ff00; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 16px; font-weight: bold; pointer-events: none; z-index: 20; }
+
+        /* 队伍/传送按钮 */
         #team-select { position: fixed; top: 50px; left: 10px; z-index: 15; display: flex; gap: 10px; }
         button { padding: 10px 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 5px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         #btn-red { background-color: #d32f2f; }
         #btn-blue { background-color: #1976d2; }
 
-        #coords-display { position: fixed; top: 10px; right: 10px; background: rgba(0, 0, 0, 0.7); border: 1px solid #00ff00; color: #00ff00; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 16px; font-weight: bold; pointer-events: none; z-index: 20; }
-
+        /* 虚拟摇杆 */
         #joystick-base { position: fixed; width: 100px; height: 100px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 30; }
         #joystick-stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: rgba(0, 0, 0, 0.9); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px rgba(0,0,0,0.8); pointer-events: none; }
 
-        /* 👇 新增：飞行上升和下降按钮 👇 */
+        /* 飞行垂直控制按钮 */
         .flight-btn {
             position: fixed;
             right: 30px;
@@ -49,6 +55,7 @@
         #btn-up { bottom: 110px; }
         #btn-down { bottom: 30px; }
 
+        /* 加载界面与开火特效 */
         #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 20; pointer-events: none; text-shadow: 2px 2px 4px #000; }
         #muzzle-flash { position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
     </style>
@@ -78,25 +85,27 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
+        // 1. 场景初始化
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb); 
+        scene.background = new THREE.Color(0x87ceeb); // 天蓝色背景
         scene.fog = new THREE.Fog(0x87ceeb, 10, 300); 
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-        // 初始位置设高一点，方便俯瞰
-        camera.position.set(0, 10, 0); 
+        camera.position.set(0, 10, 0); // 初始位置调高，方便俯瞰地图
         camera.rotation.order = 'YXZ'; 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
+        // 2. 光照设置
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); 
         scene.add(ambientLight);
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); 
         dirLight.position.set(100, 200, 50);
         scene.add(dirLight);
 
+        // 3. 加载 GLB 地图
         const gltfLoader = new THREE.GLTFLoader();
         const loadingUI = document.getElementById('loading');
         const mapUrl = 'de_dust2_-_cs_map.glb'; 
@@ -106,6 +115,7 @@
             function (gltf) {
                 loadingUI.style.display = 'none';
                 const object = gltf.scene;
+                // 保持原定缩放大小
                 object.scale.set(0.02, 0.02, 0.02); 
                 object.position.set(0, 0, 0);
                 scene.add(object);
@@ -118,9 +128,14 @@
                     loadingUI.innerText = `加载中... ${mb} MB`;
                 }
             },
-            function (error) { loadingUI.innerText = '加载失败!'; loadingUI.style.color = 'red'; }
+            function (error) { 
+                console.error("加载失败:", error);
+                loadingUI.innerText = '加载失败!'; 
+                loadingUI.style.color = 'red'; 
+            }
         );
 
+        // 4. 枪支模型 (后续如果找到枪的 GLB 也可以替换这里)
         const gunGroup = new THREE.Group();
         const gunMesh = new THREE.Mesh(
             new THREE.BoxGeometry(0.1, 0.15, 0.6),
@@ -131,9 +146,11 @@
         camera.add(gunGroup);
         scene.add(camera);
 
+        // 5. 传送点按钮逻辑
         document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(11, 5, 4); });
         document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(2, 5, 15); });
 
+        // 6. 控制变量
         const joyBase = document.getElementById('joystick-base');
         const joyStick = document.getElementById('joystick-stick');
         const coordsDisplay = document.getElementById('coords-display'); 
@@ -143,12 +160,11 @@
         let touches = { left: null, right: null };
         let isShooting = false;
         
-        // 飞行控制变量
         let isFlyingUp = false;
         let isFlyingDown = false;
-        const flySpeed = 0.2; // 上升下降的速度
+        const flySpeed = 0.2; 
 
-        // 绑定上下飞行按钮
+        // 7. 垂直升降按钮事件
         const btnUp = document.getElementById('btn-up');
         const btnDown = document.getElementById('btn-down');
 
@@ -164,6 +180,7 @@
         btnDown.addEventListener('mouseup', () => { isFlyingDown = false; });
         btnDown.addEventListener('mouseleave', () => { isFlyingDown = false; });
 
+        // 8. 触摸控制 (移动与视角)
         document.addEventListener('touchstart', (e) => {
             if(e.target.tagName === 'DIV' && e.target.classList.contains('flight-btn')) return;
             if(e.target.tagName === 'BUTTON') return; 
@@ -191,8 +208,6 @@
                         deltaY = (deltaY / distance) * joyMaxRadius;
                     }
                     joyStick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
-                    
-                    // 稍微加快一点飞行模式下的摇杆速度
                     moveInput.x = (deltaX / joyMaxRadius) * 0.25;
                     moveInput.y = (deltaY / joyMaxRadius) * 0.25;
                 }
@@ -220,43 +235,48 @@
             }
         });
 
+        // 9. 射击逻辑
         const flashUI = document.getElementById('muzzle-flash');
         function shoot() {
             if (isShooting) return;
             isShooting = true;
-            gunMesh.position.z = -0.3; 
+            gunMesh.position.z = -0.3; // 后坐力表现
             flashUI.style.opacity = '1';
             setTimeout(() => { flashUI.style.opacity = '0'; }, 50);
             setTimeout(() => { isShooting = false; }, 150);
         }
 
+        // 10. 主循环
         function animate() {
             requestAnimationFrame(animate);
 
+            // 枪支回弹
             if (!isShooting) gunMesh.position.z += (-0.5 - gunMesh.position.z) * 0.2;
 
-            // 摇杆控制飞行 (包含视角方向)
+            // 飞行移动 (直接根据摄像机朝向进行位移，无视碰撞)
             if (touches.left) {
-                // 完全移除碰撞检测，直接移动！
                 camera.translateZ(moveInput.y);
                 camera.translateX(moveInput.x);
             }
 
-            // 右侧按钮垂直升降
+            // 垂直升降
             if (isFlyingUp) camera.position.y += flySpeed;
             if (isFlyingDown) camera.position.y -= flySpeed;
 
-            // 右上角现在显示 X坐标 和 高度(Y)
+            // UI 更新
             coordsDisplay.innerText = `X: ${camera.position.x.toFixed(1)} | 高度: ${camera.position.y.toFixed(1)}`;
+            
             renderer.render(scene, camera);
         }
 
+        // 11. 窗口缩放适配
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
+        // 启动！
         animate();
     </script>
 </body>
