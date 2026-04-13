@@ -3,66 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - 1:1 真实巨大比例</title>
+    <title>Web CSGO - 沙漠之鹰专属版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
         
-        /* 准星 */
         #crosshair { position: fixed; top: 50%; left: 50%; width: 4px; height: 4px; background: #00ff00; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none; z-index: 10; box-shadow: 0 0 5px #00ff00; }
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #00ff00; pointer-events: none; }
         #crosshair::before { top: -8px; left: 1px; width: 2px; height: 20px; }
         #crosshair::after { left: -8px; top: 1px; width: 20px; height: 2px; }
         
-        /* 顶部提示语 */
         #ui { position: fixed; top: 10px; left: 10px; color: #00ff00; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 14px; text-shadow: 1px 1px 0 #000; font-weight: bold; }
         
-        /* 坐标显示器 */
         #coords-display { position: fixed; top: 10px; right: 10px; background: rgba(0, 0, 0, 0.7); border: 1px solid #00ff00; color: #00ff00; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 16px; font-weight: bold; pointer-events: none; z-index: 20; }
 
-        /* 队伍/传送按钮 */
         #team-select { position: fixed; top: 50px; left: 10px; z-index: 15; display: flex; gap: 10px; }
         button { padding: 10px 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 5px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         #btn-red { background-color: #d32f2f; }
         #btn-blue { background-color: #1976d2; }
 
-        /* 虚拟摇杆 */
         #joystick-base { position: fixed; width: 100px; height: 100px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 30; }
         #joystick-stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: rgba(0, 0, 0, 0.9); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px rgba(0,0,0,0.8); pointer-events: none; }
 
-        /* 飞行垂直控制按钮 */
-        .flight-btn {
-            position: fixed;
-            right: 30px;
-            width: 60px;
-            height: 60px;
-            background: rgba(0, 150, 255, 0.5);
-            border: 2px solid rgba(255, 255, 255, 0.7);
-            border-radius: 50%;
-            color: white;
-            font-size: 14px;
-            font-weight: bold;
-            z-index: 30;
-            cursor: pointer;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: manipulation;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+        .flight-btn { position: fixed; right: 30px; width: 60px; height: 60px; background: rgba(0, 150, 255, 0.5); border: 2px solid rgba(255, 255, 255, 0.7); border-radius: 50%; color: white; font-size: 14px; font-weight: bold; z-index: 30; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; display: flex; justify-content: center; align-items: center; }
         .flight-btn:active { background: rgba(0, 150, 255, 0.9); }
         #btn-up { bottom: 110px; }
         #btn-down { bottom: 30px; }
 
-        /* 加载界面与开火特效 */
-        #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 20; pointer-events: none; text-shadow: 2px 2px 4px #000; }
+        #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 20; pointer-events: none; text-shadow: 2px 2px 4px #000; text-align: center; }
         #muzzle-flash { position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
     </style>
 </head>
 <body>
-    <div id="ui">🚀 飞行模式：地图处于 1:1 绝对原始比例！</div>
-    
+    <div id="ui">🔫 武器加载：沙漠之鹰 (Desert Eagle)</div>
     <div id="coords-display">X: 0.0 | 高度: 0.0</div>
 
     <div id="team-select">
@@ -77,7 +50,7 @@
         <div id="joystick-stick"></div>
     </div>
 
-    <div id="loading">加载地图中 0%</div>
+    <div id="loading">加载资源中...<br><span id="load-progress">0%</span></div>
     <div id="crosshair"></div>
     <div id="muzzle-flash"></div>
 
@@ -85,77 +58,91 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
-        // 1. 场景初始化
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb); 
-        // 雾气推远以适应 1:1 巨大比例
-        scene.fog = new THREE.Fog(0x87ceeb, 100, 10000); 
+        scene.fog = new THREE.Fog(0x87ceeb, 100, 5000); 
 
-        // 增加远裁剪面到 15000，防止地图消失
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 15000);
-        // 出生在更高的天空中 (Y: 150)
-        camera.position.set(0, 150, 0); 
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
+        camera.position.set(0, 50, 0); 
         camera.rotation.order = 'YXZ'; 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // 2. 光照设置
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); 
         scene.add(ambientLight);
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); 
         dirLight.position.set(100, 200, 50);
         scene.add(dirLight);
 
-        // 3. 加载 GLB 地图
-        const gltfLoader = new THREE.GLTFLoader();
         const loadingUI = document.getElementById('loading');
-        const mapUrl = 'de_dust2_-_cs_map.glb'; 
+        const loadProgress = document.getElementById('load-progress');
+        let modelsLoaded = 0;
+        function checkLoadingStatus() {
+            modelsLoaded++;
+            if(modelsLoaded === 2) loadingUI.style.display = 'none';
+        }
 
+        const gltfLoader = new THREE.GLTFLoader();
+
+        // 1. 加载 Dust2 地图
+        const mapUrl = 'de_dust2_-_cs_map.glb'; 
         gltfLoader.load(
             mapUrl,
             function (gltf) {
-                loadingUI.style.display = 'none';
-                const object = gltf.scene;
-                
-                // 👇 关键修改：地图设为 1:1 比例 👇
-                object.scale.set(1, 1, 1); 
-                
-                object.position.set(0, 0, 0);
-                scene.add(object);
+                const mapObj = gltf.scene;
+                mapObj.scale.set(0.4, 0.4, 0.4); 
+                mapObj.position.set(0, 0, 0);
+                scene.add(mapObj);
+                checkLoadingStatus();
             },
             function (xhr) {
                 if (xhr.lengthComputable) {
-                    loadingUI.innerText = '加载地图 ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
-                } else {
-                    const mb = (xhr.loaded / 1024 / 1024).toFixed(1);
-                    loadingUI.innerText = `加载中... ${mb} MB`;
+                    loadProgress.innerText = '地图: ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
                 }
             },
-            function (error) { 
-                console.error("加载失败:", error);
-                loadingUI.innerText = '加载失败!'; 
-                loadingUI.style.color = 'red'; 
-            }
+            function (error) { console.error("地图加载失败:", error); }
         );
 
-        // 4. 枪支模型
+        // 2. 加载沙漠之鹰模型
         const gunGroup = new THREE.Group();
-        const gunMesh = new THREE.Mesh(
-            new THREE.BoxGeometry(0.1, 0.15, 0.6),
-            new THREE.MeshStandardMaterial({ color: 0x222222 })
-        );
-        gunMesh.position.set(0.3, -0.2, -0.5); 
-        gunGroup.add(gunMesh);
         camera.add(gunGroup);
         scene.add(camera);
+        
+        let loadedGunModel = null;
+        let defaultGunZ = -0.3; 
 
-        // 5. 传送点按钮 (调整为 1:1 比例下的坐标)
-        document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(550, 250, 200); });
-        document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(100, 250, 750); });
+        // 🚨 已经为你指定好了刚刚上传的文件名 🚨
+        const gunUrl = 'desert_eagle_gun.glb'; 
+        
+        gltfLoader.load(
+            gunUrl, 
+            function (gltf) {
+                loadedGunModel = gltf.scene;
+                
+                // 🔫 尺寸与位置微调 🔫
+                // 如果沙鹰进游戏后看起来太巨大，把 0.1 改成 0.05；如果太小改大一点。
+                loadedGunModel.scale.set(0.1, 0.1, 0.1); 
+                
+                // 枪在右下角的位置 (X左右, Y上下, Z前后)
+                loadedGunModel.position.set(0.15, -0.1, defaultGunZ); 
+                
+                // 旋转调整：很多网上下载的枪支需要掉头。如果进游戏发现枪口对着自己，解除下一行的注释！
+                // loadedGunModel.rotation.y = Math.PI; 
+                
+                gunGroup.add(loadedGunModel);
+                checkLoadingStatus();
+            },
+            undefined,
+            function (error) { console.error("枪支加载失败:", error); }
+        );
 
-        // 6. 控制变量
+        // 传送按钮
+        document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(220, 50, 80); });
+        document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(40, 50, 300); });
+
+        // 控制变量
         const joyBase = document.getElementById('joystick-base');
         const joyStick = document.getElementById('joystick-stick');
         const coordsDisplay = document.getElementById('coords-display'); 
@@ -164,30 +151,23 @@
         let moveInput = { x: 0, y: 0 };
         let touches = { left: null, right: null };
         let isShooting = false;
-        
         let isFlyingUp = false;
         let isFlyingDown = false;
-        
-        // 为 1:1 比例提供巨大的速度加成
-        const flySpeed = 3.0; 
+        const flySpeed = 1.0; 
 
-        // 7. 垂直升降按钮事件
+        // 升降按钮
         const btnUp = document.getElementById('btn-up');
         const btnDown = document.getElementById('btn-down');
-
         btnUp.addEventListener('touchstart', (e) => { e.preventDefault(); isFlyingUp = true; });
         btnUp.addEventListener('touchend', (e) => { e.preventDefault(); isFlyingUp = false; });
         btnUp.addEventListener('mousedown', () => { isFlyingUp = true; });
         btnUp.addEventListener('mouseup', () => { isFlyingUp = false; });
-        btnUp.addEventListener('mouseleave', () => { isFlyingUp = false; });
-
         btnDown.addEventListener('touchstart', (e) => { e.preventDefault(); isFlyingDown = true; });
         btnDown.addEventListener('touchend', (e) => { e.preventDefault(); isFlyingDown = false; });
         btnDown.addEventListener('mousedown', () => { isFlyingDown = true; });
         btnDown.addEventListener('mouseup', () => { isFlyingDown = false; });
-        btnDown.addEventListener('mouseleave', () => { isFlyingDown = false; });
 
-        // 8. 触摸控制 (移动与视角)
+        // 触摸控制
         document.addEventListener('touchstart', (e) => {
             if(e.target.tagName === 'DIV' && e.target.classList.contains('flight-btn')) return;
             if(e.target.tagName === 'BUTTON') return; 
@@ -216,9 +196,8 @@
                     }
                     joyStick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
                     
-                    // 极大增加摇杆移动速度以适应巨型地图
-                    moveInput.x = (deltaX / joyMaxRadius) * 4.0;
-                    moveInput.y = (deltaY / joyMaxRadius) * 4.0;
+                    moveInput.x = (deltaX / joyMaxRadius) * 1.5;
+                    moveInput.y = (deltaY / joyMaxRadius) * 1.5;
                 }
                 if (touches.right && t.identifier === touches.right.id) {
                     touches.right.isTap = false; 
@@ -244,22 +223,28 @@
             }
         });
 
-        // 9. 射击逻辑
+        // 射击后坐力控制
         const flashUI = document.getElementById('muzzle-flash');
         function shoot() {
-            if (isShooting) return;
+            if (isShooting || !loadedGunModel) return;
             isShooting = true;
-            gunMesh.position.z = -0.3; 
+            
+            // 开枪时沙鹰往后坐
+            loadedGunModel.position.z = defaultGunZ + 0.05; 
+            
             flashUI.style.opacity = '1';
             setTimeout(() => { flashUI.style.opacity = '0'; }, 50);
             setTimeout(() => { isShooting = false; }, 150);
         }
 
-        // 10. 主循环
+        // 主循环
         function animate() {
             requestAnimationFrame(animate);
 
-            if (!isShooting) gunMesh.position.z += (-0.5 - gunMesh.position.z) * 0.2;
+            // 枪支平滑回位
+            if (!isShooting && loadedGunModel) {
+                loadedGunModel.position.z += (defaultGunZ - loadedGunModel.position.z) * 0.2;
+            }
 
             if (touches.left) {
                 camera.translateZ(moveInput.y);
