@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - Dust 2 FFC976 Edition (USP Added)</title>
+    <title>Web CSGO - Dust 2 FFC976 Edition (USP Fixed)</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -142,20 +142,28 @@
             function (error) { loadingUI.innerText = '加载失败!'; loadingUI.style.color = 'red'; }
         );
 
-        // ✅ 武器加载与设置
+        // ✅ 武器加载与优化后的位置设置
         const gunGroup = new THREE.Group();
         camera.add(gunGroup);
         scene.add(camera);
 
         let loadedGunModel = null;
-        let defaultGunZ = -0.4; 
+        let defaultGunZ = -0.55; // 武器默认前后位置（更小的值意味着离屏幕更远）
 
         const gltfLoader = new THREE.GLTFLoader();
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb', function (gltf) {
             loadedGunModel = gltf.scene;
-            loadedGunModel.scale.set(1.5, 1.5, 1.5); // 调整武器大小
-            loadedGunModel.position.set(0.2, -0.15, defaultGunZ); // 设置武器在相机前的相对位置
-            loadedGunModel.rotation.y = Math.PI; // 让枪口朝前
+            
+            // 如果感觉枪还是太大，可以把 1.5 调小，比如 1.2
+            loadedGunModel.scale.set(1.5, 1.5, 1.5); 
+            
+            // X正数向右，Y负数向下，Z负数向前
+            // 调整：向右移(0.35)，向下移(-0.35)
+            loadedGunModel.position.set(0.35, -0.35, defaultGunZ); 
+            
+            // 微微向左倾斜一点点，看起来更像握在手里
+            loadedGunModel.rotation.y = Math.PI + 0.08; 
+            
             gunGroup.add(loadedGunModel);
         });
 
@@ -243,11 +251,11 @@
 
         const flashUI = document.getElementById('muzzle-flash');
         function shoot() {
-            if (isShooting || !loadedGunModel) return; // 确保模型加载完毕才允许射击
+            if (isShooting || !loadedGunModel) return; 
             isShooting = true;
             
-            // ✅ 让加载的模型产生后坐力
-            loadedGunModel.position.z = defaultGunZ + 0.08; 
+            // 后坐力效果（将枪向后推）
+            loadedGunModel.position.z = defaultGunZ + 0.1; 
             
             flashUI.style.opacity = '1';
             setTimeout(() => { flashUI.style.opacity = '0'; }, 50);
@@ -272,13 +280,12 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            // 虚空安全网
             if (camera.position.y < -10) {
                 camera.position.set(2, 1.25, 15);
                 yVelocity = 0;
             }
 
-            // ✅ 枪械后坐力恢复动画
+            // 恢复枪械原位的动画
             if (!isShooting && loadedGunModel) {
                 loadedGunModel.position.z += (defaultGunZ - loadedGunModel.position.z) * 0.2;
             }
