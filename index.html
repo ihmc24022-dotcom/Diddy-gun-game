@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - USP Hitbox & Full Version</title>
+    <title>Web CSGO - 真实物理生存版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -24,23 +24,18 @@
         #joystick-base { position: fixed; width: 100px; height: 100px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 30; }
         #joystick-stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: rgba(0, 0, 0, 0.9); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
 
-        .flight-btn { position: fixed; right: 30px; width: 60px; height: 60px; background: rgba(0, 150, 255, 0.5); border: 2px solid white; border-radius: 50%; color: white; font-size: 14px; font-weight: bold; z-index: 30; display: flex; justify-content: center; align-items: center; pointer-events: auto; }
-        #btn-up { bottom: 110px; }
-        #btn-down { bottom: 30px; }
-
         #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 100; text-align: center; }
-        #muzzle-flash { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); pointer-events: none; opacity: 0; z-index: 5; }
+        #muzzle-flash { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); pointer-events: none; opacity: 0; z-index: 5; transition: opacity 0.05s; }
     </style>
 </head>
 <body>
-    <div id="ui">🔫 模式：Hitbox 物理版 (#FFB954)</div>
-    <div id="coords-display">X: 0 | 高: 0</div>
+    <div id="ui">🔫 模式：防穿墙物理版 (#FFB954)</div>
+    <div id="coords-display">X: 0 | Z: 0</div>
     <div id="team-select">
         <button id="btn-red">传送 A</button>
         <button id="btn-blue">传送 B</button>
     </div>
-    <div id="btn-up" class="flight-btn">UP</div>
-    <div id="btn-down" class="flight-btn">DOWN</div>
+    
     <div id="joystick-base"><div id="joystick-stick"></div></div>
     <div id="loading">计算碰撞模型中...<br><span id="load-progress">请稍后</span></div>
     <div id="crosshair"></div>
@@ -69,14 +64,14 @@
         scene.add(camera);
 
         let modelsLoaded = 0;
-        let mapMeshes = []; // 存放所有碰撞体
+        let mapMeshes = []; // 用于物理碰撞的数组
 
         function checkLoadingStatus() {
             modelsLoaded++;
             if(modelsLoaded >= 1) { document.getElementById('loading').style.display = 'none'; }
         }
 
-        // 1. 加载 OBJ 地图
+        // 1. 加载 OBJ 地图并注入碰撞检测
         const objLoader = new THREE.OBJLoader();
         objLoader.load('de_dust2.obj', function (obj) {
             obj.traverse(function (child) {
@@ -86,7 +81,7 @@
                         metalness: 0.2,
                         roughness: 0.8
                     });
-                    mapMeshes.push(child); // 加入碰撞阵列
+                    mapMeshes.push(child); // 将所有墙面和地板加入碰撞模型库
                 }
             });
             obj.rotation.x = -Math.PI / 2; 
@@ -95,7 +90,7 @@
             checkLoadingStatus();
         });
 
-        // 2. 加载 USP 武器
+        // 2. 加载武器
         const gltfLoader = new THREE.GLTFLoader();
         const gunGroup = new THREE.Group();
         camera.add(gunGroup);
@@ -111,31 +106,23 @@
             checkLoadingStatus();
         });
 
-        // --- 核心：传送功能修正 ---
+        // --- 传送功能 ---
         document.getElementById('btn-red').addEventListener('touchstart', (e) => { 
             e.stopPropagation(); camera.position.set(220, 50, 80); 
         });
         document.getElementById('btn-blue').addEventListener('touchstart', (e) => { 
             e.stopPropagation(); camera.position.set(40, 50, 300); 
         });
-        // 兼容点击
         document.getElementById('btn-red').onclick = () => camera.position.set(220, 50, 80);
         document.getElementById('btn-blue').onclick = () => camera.position.set(40, 50, 300);
 
         // --- 控制与交互 ---
         const raycaster = new THREE.Raycaster();
         let moveInput = { x: 0, y: 0 }, touches = { left: null, right: null };
-        let isShooting = false, isFlyingUp = false, isFlyingDown = false;
-
-        const btnUp = document.getElementById('btn-up');
-        const btnDown = document.getElementById('btn-down');
-        btnUp.addEventListener('touchstart', (e) => { e.preventDefault(); isFlyingUp = true; });
-        btnUp.addEventListener('touchend', (e) => { e.preventDefault(); isFlyingUp = false; });
-        btnDown.addEventListener('touchstart', (e) => { e.preventDefault(); isFlyingDown = true; });
-        btnDown.addEventListener('touchend', (e) => { e.preventDefault(); isFlyingDown = false; });
+        let isShooting = false;
 
         document.addEventListener('touchstart', (e) => {
-            if(e.target.tagName === 'BUTTON' || e.target.classList.contains('flight-btn')) return;
+            if(e.target.tagName === 'BUTTON') return;
             for (let t of e.changedTouches) {
                 if (t.clientX < window.innerWidth / 2) {
                     touches.left = { id: t.identifier, startX: t.clientX, startY: t.clientY };
@@ -185,28 +172,51 @@
             requestAnimationFrame(animate);
             if (!isShooting && loadedGunModel) loadedGunModel.position.z += (defaultGunZ - loadedGunModel.position.z) * 0.2;
             
-            // 移动与碰撞检测
-            if (touches.left) {
-                // 模拟移动后的位置
-                const nextX = moveInput.x;
-                const nextZ = moveInput.y;
+            // --- 核心物理与移动逻辑 ---
+            if (touches.left && mapMeshes.length > 0) {
+                const oldPos = camera.position.clone();
                 
-                // 简单的穿墙防止 (射线检测前方)
-                raycaster.set(camera.position, camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(-1));
-                const intersects = raycaster.intersectObjects(mapMeshes);
+                // 将输入转换为仅水平方向的世界坐标系移动
+                const moveEuler = new THREE.Euler(0, camera.rotation.y, 0, 'YXZ');
+                const moveVector = new THREE.Vector3(moveInput.x, 0, moveInput.y).applyEuler(moveEuler);
                 
-                if (intersects.length > 0 && intersects[0].distance < 2) {
-                    // 如果太近，停止向前
-                } else {
-                    camera.translateZ(nextZ);
-                    camera.translateX(nextX);
+                // 尝试移动
+                camera.position.add(moveVector);
+                
+                // 1. 墙体防穿透检测 (Hitbox)
+                const moveDir = new THREE.Vector3().subVectors(camera.position, oldPos);
+                if (moveDir.length() > 0.01) {
+                    moveDir.normalize();
+                    raycaster.set(oldPos, moveDir);
+                    const wallIntersects = raycaster.intersectObjects(mapMeshes, true);
+                    
+                    // 如果离墙壁小于 3 单位，取消本次移动
+                    if (wallIntersects.length > 0 && wallIntersects[0].distance < 3) {
+                        camera.position.copy(oldPos); 
+                    }
                 }
             }
 
-            if (isFlyingUp) camera.position.y += 1.0;
-            if (isFlyingDown) camera.position.y -= 1.0;
+            // 2. 引力与地形跟随 (楼梯与斜坡)
+            if (mapMeshes.length > 0) {
+                raycaster.set(camera.position, new THREE.Vector3(0, -1, 0));
+                const floorIntersects = raycaster.intersectObjects(mapMeshes, true);
+                
+                if (floorIntersects.length > 0) {
+                    // 让视角保持在地面上方 50 个单位高度（上坡/下坡平滑过渡）
+                    const distToFloor = floorIntersects[0].distance;
+                    camera.position.y += (50 - distToFloor) * 0.2; 
+                } else {
+                    // 脚下没东西？掉下去！
+                    camera.position.y -= 2.0; 
+                    if (camera.position.y < -200) {
+                        // 掉出地图边缘，自动复活到中心点
+                        camera.position.set(0, 50, 0); 
+                    }
+                }
+            }
 
-            document.getElementById('coords-display').innerText = `X: ${camera.position.x.toFixed(0)} | 高: ${camera.position.y.toFixed(0)}`;
+            document.getElementById('coords-display').innerText = `X: ${camera.position.x.toFixed(0)} | Z: ${camera.position.z.toFixed(0)}`;
             renderer.render(scene, camera);
         }
         animate();
