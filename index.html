@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - USP FFB954 Edition</title>
+    <title>Web CSGO - USP Hitbox & Full Version</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
         
-        /* 准星 */
         #crosshair { position: fixed; top: 50%; left: 50%; width: 4px; height: 4px; background: #00ff00; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none; z-index: 10; box-shadow: 0 0 5px #00ff00; }
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #00ff00; pointer-events: none; }
         #crosshair::before { top: -8px; left: 1px; width: 2px; height: 20px; }
@@ -18,14 +17,14 @@
         #coords-display { position: fixed; top: 10px; right: 10px; background: rgba(0, 0, 0, 0.7); border: 1px solid #00ff00; color: #00ff00; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 16px; font-weight: bold; pointer-events: none; z-index: 20; }
         
         #team-select { position: fixed; top: 50px; left: 10px; z-index: 15; display: flex; gap: 10px; }
-        button { padding: 10px 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button { padding: 10px 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 5px; cursor: pointer; pointer-events: auto; }
         #btn-red { background-color: #d32f2f; }
         #btn-blue { background-color: #1976d2; }
 
         #joystick-base { position: fixed; width: 100px; height: 100px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 30; }
         #joystick-stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: rgba(0, 0, 0, 0.9); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
 
-        .flight-btn { position: fixed; right: 30px; width: 60px; height: 60px; background: rgba(0, 150, 255, 0.5); border: 2px solid white; border-radius: 50%; color: white; font-size: 14px; font-weight: bold; z-index: 30; display: flex; justify-content: center; align-items: center; }
+        .flight-btn { position: fixed; right: 30px; width: 60px; height: 60px; background: rgba(0, 150, 255, 0.5); border: 2px solid white; border-radius: 50%; color: white; font-size: 14px; font-weight: bold; z-index: 30; display: flex; justify-content: center; align-items: center; pointer-events: auto; }
         #btn-up { bottom: 110px; }
         #btn-down { bottom: 30px; }
 
@@ -34,8 +33,8 @@
     </style>
 </head>
 <body>
-    <div id="ui">🔫 模式：OBJ 地图 (颜色: FFB954)</div>
-    <div id="coords-display">X: 0 | 高度: 0</div>
+    <div id="ui">🔫 模式：Hitbox 物理版 (#FFB954)</div>
+    <div id="coords-display">X: 0 | 高: 0</div>
     <div id="team-select">
         <button id="btn-red">传送 A</button>
         <button id="btn-blue">传送 B</button>
@@ -43,7 +42,7 @@
     <div id="btn-up" class="flight-btn">UP</div>
     <div id="btn-down" class="flight-btn">DOWN</div>
     <div id="joystick-base"><div id="joystick-stick"></div></div>
-    <div id="loading">正在加载 FFB954 地图...<br><span id="load-progress">请稍后</span></div>
+    <div id="loading">计算碰撞模型中...<br><span id="load-progress">请稍后</span></div>
     <div id="crosshair"></div>
     <div id="muzzle-flash"></div>
 
@@ -64,44 +63,42 @@
         renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
-        // 光照设置
         scene.add(new THREE.AmbientLight(0xffffff, 1.2));
         const pointLight = new THREE.PointLight(0xffffff, 0.8);
         camera.add(pointLight);
         scene.add(camera);
 
         let modelsLoaded = 0;
+        let mapMeshes = []; // 存放所有碰撞体
+
         function checkLoadingStatus() {
             modelsLoaded++;
             if(modelsLoaded >= 1) { document.getElementById('loading').style.display = 'none'; }
         }
 
-        // 1. 加载 OBJ 地图并涂色为 FFB954
+        // 1. 加载 OBJ 地图
         const objLoader = new THREE.OBJLoader();
         objLoader.load('de_dust2.obj', function (obj) {
             obj.traverse(function (child) {
                 if (child.isMesh) {
                     child.material = new THREE.MeshStandardMaterial({
-                        color: 0xFFB954, // ✅ 已修改为你要求的 FFB954
+                        color: 0xFFB954,
                         metalness: 0.2,
                         roughness: 0.8
                     });
+                    mapMeshes.push(child); // 加入碰撞阵列
                 }
             });
-
-            // 修正角度：让地图躺平
             obj.rotation.x = -Math.PI / 2; 
-
             obj.scale.set(0.4, 0.4, 0.4); 
             scene.add(obj);
             checkLoadingStatus();
         });
 
-        // 2. 加载 USP 武器 (GLB)
+        // 2. 加载 USP 武器
         const gltfLoader = new THREE.GLTFLoader();
         const gunGroup = new THREE.Group();
         camera.add(gunGroup);
-        
         let loadedGunModel = null;
         let defaultGunZ = -0.4; 
 
@@ -114,30 +111,41 @@
             checkLoadingStatus();
         });
 
-        // --- 交互与控制逻辑 (完整保留) ---
-        document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(220, 50, 80); });
-        document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(40, 50, 300); });
+        // --- 核心：传送功能修正 ---
+        document.getElementById('btn-red').addEventListener('touchstart', (e) => { 
+            e.stopPropagation(); camera.position.set(220, 50, 80); 
+        });
+        document.getElementById('btn-blue').addEventListener('touchstart', (e) => { 
+            e.stopPropagation(); camera.position.set(40, 50, 300); 
+        });
+        // 兼容点击
+        document.getElementById('btn-red').onclick = () => camera.position.set(220, 50, 80);
+        document.getElementById('btn-blue').onclick = () => camera.position.set(40, 50, 300);
 
-        const joyBase = document.getElementById('joystick-base'), joyStick = document.getElementById('joystick-stick');
+        // --- 控制与交互 ---
+        const raycaster = new THREE.Raycaster();
         let moveInput = { x: 0, y: 0 }, touches = { left: null, right: null };
         let isShooting = false, isFlyingUp = false, isFlyingDown = false;
 
-        document.getElementById('btn-up').addEventListener('touchstart', (e) => { e.preventDefault(); isFlyingUp = true; });
-        document.getElementById('btn-up').addEventListener('touchend', (e) => { e.preventDefault(); isFlyingUp = false; });
-        document.getElementById('btn-down').addEventListener('touchstart', (e) => { e.preventDefault(); isFlyingDown = true; });
-        document.getElementById('btn-down').addEventListener('touchend', (e) => { e.preventDefault(); isFlyingDown = false; });
+        const btnUp = document.getElementById('btn-up');
+        const btnDown = document.getElementById('btn-down');
+        btnUp.addEventListener('touchstart', (e) => { e.preventDefault(); isFlyingUp = true; });
+        btnUp.addEventListener('touchend', (e) => { e.preventDefault(); isFlyingUp = false; });
+        btnDown.addEventListener('touchstart', (e) => { e.preventDefault(); isFlyingDown = true; });
+        btnDown.addEventListener('touchend', (e) => { e.preventDefault(); isFlyingDown = false; });
 
         document.addEventListener('touchstart', (e) => {
             if(e.target.tagName === 'BUTTON' || e.target.classList.contains('flight-btn')) return;
             for (let t of e.changedTouches) {
                 if (t.clientX < window.innerWidth / 2) {
                     touches.left = { id: t.identifier, startX: t.clientX, startY: t.clientY };
+                    const joyBase = document.getElementById('joystick-base');
                     joyBase.style.display = 'block'; joyBase.style.left = t.clientX + 'px'; joyBase.style.top = t.clientY + 'px';
                 } else {
                     touches.right = { id: t.identifier, lastX: t.clientX, lastY: t.clientY, isTap: true };
                 }
             }
-        }, {passive: false});
+        });
 
         document.addEventListener('touchmove', (e) => {
             for (let t of e.changedTouches) {
@@ -145,7 +153,7 @@
                     let dx = t.clientX - touches.left.startX, dy = t.clientY - touches.left.startY;
                     const dist = Math.sqrt(dx*dx + dy*dy);
                     if (dist > 50) { dx *= 50/dist; dy *= 50/dist; }
-                    joyStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+                    document.getElementById('joystick-stick').style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
                     moveInput.x = (dx / 50) * 1.5; moveInput.y = (dy / 50) * 1.5;
                 }
                 if (touches.right && t.identifier === touches.right.id) {
@@ -155,11 +163,11 @@
                     touches.right.lastX = t.clientX; touches.right.lastY = t.clientY;
                 }
             }
-        }, {passive: false});
+        });
 
         document.addEventListener('touchend', (e) => {
             for (let t of e.changedTouches) {
-                if (touches.left && t.identifier === touches.left.id) { touches.left = null; moveInput = { x: 0, y: 0 }; joyBase.style.display = 'none'; }
+                if (touches.left && t.identifier === touches.left.id) { touches.left = null; moveInput = { x: 0, y: 0 }; document.getElementById('joystick-base').style.display = 'none'; }
                 if (touches.right && t.identifier === touches.right.id) { if (touches.right.isTap) shoot(); touches.right = null; }
             }
         });
@@ -176,13 +184,38 @@
         function animate() {
             requestAnimationFrame(animate);
             if (!isShooting && loadedGunModel) loadedGunModel.position.z += (defaultGunZ - loadedGunModel.position.z) * 0.2;
-            if (touches.left) { camera.translateZ(moveInput.y); camera.translateX(moveInput.x); }
+            
+            // 移动与碰撞检测
+            if (touches.left) {
+                // 模拟移动后的位置
+                const nextX = moveInput.x;
+                const nextZ = moveInput.y;
+                
+                // 简单的穿墙防止 (射线检测前方)
+                raycaster.set(camera.position, camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(-1));
+                const intersects = raycaster.intersectObjects(mapMeshes);
+                
+                if (intersects.length > 0 && intersects[0].distance < 2) {
+                    // 如果太近，停止向前
+                } else {
+                    camera.translateZ(nextZ);
+                    camera.translateX(nextX);
+                }
+            }
+
             if (isFlyingUp) camera.position.y += 1.0;
             if (isFlyingDown) camera.position.y -= 1.0;
-            document.getElementById('coords-display').innerText = `X: ${camera.position.x.toFixed(0)} | 高度: ${camera.position.y.toFixed(0)}`;
+
+            document.getElementById('coords-display').innerText = `X: ${camera.position.x.toFixed(0)} | 高: ${camera.position.y.toFixed(0)}`;
             renderer.render(scene, camera);
         }
         animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
