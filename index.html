@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - Dust 2 FFC976 Edition (USP Fixed)</title>
+    <title>Web CSGO - Dust 2 FFC976 Edition (Ammo System)</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -61,6 +61,45 @@
         }
         #btn-jump:active { background: rgba(255, 255, 255, 0.3); }
 
+        /* ✅ 新增：换弹按钮样式 */
+        #btn-reload {
+            position: fixed;
+            bottom: 50px;
+            right: 130px; /* 放在跳跃键左侧 */
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(0, 0, 0, 0.7);
+            border-radius: 50%;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            z-index: 30;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation; 
+        }
+        #btn-reload:active { background: rgba(255, 255, 255, 0.3); }
+
+        /* ✅ 新增：弹药显示样式 */
+        #ammo-display {
+            position: fixed;
+            bottom: 120px; /* 在跳跃和换弹按钮上方 */
+            right: 40px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #ffce00;
+            color: #ffce00;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 20px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 20;
+            text-shadow: 0 0 5px #ffce00;
+        }
+
         #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 20; pointer-events: none; text-shadow: 2px 2px 4px #000; }
         #muzzle-flash { position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
     </style>
@@ -69,6 +108,9 @@
     <div id="ui">已恢复经典版本，并优化了初始加载逻辑。</div>
     
     <div id="coords-display">X: 0.00 | Z: 0.00</div>
+
+    <div id="ammo-display">7 / 42</div>
+    <button id="btn-reload">R</button>
 
     <div id="team-select">
         <button id="btn-red">加入红队 (T)</button>
@@ -142,30 +184,78 @@
             function (error) { loadingUI.innerText = '加载失败!'; loadingUI.style.color = 'red'; }
         );
 
-        // ✅ 武器加载与优化后的位置设置
+        // 武器加载与位置
         const gunGroup = new THREE.Group();
         camera.add(gunGroup);
         scene.add(camera);
 
         let loadedGunModel = null;
-        let defaultGunZ = -0.55; // 武器默认前后位置（更小的值意味着离屏幕更远）
+        let defaultGunZ = -0.55; 
+        let defaultGunY = -0.35; // 记录默认的Y轴高度，方便换弹动画使用
 
         const gltfLoader = new THREE.GLTFLoader();
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb', function (gltf) {
             loadedGunModel = gltf.scene;
-            
-            // 如果感觉枪还是太大，可以把 1.5 调小，比如 1.2
             loadedGunModel.scale.set(1.5, 1.5, 1.5); 
-            
-            // X正数向右，Y负数向下，Z负数向前
-            // 调整：向右移(0.35)，向下移(-0.35)
-            loadedGunModel.position.set(0.35, -0.35, defaultGunZ); 
-            
-            // 微微向左倾斜一点点，看起来更像握在手里
+            loadedGunModel.position.set(0.35, defaultGunY, defaultGunZ); 
             loadedGunModel.rotation.y = Math.PI + 0.08; 
-            
             gunGroup.add(loadedGunModel);
         });
+
+        // ✅ 弹药系统变量
+        let ammoInMag = 7;
+        const maxAmmoInMag = 7;
+        let ammoReserve = 42;
+        let isReloading = false;
+        const ammoDisplay = document.getElementById('ammo-display');
+        const btnReload = document.getElementById('btn-reload');
+
+        function updateAmmoUI() {
+            if (isReloading) {
+                ammoDisplay.innerText = "换弹中...";
+                ammoDisplay.style.color = "#ff5555";
+            } else {
+                ammoDisplay.innerText = `${ammoInMag} / ${ammoReserve}`;
+                // 子弹打空时标红提示
+                ammoDisplay.style.color = ammoInMag === 0 ? "#ff5555" : "#ffce00"; 
+            }
+        }
+
+        // ✅ 换弹逻辑
+        function reloadWeapon(e) {
+            if (e) e.preventDefault();
+            // 已经在换弹、弹匣满的、或者没有备弹时，不执行换弹
+            if (isReloading || ammoInMag === maxAmmoInMag || ammoReserve === 0) return;
+            
+            isReloading = true;
+            updateAmmoUI();
+
+            // 简单的换弹动画：让武器向下移动隐藏到屏幕外
+            if (loadedGunModel) {
+                loadedGunModel.position.y = defaultGunY - 0.6;
+            }
+
+            // 模拟 1.5 秒换弹时间
+            setTimeout(() => {
+                let neededAmmo = maxAmmoInMag - ammoInMag;
+                let reloadAmount = Math.min(neededAmmo, ammoReserve);
+                
+                ammoInMag += reloadAmount;
+                ammoReserve -= reloadAmount;
+                
+                isReloading = false;
+                
+                // 恢复武器位置
+                if (loadedGunModel) {
+                    loadedGunModel.position.y = defaultGunY;
+                }
+                
+                updateAmmoUI();
+            }, 1500);
+        }
+
+        btnReload.addEventListener('touchstart', reloadWeapon);
+        btnReload.addEventListener('mousedown', reloadWeapon);
 
         document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(11, 1.25, 4); yVelocity = 0; });
         document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(2, 1.25, 15); yVelocity = 0; });
@@ -251,10 +341,21 @@
 
         const flashUI = document.getElementById('muzzle-flash');
         function shoot() {
-            if (isShooting || !loadedGunModel) return; 
+            if (isShooting || !loadedGunModel || isReloading) return; 
+            
+            // ✅ 如果没子弹了尝试开火，自动触发换弹逻辑
+            if (ammoInMag <= 0) {
+                reloadWeapon();
+                return;
+            }
+
             isShooting = true;
             
-            // 后坐力效果（将枪向后推）
+            // 扣减子弹并更新UI
+            ammoInMag--;
+            updateAmmoUI();
+
+            // 后坐力效果
             loadedGunModel.position.z = defaultGunZ + 0.1; 
             
             flashUI.style.opacity = '1';
@@ -285,8 +386,8 @@
                 yVelocity = 0;
             }
 
-            // 恢复枪械原位的动画
-            if (!isShooting && loadedGunModel) {
+            // 恢复枪械原位的动画 (Z轴后坐力恢复)
+            if (!isShooting && loadedGunModel && !isReloading) {
                 loadedGunModel.position.z += (defaultGunZ - loadedGunModel.position.z) * 0.2;
             }
 
@@ -338,6 +439,8 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
+        // 初始化UI
+        updateAmmoUI();
         animate();
     </script>
 </body>
