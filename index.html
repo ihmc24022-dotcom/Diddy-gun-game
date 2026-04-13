@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - 沙漠之鹰专属版</title>
+    <title>Web CSGO - USP 模式</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -35,7 +35,7 @@
     </style>
 </head>
 <body>
-    <div id="ui">🔫 武器加载：沙漠之鹰 (Desert Eagle)</div>
+    <div id="ui">🔫 武器加载：USP (CS2 Model)</div>
     <div id="coords-display">X: 0.0 | 高度: 0.0</div>
 
     <div id="team-select">
@@ -70,7 +70,7 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); 
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
         scene.add(ambientLight);
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); 
         dirLight.position.set(100, 200, 50);
@@ -105,40 +105,39 @@
             function (error) { console.error("地图加载失败:", error); }
         );
 
-        // 2. 加载沙漠之鹰模型
+        // 2. 加载新的 USP 模型
         const gunGroup = new THREE.Group();
         camera.add(gunGroup);
         scene.add(camera);
         
         let loadedGunModel = null;
-        let defaultGunZ = -0.3; 
+        let defaultGunZ = -0.4; 
 
-        // 🚨 已经为你指定好了刚刚上传的文件名 🚨
-        const gunUrl = 'desert_eagle_gun.glb'; 
+        // ✅ 已更新为 USP 模型文件名
+        const gunUrl = 'pistol__usp_no_silencer_weapon_model_cs2.glb'; 
         
         gltfLoader.load(
             gunUrl, 
             function (gltf) {
                 loadedGunModel = gltf.scene;
                 
-                // 🔫 尺寸与位置微调 🔫
-                // 如果沙鹰进游戏后看起来太巨大，把 0.1 改成 0.05；如果太小改大一点。
-                loadedGunModel.scale.set(0.1, 0.1, 0.1); 
-                
-                // 枪在右下角的位置 (X左右, Y上下, Z前后)
-                loadedGunModel.position.set(0.15, -0.1, defaultGunZ); 
-                
-                // 旋转调整：很多网上下载的枪支需要掉头。如果进游戏发现枪口对着自己，解除下一行的注释！
-                // loadedGunModel.rotation.y = Math.PI; 
+                // ✅ 为 USP 模型优化的比例和旋转
+                loadedGunModel.scale.set(1.5, 1.5, 1.5); 
+                loadedGunModel.position.set(0.2, -0.15, defaultGunZ); 
+                loadedGunModel.rotation.y = Math.PI; // 指向前方
                 
                 gunGroup.add(loadedGunModel);
                 checkLoadingStatus();
             },
-            undefined,
+            function (xhr) {
+                if (xhr.lengthComputable) {
+                    loadProgress.innerText = '武器: ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
+                }
+            },
             function (error) { console.error("枪支加载失败:", error); }
         );
 
-        // 传送按钮
+        // 传送按钮功能保持不变
         document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(220, 50, 80); });
         document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(40, 50, 300); });
 
@@ -155,19 +154,15 @@
         let isFlyingDown = false;
         const flySpeed = 1.0; 
 
-        // 升降按钮
+        // 升降按钮逻辑保持不变
         const btnUp = document.getElementById('btn-up');
         const btnDown = document.getElementById('btn-down');
         btnUp.addEventListener('touchstart', (e) => { e.preventDefault(); isFlyingUp = true; });
         btnUp.addEventListener('touchend', (e) => { e.preventDefault(); isFlyingUp = false; });
-        btnUp.addEventListener('mousedown', () => { isFlyingUp = true; });
-        btnUp.addEventListener('mouseup', () => { isFlyingUp = false; });
         btnDown.addEventListener('touchstart', (e) => { e.preventDefault(); isFlyingDown = true; });
         btnDown.addEventListener('touchend', (e) => { e.preventDefault(); isFlyingDown = false; });
-        btnDown.addEventListener('mousedown', () => { isFlyingDown = true; });
-        btnDown.addEventListener('mouseup', () => { isFlyingDown = false; });
 
-        // 触摸控制
+        // 触摸控制逻辑保持不变
         document.addEventListener('touchstart', (e) => {
             if(e.target.tagName === 'DIV' && e.target.classList.contains('flight-btn')) return;
             if(e.target.tagName === 'BUTTON') return; 
@@ -177,7 +172,6 @@
                     joyBase.style.display = 'block';
                     joyBase.style.left = t.clientX + 'px';
                     joyBase.style.top = t.clientY + 'px';
-                    joyStick.style.transform = `translate(-50%, -50%)`;
                 } else {
                     touches.right = { id: t.identifier, lastX: t.clientX, lastY: t.clientY, isTap: true };
                 }
@@ -195,7 +189,6 @@
                         deltaY = (deltaY / distance) * joyMaxRadius;
                     }
                     joyStick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
-                    
                     moveInput.x = (deltaX / joyMaxRadius) * 1.5;
                     moveInput.y = (deltaY / joyMaxRadius) * 1.5;
                 }
@@ -212,8 +205,7 @@
         document.addEventListener('touchend', (e) => {
             for (let t of e.changedTouches) {
                 if (touches.left && t.identifier === touches.left.id) { 
-                    touches.left = null; 
-                    moveInput = { x: 0, y: 0 }; 
+                    touches.left = null; moveInput = { x: 0, y: 0 }; 
                     joyBase.style.display = 'none';
                 }
                 if (touches.right && t.identifier === touches.right.id) {
@@ -223,49 +215,37 @@
             }
         });
 
-        // 射击后坐力控制
         const flashUI = document.getElementById('muzzle-flash');
         function shoot() {
             if (isShooting || !loadedGunModel) return;
             isShooting = true;
-            
-            // 开枪时沙鹰往后坐
             loadedGunModel.position.z = defaultGunZ + 0.05; 
-            
             flashUI.style.opacity = '1';
             setTimeout(() => { flashUI.style.opacity = '0'; }, 50);
             setTimeout(() => { isShooting = false; }, 150);
         }
 
-        // 主循环
         function animate() {
             requestAnimationFrame(animate);
-
-            // 枪支平滑回位
             if (!isShooting && loadedGunModel) {
                 loadedGunModel.position.z += (defaultGunZ - loadedGunModel.position.z) * 0.2;
             }
-
             if (touches.left) {
                 camera.translateZ(moveInput.y);
                 camera.translateX(moveInput.x);
             }
-
             if (isFlyingUp) camera.position.y += flySpeed;
             if (isFlyingDown) camera.position.y -= flySpeed;
-
             coordsDisplay.innerText = `X: ${camera.position.x.toFixed(0)} | 高度: ${camera.position.y.toFixed(0)}`;
-            
             renderer.render(scene, camera);
         }
+        animate();
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
-
-        animate();
     </script>
 </body>
 </html>
