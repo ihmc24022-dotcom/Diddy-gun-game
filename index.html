@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - 香蕉人靶场版 (Dust 2 + USP + Banana)</title>
+    <title>Web CSGO - 跳舞香蕉靶场版 (Dust 2 + USP + Dancing Banana)</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -117,7 +117,7 @@
     </style>
 </head>
 <body>
-    <div id="ui">新增：射击判定！寻找并射击地图中的 Banana 玩家模型。</div>
+    <div id="ui">靶场模式：寻找并击杀跳舞的香蕉 (Dancing Banana)！</div>
     
     <div id="coords-display">X: 0.00 | Z: 0.00</div>
 
@@ -149,6 +149,9 @@
         scene.background = new THREE.Color(0x87ceeb); 
         scene.fog = new THREE.Fog(0x87ceeb, 10, 300); 
 
+        // ✅ 新增：全局时钟，用于驱动动画
+        const clock = new THREE.Clock(); 
+
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
         camera.position.set(2, 1.25, 15); 
         camera.rotation.order = 'YXZ'; 
@@ -166,7 +169,7 @@
         let mapMesh = null;
         const raycaster = new THREE.Raycaster();
         const downRaycaster = new THREE.Raycaster(); 
-        const shootRaycaster = new THREE.Raycaster(); // ✅ 用于射击判定的射线
+        const shootRaycaster = new THREE.Raycaster();
 
         const objLoader = new THREE.OBJLoader();
         const gltfLoader = new THREE.GLTFLoader();
@@ -214,26 +217,35 @@
             gunGroup.add(loadedGunModel);
         });
 
-        // 3. ✅ 加载并放置香蕉人玩家模型
-        let targetPlayers = []; // 存放玩家模型的数组
-        gltfLoader.load('banana.glb', function (gltf) {
-            const bananaModel = gltf.scene;
-            
-            // 预设 3 个玩家靶子的出生位置
-            const spawnPoints = [
-                { x: 11, y: 1.0, z: -2 }, // T阵营附近
-                { x: 2, y: 1.0, z: 8 },   // CT阵营附近
-                { x: 6, y: 1.0, z: 5 }    // 中路
-            ];
+        // 3. ✅ 加载跳舞香蕉并激活骨骼动画
+        let targetPlayers = []; 
+        let mixers = []; // 存放所有香蕉动画的混合器
 
-            spawnPoints.forEach(pos => {
-                let clone = bananaModel.clone();
-                // 根据上传的坐标大小，将其缩小到符合人类身高 (大约 1.5 - 2 左右的高度)
-                clone.scale.set(0.05, 0.05, 0.05); 
-                clone.position.set(pos.x, pos.y, pos.z);
+        const spawnPoints = [
+            { x: 11, y: 1.0, z: -2 }, // T阵营附近
+            { x: 2, y: 1.0, z: 8 },   // CT阵营附近
+            { x: 6, y: 1.0, z: 5 }    // 中路
+        ];
+
+        // 循环单独加载以确保骨骼动画在每个克隆体上都能独立生效
+        spawnPoints.forEach(pos => {
+            gltfLoader.load('dancing_banana.glb', function (gltf) {
+                let bananaModel = gltf.scene;
                 
-                scene.add(clone);
-                targetPlayers.push(clone);
+                // 💡 调整跳舞香蕉的大小。如果游戏中太大或太小，调整这里的 2.5
+                bananaModel.scale.set(2.5, 2.5, 2.5); 
+                bananaModel.position.set(pos.x, pos.y, pos.z);
+                
+                // 检查并播放动画
+                if (gltf.animations && gltf.animations.length > 0) {
+                    let mixer = new THREE.AnimationMixer(bananaModel);
+                    let action = mixer.clipAction(gltf.animations[0]); // 播放第一个动画(跳舞)
+                    action.play();
+                    mixers.push(mixer);
+                }
+
+                scene.add(bananaModel);
+                targetPlayers.push(bananaModel);
             });
         });
 
@@ -353,7 +365,7 @@
             }
         });
 
-        // ✅ 开火与射线击杀判定
+        // 开火与射线击杀判定
         const flashUI = document.getElementById('muzzle-flash');
         function shoot() {
             if (isShooting || !loadedGunModel || isReloading) return; 
@@ -371,12 +383,11 @@
             loadedGunModel.position.z = defaultGunZ + 0.1; 
             flashUI.style.opacity = '1';
             
-            // 🎯 【新增】从相机中心发射射线，检测是否击中玩家模型
+            // 发射射线进行判定
             shootRaycaster.set(camera.position, camera.getWorldDirection(new THREE.Vector3()));
             const intersects = shootRaycaster.intersectObjects(targetPlayers, true);
             
             if (intersects.length > 0) {
-                // 找到被击中的具体是哪一个 Banana 组
                 let hitMesh = intersects[0].object;
                 let rootPlayer = null;
                 
@@ -386,16 +397,12 @@
                     });
                 });
 
-                // 如果命中且目标当前是活着的（可见）
                 if (rootPlayer && rootPlayer.visible) {
-                    // 击中反馈：屏幕显示红叉
                     hitMarker.style.opacity = '1';
                     setTimeout(() => { hitMarker.style.opacity = '0'; }, 200);
 
-                    // “击杀”目标
                     rootPlayer.visible = false;
                     
-                    // 3 秒后复活
                     setTimeout(() => {
                         rootPlayer.visible = true;
                     }, 3000);
@@ -425,6 +432,10 @@
         // 渲染循环
         function animate() {
             requestAnimationFrame(animate);
+
+            // ✅ 更新动画 Mixer，让香蕉跳舞！
+            const delta = clock.getDelta();
+            mixers.forEach(mixer => mixer.update(delta));
 
             if (camera.position.y < -10) {
                 camera.position.set(2, 1.25, 15);
@@ -473,7 +484,7 @@
                 }
             }
 
-            // 让所有的靶子(Banana)始终看向玩家
+            // 让香蕉人始终面向玩家
             targetPlayers.forEach(player => {
                 if(player.visible) {
                     player.lookAt(camera.position.x, player.position.y, camera.position.z);
