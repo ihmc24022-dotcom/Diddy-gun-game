@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - Flight Mode</title>
+    <title>Web CSGO - Giant Map Flight Mode</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -61,7 +61,7 @@
     </style>
 </head>
 <body>
-    <div id="ui">🚀 飞行模式已激活！可以穿墙与升空！</div>
+    <div id="ui">🚀 飞行模式已激活！地图已放大20倍！</div>
     
     <div id="coords-display">X: 0.00 | Y: 0.00</div>
 
@@ -88,10 +88,10 @@
         // 1. 场景初始化
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb); // 天蓝色背景
-        scene.fog = new THREE.Fog(0x87ceeb, 10, 300); 
+        scene.fog = new THREE.Fog(0x87ceeb, 10, 1000); // 雾气距离稍微调远一点适应大地图
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-        camera.position.set(0, 10, 0); // 初始位置调高，方便俯瞰地图
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
+        camera.position.set(0, 50, 0); // 初始位置调得更高一点
         camera.rotation.order = 'YXZ'; 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -115,8 +115,8 @@
             function (gltf) {
                 loadingUI.style.display = 'none';
                 const object = gltf.scene;
-                // 保持原定缩放大小
-                object.scale.set(0.02, 0.02, 0.02); 
+                // 👇 关键修改：放大 20 倍 (0.02 * 20 = 0.4) 👇
+                object.scale.set(0.4, 0.4, 0.4); 
                 object.position.set(0, 0, 0);
                 scene.add(object);
             },
@@ -135,7 +135,7 @@
             }
         );
 
-        // 4. 枪支模型 (后续如果找到枪的 GLB 也可以替换这里)
+        // 4. 枪支模型
         const gunGroup = new THREE.Group();
         const gunMesh = new THREE.Mesh(
             new THREE.BoxGeometry(0.1, 0.15, 0.6),
@@ -146,9 +146,9 @@
         camera.add(gunGroup);
         scene.add(camera);
 
-        // 5. 传送点按钮逻辑
-        document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(11, 5, 4); });
-        document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(2, 5, 15); });
+        // 5. 传送点按钮逻辑 (可以根据放大的地图重新调整这里的坐标)
+        document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(220, 100, 80); });
+        document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(40, 100, 300); });
 
         // 6. 控制变量
         const joyBase = document.getElementById('joystick-base');
@@ -162,7 +162,7 @@
         
         let isFlyingUp = false;
         let isFlyingDown = false;
-        const flySpeed = 0.2; 
+        const flySpeed = 0.8; // 地图变大了，飞行速度也稍微调快一点
 
         // 7. 垂直升降按钮事件
         const btnUp = document.getElementById('btn-up');
@@ -208,8 +208,10 @@
                         deltaY = (deltaY / distance) * joyMaxRadius;
                     }
                     joyStick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
-                    moveInput.x = (deltaX / joyMaxRadius) * 0.25;
-                    moveInput.y = (deltaY / joyMaxRadius) * 0.25;
+                    
+                    // 移动速度也适当调快以适应大地图
+                    moveInput.x = (deltaX / joyMaxRadius) * 1.0;
+                    moveInput.y = (deltaY / joyMaxRadius) * 1.0;
                 }
                 if (touches.right && t.identifier === touches.right.id) {
                     touches.right.isTap = false; 
