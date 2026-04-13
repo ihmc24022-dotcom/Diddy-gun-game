@@ -3,131 +3,191 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - 真实物理生存版</title>
+    <title>Web CSGO - Dust 2 FFC976 Edition</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
-        
         #crosshair { position: fixed; top: 50%; left: 50%; width: 4px; height: 4px; background: #00ff00; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none; z-index: 10; box-shadow: 0 0 5px #00ff00; }
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #00ff00; pointer-events: none; }
         #crosshair::before { top: -8px; left: 1px; width: 2px; height: 20px; }
         #crosshair::after { left: -8px; top: 1px; width: 20px; height: 2px; }
         
-        #ui { position: fixed; top: 10px; left: 10px; color: #00ff00; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 14px; text-shadow: 1px 1px 0 #000; font-weight: bold; }
-        #coords-display { position: fixed; top: 10px; right: 10px; background: rgba(0, 0, 0, 0.7); border: 1px solid #00ff00; color: #00ff00; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 16px; font-weight: bold; pointer-events: none; z-index: 20; }
+        #ui { position: fixed; top: 10px; left: 10px; color: white; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 14px; text-shadow: 1px 1px 0 #000; }
         
         #team-select { position: fixed; top: 50px; left: 10px; z-index: 15; display: flex; gap: 10px; }
-        button { padding: 10px 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 5px; cursor: pointer; pointer-events: auto; }
+        button { padding: 10px 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 5px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         #btn-red { background-color: #d32f2f; }
         #btn-blue { background-color: #1976d2; }
+        #btn-red:active { background-color: #b71c1c; }
+        #btn-blue:active { background-color: #0d47a1; }
+
+        #coords-display {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 16px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 20;
+            text-shadow: 0 0 5px #00ff00;
+        }
 
         #joystick-base { position: fixed; width: 100px; height: 100px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 30; }
-        #joystick-stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: rgba(0, 0, 0, 0.9); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+        #joystick-stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: rgba(0, 0, 0, 0.9); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px rgba(0,0,0,0.8); pointer-events: none; }
 
-        #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 100; text-align: center; }
-        #muzzle-flash { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); pointer-events: none; opacity: 0; z-index: 5; transition: opacity 0.05s; }
+        #btn-jump {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            width: 70px;
+            height: 70px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(0, 0, 0, 0.7);
+            border-radius: 50%;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            z-index: 30;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation; 
+        }
+        #btn-jump:active { background: rgba(255, 255, 255, 0.3); }
+
+        #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 20; pointer-events: none; text-shadow: 2px 2px 4px #000; }
+        #muzzle-flash { position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
     </style>
 </head>
 <body>
-    <div id="ui">🔫 模式：防穿墙物理版 (#BE7000)</div>
-    <div id="coords-display">X: 0 | Z: 0</div>
-    <div id="team-select">
-        <button id="btn-red">传送 A</button>
-        <button id="btn-blue">传送 B</button>
-    </div>
+    <div id="ui">已恢复经典版本，并优化了初始加载逻辑。</div>
     
-    <div id="joystick-base"><div id="joystick-stick"></div></div>
-    <div id="loading">计算碰撞模型中...<br><span id="load-progress">请稍后</span></div>
+    <div id="coords-display">X: 0.00 | Z: 0.00</div>
+
+    <div id="team-select">
+        <button id="btn-red">加入红队 (T)</button>
+        <button id="btn-blue">加入蓝队 (CT)</button>
+    </div>
+
+    <button id="btn-jump">JUMP</button>
+
+    <div id="joystick-base">
+        <div id="joystick-stick"></div>
+    </div>
+
+    <div id="loading">Map Loading 0%</div>
     <div id="crosshair"></div>
     <div id="muzzle-flash"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
 
     <script>
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x111111); 
+        scene.background = new THREE.Color(0x87ceeb); 
+        scene.fog = new THREE.Fog(0x87ceeb, 10, 300); 
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
-        camera.position.set(0, 50, 0); 
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.set(2, 1.25, 15); 
         camera.rotation.order = 'YXZ'; 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 1.2));
-        const pointLight = new THREE.PointLight(0xffffff, 0.8);
-        camera.add(pointLight);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); 
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); 
+        dirLight.position.set(100, 200, 50);
+        scene.add(dirLight);
+
+        let mapMesh = null;
+        const raycaster = new THREE.Raycaster();
+        const downRaycaster = new THREE.Raycaster(); 
+
+        const objLoader = new THREE.OBJLoader();
+        const loadingUI = document.getElementById('loading');
+        const mapUrl = 'de_dust2.obj'; 
+
+        objLoader.load(
+            mapUrl,
+            function (object) {
+                loadingUI.style.display = 'none';
+                const sandMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0xFFC976, // ✅ Updated map color
+                    roughness: 0.9, side: THREE.DoubleSide 
+                });
+                object.traverse(function (child) {
+                    if (child.isMesh) child.material = sandMaterial;
+                });
+                object.scale.set(0.02, 0.02, 0.02); 
+                object.position.set(0, 0, 0);
+                object.rotation.x = -Math.PI / 2; 
+                scene.add(object);
+                mapMesh = object; 
+            },
+            function (xhr) {
+                if (xhr.lengthComputable) {
+                    loadingUI.innerText = '加载地图 ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
+                }
+            },
+            function (error) { loadingUI.innerText = '加载失败!'; loadingUI.style.color = 'red'; }
+        );
+
+        const gunGroup = new THREE.Group();
+        const gunMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(0.1, 0.15, 0.6),
+            new THREE.MeshStandardMaterial({ color: 0x222222 })
+        );
+        gunMesh.position.set(0.3, -0.2, -0.5); 
+        gunGroup.add(gunMesh);
+        camera.add(gunGroup);
         scene.add(camera);
 
-        let modelsLoaded = 0;
-        let mapMeshes = []; // 用于物理碰撞的数组
+        document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(11, 1.25, 4); yVelocity = 0; });
+        document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(2, 1.25, 15); yVelocity = 0; });
 
-        function checkLoadingStatus() {
-            modelsLoaded++;
-            if(modelsLoaded >= 1) { document.getElementById('loading').style.display = 'none'; }
+        const joyBase = document.getElementById('joystick-base');
+        const joyStick = document.getElementById('joystick-stick');
+        const coordsDisplay = document.getElementById('coords-display'); 
+        const joyMaxRadius = 50; 
+
+        let yVelocity = 0; 
+        let isGrounded = false;
+        const gravity = -0.012; 
+        const jumpStrength = 0.15; 
+
+        const btnJump = document.getElementById('btn-jump');
+        
+        function handleJump(e) {
+            e.preventDefault(); 
+            if (isGrounded) {
+                yVelocity = jumpStrength;
+                isGrounded = false;
+            }
         }
+        btnJump.addEventListener('touchstart', handleJump);
+        btnJump.addEventListener('mousedown', handleJump); 
 
-        // 1. 加载 OBJ 地图并注入碰撞检测
-        const objLoader = new THREE.OBJLoader();
-        objLoader.load('de_dust2.obj', function (obj) {
-            obj.traverse(function (child) {
-                if (child.isMesh) {
-                    child.material = new THREE.MeshStandardMaterial({
-                        color: 0xBE7000, // ✅ 颜色已更新为 BE7000
-                        metalness: 0.2,
-                        roughness: 0.8
-                    });
-                    mapMeshes.push(child); // 将所有墙面和地板加入碰撞模型库
-                }
-            });
-            obj.rotation.x = -Math.PI / 2; 
-            obj.scale.set(0.4, 0.4, 0.4); 
-            scene.add(obj);
-            checkLoadingStatus();
-        });
-
-        // 2. 加载武器
-        const gltfLoader = new THREE.GLTFLoader();
-        const gunGroup = new THREE.Group();
-        camera.add(gunGroup);
-        let loadedGunModel = null;
-        let defaultGunZ = -0.4; 
-
-        gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb', function (gltf) {
-            loadedGunModel = gltf.scene;
-            loadedGunModel.scale.set(1.5, 1.5, 1.5); 
-            loadedGunModel.position.set(0.2, -0.15, defaultGunZ); 
-            loadedGunModel.rotation.y = Math.PI; 
-            gunGroup.add(loadedGunModel);
-            checkLoadingStatus();
-        });
-
-        // --- 传送功能 ---
-        document.getElementById('btn-red').addEventListener('touchstart', (e) => { 
-            e.stopPropagation(); camera.position.set(220, 50, 80); 
-        });
-        document.getElementById('btn-blue').addEventListener('touchstart', (e) => { 
-            e.stopPropagation(); camera.position.set(40, 50, 300); 
-        });
-        document.getElementById('btn-red').onclick = () => camera.position.set(220, 50, 80);
-        document.getElementById('btn-blue').onclick = () => camera.position.set(40, 50, 300);
-
-        // --- 控制与交互 ---
-        const raycaster = new THREE.Raycaster();
-        let moveInput = { x: 0, y: 0 }, touches = { left: null, right: null };
+        let moveInput = { x: 0, y: 0 };
+        let touches = { left: null, right: null };
         let isShooting = false;
 
         document.addEventListener('touchstart', (e) => {
-            if(e.target.tagName === 'BUTTON') return;
+            if(e.target.tagName === 'BUTTON') return; 
             for (let t of e.changedTouches) {
                 if (t.clientX < window.innerWidth / 2) {
                     touches.left = { id: t.identifier, startX: t.clientX, startY: t.clientY };
-                    const joyBase = document.getElementById('joystick-base');
-                    joyBase.style.display = 'block'; joyBase.style.left = t.clientX + 'px'; joyBase.style.top = t.clientY + 'px';
+                    joyBase.style.display = 'block';
+                    joyBase.style.left = t.clientX + 'px';
+                    joyBase.style.top = t.clientY + 'px';
+                    joyStick.style.transform = `translate(-50%, -50%)`;
                 } else {
                     touches.right = { id: t.identifier, lastX: t.clientX, lastY: t.clientY, isTap: true };
                 }
@@ -137,95 +197,127 @@
         document.addEventListener('touchmove', (e) => {
             for (let t of e.changedTouches) {
                 if (touches.left && t.identifier === touches.left.id) {
-                    let dx = t.clientX - touches.left.startX, dy = t.clientY - touches.left.startY;
-                    const dist = Math.sqrt(dx*dx + dy*dy);
-                    if (dist > 50) { dx *= 50/dist; dy *= 50/dist; }
-                    document.getElementById('joystick-stick').style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-                    moveInput.x = (dx / 50) * 1.5; moveInput.y = (dy / 50) * 1.5;
+                    let deltaX = t.clientX - touches.left.startX;
+                    let deltaY = t.clientY - touches.left.startY;
+                    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    if (distance > joyMaxRadius) {
+                        deltaX = (deltaX / distance) * joyMaxRadius;
+                        deltaY = (deltaY / distance) * joyMaxRadius;
+                    }
+                    joyStick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
+                    moveInput.x = (deltaX / joyMaxRadius) * 0.15;
+                    moveInput.y = (deltaY / joyMaxRadius) * 0.15;
                 }
                 if (touches.right && t.identifier === touches.right.id) {
-                    touches.right.isTap = false;
+                    touches.right.isTap = false; 
                     camera.rotation.y -= (t.clientX - touches.right.lastX) * 0.005;
                     camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x - (t.clientY - touches.right.lastY) * 0.005));
-                    touches.right.lastX = t.clientX; touches.right.lastY = t.clientY;
+                    touches.right.lastX = t.clientX;
+                    touches.right.lastY = t.clientY;
                 }
             }
         });
 
         document.addEventListener('touchend', (e) => {
             for (let t of e.changedTouches) {
-                if (touches.left && t.identifier === touches.left.id) { touches.left = null; moveInput = { x: 0, y: 0 }; document.getElementById('joystick-base').style.display = 'none'; }
-                if (touches.right && t.identifier === touches.right.id) { if (touches.right.isTap) shoot(); touches.right = null; }
+                if (touches.left && t.identifier === touches.left.id) { 
+                    touches.left = null; 
+                    moveInput = { x: 0, y: 0 }; 
+                    joyBase.style.display = 'none';
+                }
+                if (touches.right && t.identifier === touches.right.id) {
+                    if (touches.right.isTap) shoot();
+                    touches.right = null;
+                }
             }
         });
 
+        const flashUI = document.getElementById('muzzle-flash');
         function shoot() {
-            if (isShooting || !loadedGunModel) return;
+            if (isShooting) return;
             isShooting = true;
-            loadedGunModel.position.z = defaultGunZ + 0.05;
-            document.getElementById('muzzle-flash').style.opacity = '1';
-            setTimeout(() => { document.getElementById('muzzle-flash').style.opacity = '0'; }, 50);
+            gunMesh.position.z = -0.3; 
+            flashUI.style.opacity = '1';
+            setTimeout(() => { flashUI.style.opacity = '0'; }, 50);
             setTimeout(() => { isShooting = false; }, 150);
+        }
+
+        function checkCollision(startPos, endPos) {
+            if (!mapMesh) return false; 
+            const currentY = camera.position.y;
+            const checkStart = startPos.clone(); checkStart.y = currentY; 
+            const checkEnd = endPos.clone(); checkEnd.y = currentY;
+            const direction = new THREE.Vector3().subVectors(checkEnd, checkStart);
+            const distance = direction.length();
+            if (distance === 0) return false;
+            direction.normalize(); 
+            raycaster.set(checkStart, direction);
+            const intersects = raycaster.intersectObject(mapMesh, true);
+            if (intersects.length > 0 && intersects[0].distance < distance + 0.2) return true; 
+            return false; 
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            if (!isShooting && loadedGunModel) loadedGunModel.position.z += (defaultGunZ - loadedGunModel.position.z) * 0.2;
-            
-            // --- 核心物理与移动逻辑 ---
-            if (touches.left && mapMeshes.length > 0) {
-                const oldPos = camera.position.clone();
+
+            // 虚空安全网
+            if (camera.position.y < -10) {
+                camera.position.set(2, 1.25, 15);
+                yVelocity = 0;
+            }
+
+            if (!isShooting) gunMesh.position.z += (-0.5 - gunMesh.position.z) * 0.2;
+
+            if (touches.left) {
+                let oldPosition = camera.position.clone();
+                camera.translateZ(moveInput.y);
+                if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
+                oldPosition = camera.position.clone();
+                camera.translateX(moveInput.x);
+                if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
+            }
+
+            // 💡 关键改动：只有当地图加载完成后，重力才生效
+            if (mapMesh) {
+                yVelocity += gravity;
+                camera.position.y += yVelocity;
+
+                const rayOrigin = camera.position.clone();
+                rayOrigin.y += 0.5; 
+                downRaycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
+                const intersects = downRaycaster.intersectObject(mapMesh, true);
                 
-                // 将输入转换为仅水平方向的世界坐标系移动
-                const moveEuler = new THREE.Euler(0, camera.rotation.y, 0, 'YXZ');
-                const moveVector = new THREE.Vector3(moveInput.x, 0, moveInput.y).applyEuler(moveEuler);
-                
-                // 尝试移动
-                camera.position.add(moveVector);
-                
-                // 1. 墙体防穿透检测 (Hitbox)
-                const moveDir = new THREE.Vector3().subVectors(camera.position, oldPos);
-                if (moveDir.length() > 0.01) {
-                    moveDir.normalize();
-                    raycaster.set(oldPos, moveDir);
-                    const wallIntersects = raycaster.intersectObjects(mapMeshes, true);
+                if (intersects.length > 0) {
+                    const groundHeight = intersects[0].point.y;
+                    const targetY = groundHeight + 1.25; 
                     
-                    // 如果离墙壁小于 3 单位，取消本次移动
-                    if (wallIntersects.length > 0 && wallIntersects[0].distance < 3) {
-                        camera.position.copy(oldPos); 
+                    if (targetY <= camera.position.y + 1.0) {
+                        if (camera.position.y <= targetY) {
+                            camera.position.y += (targetY - camera.position.y) * 0.4; 
+                            isGrounded = true;
+                            if (yVelocity < 0) yVelocity = 0; 
+                        } else {
+                            isGrounded = false;
+                        }
+                    } else {
+                        isGrounded = false;
                     }
-                }
-            }
-
-            // 2. 引力与地形跟随 (楼梯与斜坡)
-            if (mapMeshes.length > 0) {
-                raycaster.set(camera.position, new THREE.Vector3(0, -1, 0));
-                const floorIntersects = raycaster.intersectObjects(mapMeshes, true);
-                
-                if (floorIntersects.length > 0) {
-                    // 让视角保持在地面上方 50 个单位高度（上坡/下坡平滑过渡）
-                    const distToFloor = floorIntersects[0].distance;
-                    camera.position.y += (50 - distToFloor) * 0.2; 
                 } else {
-                    // 脚下没东西？掉下去！
-                    camera.position.y -= 2.0; 
-                    if (camera.position.y < -200) {
-                        // 掉出地图边缘，自动复活到中心点
-                        camera.position.set(0, 50, 0); 
-                    }
+                    isGrounded = false;
                 }
             }
 
-            document.getElementById('coords-display').innerText = `X: ${camera.position.x.toFixed(0)} | Z: ${camera.position.z.toFixed(0)}`;
+            coordsDisplay.innerText = `X: ${camera.position.x.toFixed(1)} | Z: ${camera.position.z.toFixed(1)}`;
             renderer.render(scene, camera);
         }
-        animate();
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
+        animate();
     </script>
 </body>
 </html>
