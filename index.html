@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - USP 模式</title>
+    <title>Web CSGO - USP 模型完整版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -31,12 +31,12 @@
         #btn-down { bottom: 30px; }
 
         #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 20; pointer-events: none; text-shadow: 2px 2px 4px #000; text-align: center; }
-        #muzzle-flash { position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
+        #muzzle-flash { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
     </style>
 </head>
 <body>
-    <div id="ui">🔫 武器加载：USP (CS2 Model)</div>
-    <div id="coords-display">X: 0.0 | 高度: 0.0</div>
+    <div id="ui">🔫 武器加载：USP (CS2 版本)</div>
+    <div id="coords-display">X: 0 | 高度: 0</div>
 
     <div id="team-select">
         <button id="btn-red">传送点 A</button>
@@ -50,7 +50,7 @@
         <div id="joystick-stick"></div>
     </div>
 
-    <div id="loading">加载资源中...<br><span id="load-progress">0%</span></div>
+    <div id="loading">加载资源中...<br><span id="load-progress">等待下载...</span></div>
     <div id="crosshair"></div>
     <div id="muzzle-flash"></div>
 
@@ -58,6 +58,7 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
+        // --- 基础场景设置 ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb); 
         scene.fog = new THREE.Fog(0x87ceeb, 100, 5000); 
@@ -68,6 +69,7 @@
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
@@ -79,9 +81,12 @@
         const loadingUI = document.getElementById('loading');
         const loadProgress = document.getElementById('load-progress');
         let modelsLoaded = 0;
+        
         function checkLoadingStatus() {
             modelsLoaded++;
-            if(modelsLoaded === 2) loadingUI.style.display = 'none';
+            if(modelsLoaded === 2) {
+                loadingUI.style.display = 'none';
+            }
         }
 
         const gltfLoader = new THREE.GLTFLoader();
@@ -93,19 +98,19 @@
             function (gltf) {
                 const mapObj = gltf.scene;
                 mapObj.scale.set(0.4, 0.4, 0.4); 
-                mapObj.position.set(0, 0, 0);
                 scene.add(mapObj);
                 checkLoadingStatus();
             },
             function (xhr) {
-                if (xhr.lengthComputable) {
+                if (xhr.lengthComputable && xhr.total > 0) {
                     loadProgress.innerText = '地图: ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
+                } else {
+                    loadProgress.innerText = '地图下载中...';
                 }
-            },
-            function (error) { console.error("地图加载失败:", error); }
+            }
         );
 
-        // 2. 加载新的 USP 模型
+        // 2. 加载 USP 武器模型
         const gunGroup = new THREE.Group();
         camera.add(gunGroup);
         scene.add(camera);
@@ -113,7 +118,7 @@
         let loadedGunModel = null;
         let defaultGunZ = -0.4; 
 
-        // ✅ 已更新为 USP 模型文件名
+        // 使用你上传给我的模型文件名
         const gunUrl = 'pistol__usp_no_silencer_weapon_model_cs2.glb'; 
         
         gltfLoader.load(
@@ -121,23 +126,33 @@
             function (gltf) {
                 loadedGunModel = gltf.scene;
                 
-                // ✅ 为 USP 模型优化的比例和旋转
+                // USP 模型适配参数
                 loadedGunModel.scale.set(1.5, 1.5, 1.5); 
                 loadedGunModel.position.set(0.2, -0.15, defaultGunZ); 
-                loadedGunModel.rotation.y = Math.PI; // 指向前方
+                loadedGunModel.rotation.y = Math.PI; // 修正方向朝前
                 
                 gunGroup.add(loadedGunModel);
+                loadProgress.innerText = '武器: 100%';
                 checkLoadingStatus();
             },
             function (xhr) {
-                if (xhr.lengthComputable) {
+                if (xhr.lengthComputable && xhr.total > 0) {
                     loadProgress.innerText = '武器: ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
+                } else {
+                    // 虚拟进度计算：每加载 100KB 增加约 5% 的进度感
+                    let virtualPct = Math.min(99, Math.round((xhr.loaded / 102400) * 5));
+                    loadProgress.innerText = '武器下载中: ' + virtualPct + '%';
                 }
             },
-            function (error) { console.error("枪支加载失败:", error); }
+            function (error) { 
+                console.error("枪支加载失败:", error); 
+                loadProgress.innerText = "武器文件缺失";
+            }
         );
 
-        // 传送按钮功能保持不变
+        // --- 交互功能 ---
+
+        // 传送按钮
         document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(220, 50, 80); });
         document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(40, 50, 300); });
 
@@ -154,7 +169,7 @@
         let isFlyingDown = false;
         const flySpeed = 1.0; 
 
-        // 升降按钮逻辑保持不变
+        // 升降按钮逻辑
         const btnUp = document.getElementById('btn-up');
         const btnDown = document.getElementById('btn-down');
         btnUp.addEventListener('touchstart', (e) => { e.preventDefault(); isFlyingUp = true; });
@@ -162,10 +177,9 @@
         btnDown.addEventListener('touchstart', (e) => { e.preventDefault(); isFlyingDown = true; });
         btnDown.addEventListener('touchend', (e) => { e.preventDefault(); isFlyingDown = false; });
 
-        // 触摸控制逻辑保持不变
+        // 屏幕触摸逻辑
         document.addEventListener('touchstart', (e) => {
-            if(e.target.tagName === 'DIV' && e.target.classList.contains('flight-btn')) return;
-            if(e.target.tagName === 'BUTTON') return; 
+            if(e.target.tagName === 'BUTTON' || e.target.classList.contains('flight-btn')) return;
             for (let t of e.changedTouches) {
                 if (t.clientX < window.innerWidth / 2) {
                     touches.left = { id: t.identifier, startX: t.clientX, startY: t.clientY };
@@ -176,7 +190,7 @@
                     touches.right = { id: t.identifier, lastX: t.clientX, lastY: t.clientY, isTap: true };
                 }
             }
-        });
+        }, {passive: false});
 
         document.addEventListener('touchmove', (e) => {
             for (let t of e.changedTouches) {
@@ -200,7 +214,7 @@
                     touches.right.lastY = t.clientY;
                 }
             }
-        });
+        }, {passive: false});
 
         document.addEventListener('touchend', (e) => {
             for (let t of e.changedTouches) {
@@ -219,33 +233,46 @@
         function shoot() {
             if (isShooting || !loadedGunModel) return;
             isShooting = true;
+            
+            // 后坐力动画
             loadedGunModel.position.z = defaultGunZ + 0.05; 
             flashUI.style.opacity = '1';
+            
             setTimeout(() => { flashUI.style.opacity = '0'; }, 50);
             setTimeout(() => { isShooting = false; }, 150);
         }
 
         function animate() {
             requestAnimationFrame(animate);
+
+            // 枪支平滑复位
             if (!isShooting && loadedGunModel) {
                 loadedGunModel.position.z += (defaultGunZ - loadedGunModel.position.z) * 0.2;
             }
+
+            // 移动
             if (touches.left) {
                 camera.translateZ(moveInput.y);
                 camera.translateX(moveInput.x);
             }
+
+            // 升降
             if (isFlyingUp) camera.position.y += flySpeed;
             if (isFlyingDown) camera.position.y -= flySpeed;
+
+            // 更新坐标显示
             coordsDisplay.innerText = `X: ${camera.position.x.toFixed(0)} | 高度: ${camera.position.y.toFixed(0)}`;
+            
             renderer.render(scene, camera);
         }
-        animate();
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
+        animate();
     </script>
 </body>
 </html>
