@@ -3,34 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - Giant Map Flight Mode</title>
+    <title>Web CSGO - 1:1 Giant Scale</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
         
-        /* 准星 */
+        /* Crosshair */
         #crosshair { position: fixed; top: 50%; left: 50%; width: 4px; height: 4px; background: #00ff00; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none; z-index: 10; box-shadow: 0 0 5px #00ff00; }
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #00ff00; pointer-events: none; }
         #crosshair::before { top: -8px; left: 1px; width: 2px; height: 20px; }
         #crosshair::after { left: -8px; top: 1px; width: 20px; height: 2px; }
         
-        /* 顶部提示语 */
+        /* Top UI Text */
         #ui { position: fixed; top: 10px; left: 10px; color: #00ff00; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 14px; text-shadow: 1px 1px 0 #000; font-weight: bold; }
         
-        /* 坐标显示器 */
+        /* Coordinates */
         #coords-display { position: fixed; top: 10px; right: 10px; background: rgba(0, 0, 0, 0.7); border: 1px solid #00ff00; color: #00ff00; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 16px; font-weight: bold; pointer-events: none; z-index: 20; }
 
-        /* 队伍/传送按钮 */
+        /* Teleport Buttons */
         #team-select { position: fixed; top: 50px; left: 10px; z-index: 15; display: flex; gap: 10px; }
         button { padding: 10px 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 5px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         #btn-red { background-color: #d32f2f; }
         #btn-blue { background-color: #1976d2; }
 
-        /* 虚拟摇杆 */
+        /* Joystick */
         #joystick-base { position: fixed; width: 100px; height: 100px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 30; }
         #joystick-stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: rgba(0, 0, 0, 0.9); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px rgba(0,0,0,0.8); pointer-events: none; }
 
-        /* 飞行垂直控制按钮 */
+        /* Flight UP/DOWN Buttons */
         .flight-btn {
             position: fixed;
             right: 30px;
@@ -55,19 +55,19 @@
         #btn-up { bottom: 110px; }
         #btn-down { bottom: 30px; }
 
-        /* 加载界面与开火特效 */
+        /* Loading UI & Muzzle Flash */
         #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 20; pointer-events: none; text-shadow: 2px 2px 4px #000; }
         #muzzle-flash { position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
     </style>
 </head>
 <body>
-    <div id="ui">🚀 飞行模式已激活！地图已放大20倍！</div>
+    <div id="ui">🚀 Flight Mode: Map is at 1:1 Absolute Original Scale!</div>
     
-    <div id="coords-display">X: 0.00 | Y: 0.00</div>
+    <div id="coords-display">X: 0.0 | Y: 0.0</div>
 
     <div id="team-select">
-        <button id="btn-red">传送点 A</button>
-        <button id="btn-blue">传送点 B</button>
+        <button id="btn-red">Teleport A</button>
+        <button id="btn-blue">Teleport B</button>
     </div>
 
     <div id="btn-up" class="flight-btn">UP</div>
@@ -85,27 +85,30 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
-        // 1. 场景初始化
+        // 1. Scene Initialization
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb); // 天蓝色背景
-        scene.fog = new THREE.Fog(0x87ceeb, 10, 1000); // 雾气距离稍微调远一点适应大地图
+        scene.background = new THREE.Color(0x87ceeb); 
+        // Pushed fog way back to accommodate the massive 1:1 scale
+        scene.fog = new THREE.Fog(0x87ceeb, 100, 10000); 
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
-        camera.position.set(0, 50, 0); // 初始位置调得更高一点
+        // Increased far clipping plane to 15000 so the map doesn't vanish
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 15000);
+        // Spawning much higher in the sky (Y: 150)
+        camera.position.set(0, 150, 0); 
         camera.rotation.order = 'YXZ'; 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // 2. 光照设置
+        // 2. Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); 
         scene.add(ambientLight);
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); 
         dirLight.position.set(100, 200, 50);
         scene.add(dirLight);
 
-        // 3. 加载 GLB 地图
+        // 3. Load GLB Map
         const gltfLoader = new THREE.GLTFLoader();
         const loadingUI = document.getElementById('loading');
         const mapUrl = 'de_dust2_-_cs_map.glb'; 
@@ -115,27 +118,29 @@
             function (gltf) {
                 loadingUI.style.display = 'none';
                 const object = gltf.scene;
-                // 👇 关键修改：放大 20 倍 (0.02 * 20 = 0.4) 👇
-                object.scale.set(0.4, 0.4, 0.4); 
+                
+                // 👇 CRITICAL CHANGE: Map set to 1:1 Scale 👇
+                object.scale.set(1, 1, 1); 
+                
                 object.position.set(0, 0, 0);
                 scene.add(object);
             },
             function (xhr) {
                 if (xhr.lengthComputable) {
-                    loadingUI.innerText = '加载地图 ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
+                    loadingUI.innerText = 'Loading Map ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
                 } else {
                     const mb = (xhr.loaded / 1024 / 1024).toFixed(1);
-                    loadingUI.innerText = `加载中... ${mb} MB`;
+                    loadingUI.innerText = `Loading... ${mb} MB`;
                 }
             },
             function (error) { 
-                console.error("加载失败:", error);
-                loadingUI.innerText = '加载失败!'; 
+                console.error("Load failed:", error);
+                loadingUI.innerText = 'Load Failed!'; 
                 loadingUI.style.color = 'red'; 
             }
         );
 
-        // 4. 枪支模型
+        // 4. Gun Model
         const gunGroup = new THREE.Group();
         const gunMesh = new THREE.Mesh(
             new THREE.BoxGeometry(0.1, 0.15, 0.6),
@@ -146,11 +151,11 @@
         camera.add(gunGroup);
         scene.add(camera);
 
-        // 5. 传送点按钮逻辑 (可以根据放大的地图重新调整这里的坐标)
-        document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(220, 100, 80); });
-        document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(40, 100, 300); });
+        // 5. Teleport Buttons (Adjusted coordinates for 1:1 scale)
+        document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(550, 250, 200); });
+        document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(100, 250, 750); });
 
-        // 6. 控制变量
+        // 6. Controls Variables
         const joyBase = document.getElementById('joystick-base');
         const joyStick = document.getElementById('joystick-stick');
         const coordsDisplay = document.getElementById('coords-display'); 
@@ -162,9 +167,11 @@
         
         let isFlyingUp = false;
         let isFlyingDown = false;
-        const flySpeed = 0.8; // 地图变大了，飞行速度也稍微调快一点
+        
+        // Massive speed boost for 1:1 scale
+        const flySpeed = 3.0; 
 
-        // 7. 垂直升降按钮事件
+        // 7. Vertical Flight Buttons
         const btnUp = document.getElementById('btn-up');
         const btnDown = document.getElementById('btn-down');
 
@@ -180,7 +187,7 @@
         btnDown.addEventListener('mouseup', () => { isFlyingDown = false; });
         btnDown.addEventListener('mouseleave', () => { isFlyingDown = false; });
 
-        // 8. 触摸控制 (移动与视角)
+        // 8. Touch Controls
         document.addEventListener('touchstart', (e) => {
             if(e.target.tagName === 'DIV' && e.target.classList.contains('flight-btn')) return;
             if(e.target.tagName === 'BUTTON') return; 
@@ -209,9 +216,9 @@
                     }
                     joyStick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
                     
-                    // 移动速度也适当调快以适应大地图
-                    moveInput.x = (deltaX / joyMaxRadius) * 1.0;
-                    moveInput.y = (deltaY / joyMaxRadius) * 1.0;
+                    // Increased movement multiplier for the giant map
+                    moveInput.x = (deltaX / joyMaxRadius) * 4.0;
+                    moveInput.y = (deltaY / joyMaxRadius) * 4.0;
                 }
                 if (touches.right && t.identifier === touches.right.id) {
                     touches.right.isTap = false; 
@@ -237,48 +244,42 @@
             }
         });
 
-        // 9. 射击逻辑
+        // 9. Shooting Logic
         const flashUI = document.getElementById('muzzle-flash');
         function shoot() {
             if (isShooting) return;
             isShooting = true;
-            gunMesh.position.z = -0.3; // 后坐力表现
+            gunMesh.position.z = -0.3; 
             flashUI.style.opacity = '1';
             setTimeout(() => { flashUI.style.opacity = '0'; }, 50);
             setTimeout(() => { isShooting = false; }, 150);
         }
 
-        // 10. 主循环
+        // 10. Main Render Loop
         function animate() {
             requestAnimationFrame(animate);
 
-            // 枪支回弹
             if (!isShooting) gunMesh.position.z += (-0.5 - gunMesh.position.z) * 0.2;
 
-            // 飞行移动 (直接根据摄像机朝向进行位移，无视碰撞)
             if (touches.left) {
                 camera.translateZ(moveInput.y);
                 camera.translateX(moveInput.x);
             }
 
-            // 垂直升降
             if (isFlyingUp) camera.position.y += flySpeed;
             if (isFlyingDown) camera.position.y -= flySpeed;
 
-            // UI 更新
-            coordsDisplay.innerText = `X: ${camera.position.x.toFixed(1)} | 高度: ${camera.position.y.toFixed(1)}`;
+            coordsDisplay.innerText = `X: ${camera.position.x.toFixed(0)} | Alt: ${camera.position.y.toFixed(0)}`;
             
             renderer.render(scene, camera);
         }
 
-        // 11. 窗口缩放适配
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // 启动！
         animate();
     </script>
 </body>
