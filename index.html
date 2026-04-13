@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - Dust 2 FFC976 Edition (Ammo System)</title>
+    <title>Web CSGO - 香蕉人靶场版 (Dust 2 + USP + Banana)</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -61,11 +61,10 @@
         }
         #btn-jump:active { background: rgba(255, 255, 255, 0.3); }
 
-        /* ✅ 新增：换弹按钮样式 */
         #btn-reload {
             position: fixed;
             bottom: 50px;
-            right: 130px; /* 放在跳跃键左侧 */
+            right: 130px; 
             width: 50px;
             height: 50px;
             background: rgba(0, 0, 0, 0.4);
@@ -82,10 +81,9 @@
         }
         #btn-reload:active { background: rgba(255, 255, 255, 0.3); }
 
-        /* ✅ 新增：弹药显示样式 */
         #ammo-display {
             position: fixed;
-            bottom: 120px; /* 在跳跃和换弹按钮上方 */
+            bottom: 120px; 
             right: 40px;
             background: rgba(0, 0, 0, 0.7);
             border: 1px solid #ffce00;
@@ -100,12 +98,26 @@
             text-shadow: 0 0 5px #ffce00;
         }
 
+        #hit-marker {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: red;
+            font-size: 24px;
+            font-weight: bold;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.1s;
+            z-index: 15;
+        }
+
         #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 20; pointer-events: none; text-shadow: 2px 2px 4px #000; }
         #muzzle-flash { position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
     </style>
 </head>
 <body>
-    <div id="ui">已恢复经典版本，并优化了初始加载逻辑。</div>
+    <div id="ui">新增：射击判定！寻找并射击地图中的 Banana 玩家模型。</div>
     
     <div id="coords-display">X: 0.00 | Z: 0.00</div>
 
@@ -125,6 +137,7 @@
 
     <div id="loading">Map Loading 0%</div>
     <div id="crosshair"></div>
+    <div id="hit-marker">✖</div>
     <div id="muzzle-flash"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -153,14 +166,15 @@
         let mapMesh = null;
         const raycaster = new THREE.Raycaster();
         const downRaycaster = new THREE.Raycaster(); 
+        const shootRaycaster = new THREE.Raycaster(); // ✅ 用于射击判定的射线
 
         const objLoader = new THREE.OBJLoader();
+        const gltfLoader = new THREE.GLTFLoader();
         const loadingUI = document.getElementById('loading');
-        const mapUrl = 'de_dust2.obj'; 
-
-        // 加载地图
+        
+        // 1. 加载地图
         objLoader.load(
-            mapUrl,
+            'de_dust2.obj',
             function (object) {
                 loadingUI.style.display = 'none';
                 const sandMaterial = new THREE.MeshStandardMaterial({ 
@@ -180,20 +194,18 @@
                 if (xhr.lengthComputable) {
                     loadingUI.innerText = '加载地图 ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
                 }
-            },
-            function (error) { loadingUI.innerText = '加载失败!'; loadingUI.style.color = 'red'; }
+            }
         );
 
-        // 武器加载与位置
+        // 2. 加载武器
         const gunGroup = new THREE.Group();
         camera.add(gunGroup);
         scene.add(camera);
 
         let loadedGunModel = null;
         let defaultGunZ = -0.55; 
-        let defaultGunY = -0.35; // 记录默认的Y轴高度，方便换弹动画使用
+        let defaultGunY = -0.35; 
 
-        const gltfLoader = new THREE.GLTFLoader();
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb', function (gltf) {
             loadedGunModel = gltf.scene;
             loadedGunModel.scale.set(1.5, 1.5, 1.5); 
@@ -202,13 +214,36 @@
             gunGroup.add(loadedGunModel);
         });
 
-        // ✅ 弹药系统变量
+        // 3. ✅ 加载并放置香蕉人玩家模型
+        let targetPlayers = []; // 存放玩家模型的数组
+        gltfLoader.load('banana.glb', function (gltf) {
+            const bananaModel = gltf.scene;
+            
+            // 预设 3 个玩家靶子的出生位置
+            const spawnPoints = [
+                { x: 11, y: 1.0, z: -2 }, // T阵营附近
+                { x: 2, y: 1.0, z: 8 },   // CT阵营附近
+                { x: 6, y: 1.0, z: 5 }    // 中路
+            ];
+
+            spawnPoints.forEach(pos => {
+                let clone = bananaModel.clone();
+                // 根据上传的坐标大小，将其缩小到符合人类身高 (大约 1.5 - 2 左右的高度)
+                clone.scale.set(0.05, 0.05, 0.05); 
+                clone.position.set(pos.x, pos.y, pos.z);
+                
+                scene.add(clone);
+                targetPlayers.push(clone);
+            });
+        });
+
+        // 弹药系统
         let ammoInMag = 7;
         const maxAmmoInMag = 7;
         let ammoReserve = 42;
         let isReloading = false;
         const ammoDisplay = document.getElementById('ammo-display');
-        const btnReload = document.getElementById('btn-reload');
+        const hitMarker = document.getElementById('hit-marker');
 
         function updateAmmoUI() {
             if (isReloading) {
@@ -216,50 +251,36 @@
                 ammoDisplay.style.color = "#ff5555";
             } else {
                 ammoDisplay.innerText = `${ammoInMag} / ${ammoReserve}`;
-                // 子弹打空时标红提示
                 ammoDisplay.style.color = ammoInMag === 0 ? "#ff5555" : "#ffce00"; 
             }
         }
 
-        // ✅ 换弹逻辑
         function reloadWeapon(e) {
             if (e) e.preventDefault();
-            // 已经在换弹、弹匣满的、或者没有备弹时，不执行换弹
             if (isReloading || ammoInMag === maxAmmoInMag || ammoReserve === 0) return;
-            
             isReloading = true;
             updateAmmoUI();
+            if (loadedGunModel) loadedGunModel.position.y = defaultGunY - 0.6;
 
-            // 简单的换弹动画：让武器向下移动隐藏到屏幕外
-            if (loadedGunModel) {
-                loadedGunModel.position.y = defaultGunY - 0.6;
-            }
-
-            // 模拟 1.5 秒换弹时间
             setTimeout(() => {
                 let neededAmmo = maxAmmoInMag - ammoInMag;
                 let reloadAmount = Math.min(neededAmmo, ammoReserve);
-                
                 ammoInMag += reloadAmount;
                 ammoReserve -= reloadAmount;
-                
                 isReloading = false;
-                
-                // 恢复武器位置
-                if (loadedGunModel) {
-                    loadedGunModel.position.y = defaultGunY;
-                }
-                
+                if (loadedGunModel) loadedGunModel.position.y = defaultGunY;
                 updateAmmoUI();
             }, 1500);
         }
 
-        btnReload.addEventListener('touchstart', reloadWeapon);
-        btnReload.addEventListener('mousedown', reloadWeapon);
+        document.getElementById('btn-reload').addEventListener('touchstart', reloadWeapon);
+        document.getElementById('btn-reload').addEventListener('mousedown', reloadWeapon);
 
+        // 阵营传送
         document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(11, 1.25, 4); yVelocity = 0; });
         document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(2, 1.25, 15); yVelocity = 0; });
 
+        // 控制变量
         const joyBase = document.getElementById('joystick-base');
         const joyStick = document.getElementById('joystick-stick');
         const coordsDisplay = document.getElementById('coords-display'); 
@@ -269,23 +290,18 @@
         let isGrounded = false;
         const gravity = -0.012; 
         const jumpStrength = 0.15; 
-
-        const btnJump = document.getElementById('btn-jump');
-        
-        function handleJump(e) {
-            e.preventDefault(); 
-            if (isGrounded) {
-                yVelocity = jumpStrength;
-                isGrounded = false;
-            }
-        }
-        btnJump.addEventListener('touchstart', handleJump);
-        btnJump.addEventListener('mousedown', handleJump); 
-
         let moveInput = { x: 0, y: 0 };
         let touches = { left: null, right: null };
         let isShooting = false;
 
+        function handleJump(e) {
+            e.preventDefault(); 
+            if (isGrounded) { yVelocity = jumpStrength; isGrounded = false; }
+        }
+        document.getElementById('btn-jump').addEventListener('touchstart', handleJump);
+        document.getElementById('btn-jump').addEventListener('mousedown', handleJump); 
+
+        // 触控摇杆与视角控制
         document.addEventListener('touchstart', (e) => {
             if(e.target.tagName === 'BUTTON') return; 
             for (let t of e.changedTouches) {
@@ -328,9 +344,7 @@
         document.addEventListener('touchend', (e) => {
             for (let t of e.changedTouches) {
                 if (touches.left && t.identifier === touches.left.id) { 
-                    touches.left = null; 
-                    moveInput = { x: 0, y: 0 }; 
-                    joyBase.style.display = 'none';
+                    touches.left = null; moveInput = { x: 0, y: 0 }; joyBase.style.display = 'none';
                 }
                 if (touches.right && t.identifier === touches.right.id) {
                     if (touches.right.isTap) shoot();
@@ -339,30 +353,60 @@
             }
         });
 
+        // ✅ 开火与射线击杀判定
         const flashUI = document.getElementById('muzzle-flash');
         function shoot() {
             if (isShooting || !loadedGunModel || isReloading) return; 
             
-            // ✅ 如果没子弹了尝试开火，自动触发换弹逻辑
             if (ammoInMag <= 0) {
                 reloadWeapon();
                 return;
             }
 
             isShooting = true;
-            
-            // 扣减子弹并更新UI
             ammoInMag--;
             updateAmmoUI();
 
-            // 后坐力效果
+            // 武器后坐力
             loadedGunModel.position.z = defaultGunZ + 0.1; 
-            
             flashUI.style.opacity = '1';
+            
+            // 🎯 【新增】从相机中心发射射线，检测是否击中玩家模型
+            shootRaycaster.set(camera.position, camera.getWorldDirection(new THREE.Vector3()));
+            const intersects = shootRaycaster.intersectObjects(targetPlayers, true);
+            
+            if (intersects.length > 0) {
+                // 找到被击中的具体是哪一个 Banana 组
+                let hitMesh = intersects[0].object;
+                let rootPlayer = null;
+                
+                targetPlayers.forEach(playerGroup => {
+                    playerGroup.traverse(child => {
+                        if(child === hitMesh) rootPlayer = playerGroup;
+                    });
+                });
+
+                // 如果命中且目标当前是活着的（可见）
+                if (rootPlayer && rootPlayer.visible) {
+                    // 击中反馈：屏幕显示红叉
+                    hitMarker.style.opacity = '1';
+                    setTimeout(() => { hitMarker.style.opacity = '0'; }, 200);
+
+                    // “击杀”目标
+                    rootPlayer.visible = false;
+                    
+                    // 3 秒后复活
+                    setTimeout(() => {
+                        rootPlayer.visible = true;
+                    }, 3000);
+                }
+            }
+
             setTimeout(() => { flashUI.style.opacity = '0'; }, 50);
             setTimeout(() => { isShooting = false; }, 150);
         }
 
+        // 地图防穿墙判定
         function checkCollision(startPos, endPos) {
             if (!mapMesh) return false; 
             const currentY = camera.position.y;
@@ -378,6 +422,7 @@
             return false; 
         }
 
+        // 渲染循环
         function animate() {
             requestAnimationFrame(animate);
 
@@ -386,7 +431,6 @@
                 yVelocity = 0;
             }
 
-            // 恢复枪械原位的动画 (Z轴后坐力恢复)
             if (!isShooting && loadedGunModel && !isReloading) {
                 loadedGunModel.position.z += (defaultGunZ - loadedGunModel.position.z) * 0.2;
             }
@@ -429,6 +473,13 @@
                 }
             }
 
+            // 让所有的靶子(Banana)始终看向玩家
+            targetPlayers.forEach(player => {
+                if(player.visible) {
+                    player.lookAt(camera.position.x, player.position.y, camera.position.z);
+                }
+            });
+
             coordsDisplay.innerText = `X: ${camera.position.x.toFixed(1)} | Z: ${camera.position.z.toFixed(1)}`;
             renderer.render(scene, camera);
         }
@@ -439,7 +490,6 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // 初始化UI
         updateAmmoUI();
         animate();
     </script>
