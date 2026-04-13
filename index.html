@@ -117,7 +117,7 @@
     </style>
 </head>
 <body>
-    <div id="ui">靶场模式：寻找并击杀跳舞的香蕉 (Dancing Banana)！</div>
+    <div id="ui">靶场模式：击杀跳舞香蕉 (固定朝向版)</div>
     
     <div id="coords-display">X: 0.00 | Z: 0.00</div>
 
@@ -149,7 +149,6 @@
         scene.background = new THREE.Color(0x87ceeb); 
         scene.fog = new THREE.Fog(0x87ceeb, 10, 300); 
 
-        // ✅ 新增：全局时钟，用于驱动动画
         const clock = new THREE.Clock(); 
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
@@ -217,29 +216,30 @@
             gunGroup.add(loadedGunModel);
         });
 
-        // 3. ✅ 加载跳舞香蕉并激活骨骼动画
+        // 3. 加载跳舞香蕉并激活骨骼动画 (移除跟随玩家视角的设定)
         let targetPlayers = []; 
-        let mixers = []; // 存放所有香蕉动画的混合器
+        let mixers = []; 
 
+        // 包含初始旋转角度 (rot)，让它们朝向不同的方向
         const spawnPoints = [
-            { x: 11, y: 1.0, z: -2 }, // T阵营附近
-            { x: 2, y: 1.0, z: 8 },   // CT阵营附近
-            { x: 6, y: 1.0, z: 5 }    // 中路
+            { x: 11, y: 1.0, z: -2, rot: Math.PI / 4 }, 
+            { x: 2, y: 1.0, z: 8, rot: -Math.PI / 2 },   
+            { x: 6, y: 1.0, z: 5, rot: Math.PI }    
         ];
 
-        // 循环单独加载以确保骨骼动画在每个克隆体上都能独立生效
         spawnPoints.forEach(pos => {
             gltfLoader.load('dancing_banana.glb', function (gltf) {
                 let bananaModel = gltf.scene;
                 
-                // 💡 调整跳舞香蕉的大小。如果游戏中太大或太小，调整这里的 2.5
                 bananaModel.scale.set(2.5, 2.5, 2.5); 
                 bananaModel.position.set(pos.x, pos.y, pos.z);
                 
-                // 检查并播放动画
+                // ✅ 给香蕉设置固定的朝向
+                bananaModel.rotation.y = pos.rot;
+                
                 if (gltf.animations && gltf.animations.length > 0) {
                     let mixer = new THREE.AnimationMixer(bananaModel);
-                    let action = mixer.clipAction(gltf.animations[0]); // 播放第一个动画(跳舞)
+                    let action = mixer.clipAction(gltf.animations[0]); 
                     action.play();
                     mixers.push(mixer);
                 }
@@ -379,11 +379,9 @@
             ammoInMag--;
             updateAmmoUI();
 
-            // 武器后坐力
             loadedGunModel.position.z = defaultGunZ + 0.1; 
             flashUI.style.opacity = '1';
             
-            // 发射射线进行判定
             shootRaycaster.set(camera.position, camera.getWorldDirection(new THREE.Vector3()));
             const intersects = shootRaycaster.intersectObjects(targetPlayers, true);
             
@@ -413,7 +411,6 @@
             setTimeout(() => { isShooting = false; }, 150);
         }
 
-        // 地图防穿墙判定
         function checkCollision(startPos, endPos) {
             if (!mapMesh) return false; 
             const currentY = camera.position.y;
@@ -433,7 +430,7 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            // ✅ 更新动画 Mixer，让香蕉跳舞！
+            // 更新动画 Mixer，让香蕉跳舞
             const delta = clock.getDelta();
             mixers.forEach(mixer => mixer.update(delta));
 
@@ -484,12 +481,7 @@
                 }
             }
 
-            // 让香蕉人始终面向玩家
-            targetPlayers.forEach(player => {
-                if(player.visible) {
-                    player.lookAt(camera.position.x, player.position.y, camera.position.z);
-                }
-            });
+            // ✅ 已移除 player.lookAt(camera.position) 逻辑，香蕉人现在会保持固定的朝向
 
             coordsDisplay.innerText = `X: ${camera.position.x.toFixed(1)} | Z: ${camera.position.z.toFixed(1)}`;
             renderer.render(scene, camera);
