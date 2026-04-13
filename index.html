@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - 跳舞香蕉靶场版 (Dust 2 + USP + Dancing Banana)</title>
+    <title>Web CSGO - 跳舞香蕉主角版 (TPS/FPS)</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -20,6 +20,13 @@
         #btn-blue { background-color: #1976d2; }
         #btn-red:active { background-color: #b71c1c; }
         #btn-blue:active { background-color: #0d47a1; }
+
+        /* ✅ 新增：视角切换按钮 */
+        #btn-view {
+            position: fixed; top: 100px; left: 10px; z-index: 15;
+            background-color: #ff9800;
+        }
+        #btn-view:active { background-color: #e65100; }
 
         #coords-display {
             position: fixed;
@@ -42,82 +49,26 @@
         #joystick-stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: rgba(0, 0, 0, 0.9); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px rgba(0,0,0,0.8); pointer-events: none; }
 
         #btn-jump {
-            position: fixed;
-            bottom: 40px;
-            right: 40px;
-            width: 70px;
-            height: 70px;
-            background: rgba(0, 0, 0, 0.4);
-            border: 2px solid rgba(0, 0, 0, 0.7);
-            border-radius: 50%;
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            z-index: 30;
-            cursor: pointer;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: manipulation; 
+            position: fixed; bottom: 40px; right: 40px; width: 70px; height: 70px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; color: white; font-size: 16px; font-weight: bold; z-index: 30; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; 
         }
         #btn-jump:active { background: rgba(255, 255, 255, 0.3); }
 
         #btn-reload {
-            position: fixed;
-            bottom: 50px;
-            right: 130px; 
-            width: 50px;
-            height: 50px;
-            background: rgba(0, 0, 0, 0.4);
-            border: 2px solid rgba(0, 0, 0, 0.7);
-            border-radius: 50%;
-            color: white;
-            font-size: 18px;
-            font-weight: bold;
-            z-index: 30;
-            cursor: pointer;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: manipulation; 
+            position: fixed; bottom: 50px; right: 130px; width: 50px; height: 50px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; color: white; font-size: 18px; font-weight: bold; z-index: 30; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; 
         }
         #btn-reload:active { background: rgba(255, 255, 255, 0.3); }
 
         #ammo-display {
-            position: fixed;
-            bottom: 120px; 
-            right: 40px;
-            background: rgba(0, 0, 0, 0.7);
-            border: 1px solid #ffce00;
-            color: #ffce00;
-            padding: 8px 15px;
-            border-radius: 5px;
-            font-family: monospace;
-            font-size: 20px;
-            font-weight: bold;
-            pointer-events: none;
-            z-index: 20;
-            text-shadow: 0 0 5px #ffce00;
+            position: fixed; bottom: 120px; right: 40px; background: rgba(0, 0, 0, 0.7); border: 1px solid #ffce00; color: #ffce00; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 20px; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 0 5px #ffce00;
         }
 
-        #hit-marker {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: red;
-            font-size: 24px;
-            font-weight: bold;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.1s;
-            z-index: 15;
-        }
-
+        #hit-marker { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: red; font-size: 24px; font-weight: bold; pointer-events: none; opacity: 0; transition: opacity 0.1s; z-index: 15; }
         #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 20; pointer-events: none; text-shadow: 2px 2px 4px #000; }
         #muzzle-flash { position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
     </style>
 </head>
 <body>
-    <div id="ui">靶场模式：击杀跳舞香蕉 (固定朝向版)</div>
+    <div id="ui">不仅有靶子，你现在也是一个跳舞的香蕉！低头看看或者切换视角。</div>
     
     <div id="coords-display">X: 0.00 | Z: 0.00</div>
 
@@ -128,6 +79,8 @@
         <button id="btn-red">加入红队 (T)</button>
         <button id="btn-blue">加入蓝队 (CT)</button>
     </div>
+    
+    <button id="btn-view">👁️ 切换视角 (FPS/TPS)</button>
 
     <button id="btn-jump">JUMP</button>
 
@@ -150,10 +103,15 @@
         scene.fog = new THREE.Fog(0x87ceeb, 10, 300); 
 
         const clock = new THREE.Clock(); 
+        let mixers = []; 
+
+        // ✅ 核心重构：引入独立的玩家容器，相机会跟着容器走
+        const playerContainer = new THREE.Group();
+        playerContainer.position.set(2, 1.25, 15); 
+        scene.add(playerContainer);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-        camera.position.set(2, 1.25, 15); 
-        camera.rotation.order = 'YXZ'; 
+        playerContainer.add(camera); // 将相机放入玩家容器中
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -199,10 +157,26 @@
             }
         );
 
-        // 2. 加载武器
+        // 2. ✅ 加载玩家自己的身体模型 (主角跳舞香蕉)
+        let myBody = null;
+        gltfLoader.load('dancing_banana.glb', function (gltf) {
+            myBody = gltf.scene;
+            myBody.scale.set(2.5, 2.5, 2.5); 
+            myBody.position.set(0, -1.25, 0); // 将模型放在相机视角（眼睛）的下方
+            myBody.rotation.y = Math.PI; // 让香蕉背对相机（面朝我们看着的方向）
+            
+            if (gltf.animations && gltf.animations.length > 0) {
+                let mixer = new THREE.AnimationMixer(myBody);
+                let action = mixer.clipAction(gltf.animations[0]); 
+                action.play();
+                mixers.push(mixer);
+            }
+            playerContainer.add(myBody); // 将身体装入玩家容器
+        });
+
+        // 3. 加载武器
         const gunGroup = new THREE.Group();
-        camera.add(gunGroup);
-        scene.add(camera);
+        camera.add(gunGroup); // 武器仍然挂在相机上，随抬头低头移动
 
         let loadedGunModel = null;
         let defaultGunZ = -0.55; 
@@ -216,11 +190,8 @@
             gunGroup.add(loadedGunModel);
         });
 
-        // 3. 加载跳舞香蕉并激活骨骼动画 (移除跟随玩家视角的设定)
+        // 4. 加载靶场里的其他香蕉敌人
         let targetPlayers = []; 
-        let mixers = []; 
-
-        // 包含初始旋转角度 (rot)，让它们朝向不同的方向
         const spawnPoints = [
             { x: 11, y: 1.0, z: -2, rot: Math.PI / 4 }, 
             { x: 2, y: 1.0, z: 8, rot: -Math.PI / 2 },   
@@ -230,11 +201,8 @@
         spawnPoints.forEach(pos => {
             gltfLoader.load('dancing_banana.glb', function (gltf) {
                 let bananaModel = gltf.scene;
-                
                 bananaModel.scale.set(2.5, 2.5, 2.5); 
                 bananaModel.position.set(pos.x, pos.y, pos.z);
-                
-                // ✅ 给香蕉设置固定的朝向
                 bananaModel.rotation.y = pos.rot;
                 
                 if (gltf.animations && gltf.animations.length > 0) {
@@ -243,13 +211,30 @@
                     action.play();
                     mixers.push(mixer);
                 }
-
                 scene.add(bananaModel);
                 targetPlayers.push(bananaModel);
             });
         });
 
-        // 弹药系统
+        // ✅ 视角切换逻辑
+        let isTPS = false;
+        document.getElementById('btn-view').addEventListener('click', (e) => {
+            e.stopPropagation(); // 防止点击穿透
+            isTPS = !isTPS;
+            if(isTPS) {
+                // 第三人称：相机拉远、抬高并稍微低头
+                camera.position.set(0, 1.5, 4.5); 
+                camera.rotation.x = -0.15; 
+                if(loadedGunModel) loadedGunModel.visible = false; // TPS模式隐藏手枪
+            } else {
+                // 第一人称：相机回到眼睛位置
+                camera.position.set(0, 0, 0); 
+                camera.rotation.x = 0;
+                if(loadedGunModel) loadedGunModel.visible = true; // 恢复显示手枪
+            }
+        });
+
+        // 弹药与控制系统
         let ammoInMag = 7;
         const maxAmmoInMag = 7;
         let ammoReserve = 42;
@@ -289,8 +274,8 @@
         document.getElementById('btn-reload').addEventListener('mousedown', reloadWeapon);
 
         // 阵营传送
-        document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(11, 1.25, 4); yVelocity = 0; });
-        document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(2, 1.25, 15); yVelocity = 0; });
+        document.getElementById('btn-red').addEventListener('click', () => { playerContainer.position.set(11, 1.25, 4); yVelocity = 0; });
+        document.getElementById('btn-blue').addEventListener('click', () => { playerContainer.position.set(2, 1.25, 15); yVelocity = 0; });
 
         // 控制变量
         const joyBase = document.getElementById('joystick-base');
@@ -313,7 +298,7 @@
         document.getElementById('btn-jump').addEventListener('touchstart', handleJump);
         document.getElementById('btn-jump').addEventListener('mousedown', handleJump); 
 
-        // 触控摇杆与视角控制
+        // 触控逻辑
         document.addEventListener('touchstart', (e) => {
             if(e.target.tagName === 'BUTTON') return; 
             for (let t of e.changedTouches) {
@@ -345,7 +330,8 @@
                 }
                 if (touches.right && t.identifier === touches.right.id) {
                     touches.right.isTap = false; 
-                    camera.rotation.y -= (t.clientX - touches.right.lastX) * 0.005;
+                    // ✅ 关键解耦：左右滑动旋转容器(身体)，上下滑动旋转相机(头部)
+                    playerContainer.rotation.y -= (t.clientX - touches.right.lastX) * 0.005;
                     camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x - (t.clientY - touches.right.lastY) * 0.005));
                     touches.right.lastX = t.clientX;
                     touches.right.lastY = t.clientY;
@@ -365,10 +351,10 @@
             }
         });
 
-        // 开火与射线击杀判定
+        // 射击判定
         const flashUI = document.getElementById('muzzle-flash');
         function shoot() {
-            if (isShooting || !loadedGunModel || isReloading) return; 
+            if (isShooting || (!isTPS && !loadedGunModel) || isReloading) return; 
             
             if (ammoInMag <= 0) {
                 reloadWeapon();
@@ -379,9 +365,12 @@
             ammoInMag--;
             updateAmmoUI();
 
-            loadedGunModel.position.z = defaultGunZ + 0.1; 
+            if (!isTPS && loadedGunModel) {
+                loadedGunModel.position.z = defaultGunZ + 0.1; 
+            }
             flashUI.style.opacity = '1';
             
+            // 发射射线 (确保不会射中自己的身体，因为射线只检测 targetPlayers 数组)
             shootRaycaster.set(camera.position, camera.getWorldDirection(new THREE.Vector3()));
             const intersects = shootRaycaster.intersectObjects(targetPlayers, true);
             
@@ -400,10 +389,7 @@
                     setTimeout(() => { hitMarker.style.opacity = '0'; }, 200);
 
                     rootPlayer.visible = false;
-                    
-                    setTimeout(() => {
-                        rootPlayer.visible = true;
-                    }, 3000);
+                    setTimeout(() => { rootPlayer.visible = true; }, 3000);
                 }
             }
 
@@ -411,9 +397,10 @@
             setTimeout(() => { isShooting = false; }, 150);
         }
 
+        // 防穿墙判定 (使用 playerContainer 的坐标)
         function checkCollision(startPos, endPos) {
             if (!mapMesh) return false; 
-            const currentY = camera.position.y;
+            const currentY = playerContainer.position.y;
             const checkStart = startPos.clone(); checkStart.y = currentY; 
             const checkEnd = endPos.clone(); checkEnd.y = currentY;
             const direction = new THREE.Vector3().subVectors(checkEnd, checkStart);
@@ -426,16 +413,17 @@
             return false; 
         }
 
-        // 渲染循环
+        // 主渲染循环
         function animate() {
             requestAnimationFrame(animate);
 
-            // 更新动画 Mixer，让香蕉跳舞
+            // 更新所有骨骼动画 (包括主角自己的和敌人的)
             const delta = clock.getDelta();
             mixers.forEach(mixer => mixer.update(delta));
 
-            if (camera.position.y < -10) {
-                camera.position.set(2, 1.25, 15);
+            // 防掉落虚空
+            if (playerContainer.position.y < -10) {
+                playerContainer.position.set(2, 1.25, 15);
                 yVelocity = 0;
             }
 
@@ -444,19 +432,19 @@
             }
 
             if (touches.left) {
-                let oldPosition = camera.position.clone();
-                camera.translateZ(moveInput.y);
-                if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
-                oldPosition = camera.position.clone();
-                camera.translateX(moveInput.x);
-                if (checkCollision(oldPosition, camera.position)) camera.position.copy(oldPosition); 
+                let oldPosition = playerContainer.position.clone();
+                playerContainer.translateZ(moveInput.y);
+                if (checkCollision(oldPosition, playerContainer.position)) playerContainer.position.copy(oldPosition); 
+                oldPosition = playerContainer.position.clone();
+                playerContainer.translateX(moveInput.x);
+                if (checkCollision(oldPosition, playerContainer.position)) playerContainer.position.copy(oldPosition); 
             }
 
             if (mapMesh) {
                 yVelocity += gravity;
-                camera.position.y += yVelocity;
+                playerContainer.position.y += yVelocity;
 
-                const rayOrigin = camera.position.clone();
+                const rayOrigin = playerContainer.position.clone();
                 rayOrigin.y += 0.5; 
                 downRaycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
                 const intersects = downRaycaster.intersectObject(mapMesh, true);
@@ -465,9 +453,9 @@
                     const groundHeight = intersects[0].point.y;
                     const targetY = groundHeight + 1.25; 
                     
-                    if (targetY <= camera.position.y + 1.0) {
-                        if (camera.position.y <= targetY) {
-                            camera.position.y += (targetY - camera.position.y) * 0.4; 
+                    if (targetY <= playerContainer.position.y + 1.0) {
+                        if (playerContainer.position.y <= targetY) {
+                            playerContainer.position.y += (targetY - playerContainer.position.y) * 0.4; 
                             isGrounded = true;
                             if (yVelocity < 0) yVelocity = 0; 
                         } else {
@@ -481,9 +469,7 @@
                 }
             }
 
-            // ✅ 已移除 player.lookAt(camera.position) 逻辑，香蕉人现在会保持固定的朝向
-
-            coordsDisplay.innerText = `X: ${camera.position.x.toFixed(1)} | Z: ${camera.position.z.toFixed(1)}`;
+            coordsDisplay.innerText = `X: ${playerContainer.position.x.toFixed(1)} | Z: ${playerContainer.position.z.toFixed(1)}`;
             renderer.render(scene, camera);
         }
 
