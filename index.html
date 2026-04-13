@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - 跳舞香蕉主角版 (TPS/FPS)</title>
+    <title>Web CSGO - 跳舞香蕉主角版 (TPS/FPS 修复)</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -21,7 +21,6 @@
         #btn-red:active { background-color: #b71c1c; }
         #btn-blue:active { background-color: #0d47a1; }
 
-        /* ✅ 新增：视角切换按钮 */
         #btn-view {
             position: fixed; top: 100px; left: 10px; z-index: 15;
             background-color: #ff9800;
@@ -29,38 +28,19 @@
         #btn-view:active { background-color: #e65100; }
 
         #coords-display {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            border: 1px solid #00ff00;
-            color: #00ff00;
-            padding: 8px 15px;
-            border-radius: 5px;
-            font-family: monospace;
-            font-size: 16px;
-            font-weight: bold;
-            pointer-events: none;
-            z-index: 20;
-            text-shadow: 0 0 5px #00ff00;
+            position: fixed; top: 10px; right: 10px; background: rgba(0, 0, 0, 0.7); border: 1px solid #00ff00; color: #00ff00; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 16px; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 0 5px #00ff00;
         }
 
         #joystick-base { position: fixed; width: 100px; height: 100px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 30; }
         #joystick-stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: rgba(0, 0, 0, 0.9); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px rgba(0,0,0,0.8); pointer-events: none; }
 
-        #btn-jump {
-            position: fixed; bottom: 40px; right: 40px; width: 70px; height: 70px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; color: white; font-size: 16px; font-weight: bold; z-index: 30; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; 
-        }
+        #btn-jump { position: fixed; bottom: 40px; right: 40px; width: 70px; height: 70px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; color: white; font-size: 16px; font-weight: bold; z-index: 30; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
         #btn-jump:active { background: rgba(255, 255, 255, 0.3); }
 
-        #btn-reload {
-            position: fixed; bottom: 50px; right: 130px; width: 50px; height: 50px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; color: white; font-size: 18px; font-weight: bold; z-index: 30; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; 
-        }
+        #btn-reload { position: fixed; bottom: 50px; right: 130px; width: 50px; height: 50px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; color: white; font-size: 18px; font-weight: bold; z-index: 30; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
         #btn-reload:active { background: rgba(255, 255, 255, 0.3); }
 
-        #ammo-display {
-            position: fixed; bottom: 120px; right: 40px; background: rgba(0, 0, 0, 0.7); border: 1px solid #ffce00; color: #ffce00; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 20px; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 0 5px #ffce00;
-        }
+        #ammo-display { position: fixed; bottom: 120px; right: 40px; background: rgba(0, 0, 0, 0.7); border: 1px solid #ffce00; color: #ffce00; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 20px; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 0 5px #ffce00; }
 
         #hit-marker { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: red; font-size: 24px; font-weight: bold; pointer-events: none; opacity: 0; transition: opacity 0.1s; z-index: 15; }
         #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 20; pointer-events: none; text-shadow: 2px 2px 4px #000; }
@@ -68,26 +48,21 @@
     </style>
 </head>
 <body>
-    <div id="ui">不仅有靶子，你现在也是一个跳舞的香蕉！低头看看或者切换视角。</div>
+    <div id="ui">点击“👁️切换视角”来查看你跳舞的身体！(已修复第一人称卡死)</div>
     
     <div id="coords-display">X: 0.00 | Z: 0.00</div>
-
     <div id="ammo-display">7 / 42</div>
+    
     <button id="btn-reload">R</button>
-
     <div id="team-select">
         <button id="btn-red">加入红队 (T)</button>
         <button id="btn-blue">加入蓝队 (CT)</button>
     </div>
     
     <button id="btn-view">👁️ 切换视角 (FPS/TPS)</button>
-
     <button id="btn-jump">JUMP</button>
 
-    <div id="joystick-base">
-        <div id="joystick-stick"></div>
-    </div>
-
+    <div id="joystick-base"><div id="joystick-stick"></div></div>
     <div id="loading">Map Loading 0%</div>
     <div id="crosshair"></div>
     <div id="hit-marker">✖</div>
@@ -101,17 +76,15 @@
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb); 
         scene.fog = new THREE.Fog(0x87ceeb, 10, 300); 
-
         const clock = new THREE.Clock(); 
         let mixers = []; 
 
-        // ✅ 核心重构：引入独立的玩家容器，相机会跟着容器走
         const playerContainer = new THREE.Group();
         playerContainer.position.set(2, 1.25, 15); 
         scene.add(playerContainer);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-        playerContainer.add(camera); // 将相机放入玩家容器中
+        playerContainer.add(camera); 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -133,50 +106,42 @@
         const loadingUI = document.getElementById('loading');
         
         // 1. 加载地图
-        objLoader.load(
-            'de_dust2.obj',
-            function (object) {
-                loadingUI.style.display = 'none';
-                const sandMaterial = new THREE.MeshStandardMaterial({ 
-                    color: 0xFFC976, 
-                    roughness: 0.9, side: THREE.DoubleSide 
-                });
-                object.traverse(function (child) {
-                    if (child.isMesh) child.material = sandMaterial;
-                });
-                object.scale.set(0.02, 0.02, 0.02); 
-                object.position.set(0, 0, 0);
-                object.rotation.x = -Math.PI / 2; 
-                scene.add(object);
-                mapMesh = object; 
-            },
-            function (xhr) {
-                if (xhr.lengthComputable) {
-                    loadingUI.innerText = '加载地图 ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
-                }
-            }
-        );
+        objLoader.load('de_dust2.obj', function (object) {
+            loadingUI.style.display = 'none';
+            const sandMaterial = new THREE.MeshStandardMaterial({ color: 0xFFC976, roughness: 0.9, side: THREE.DoubleSide });
+            object.traverse(function (child) { if (child.isMesh) child.material = sandMaterial; });
+            object.scale.set(0.02, 0.02, 0.02); 
+            object.position.set(0, 0, 0);
+            object.rotation.x = -Math.PI / 2; 
+            scene.add(object);
+            mapMesh = object; 
+        }, function (xhr) {
+            if (xhr.lengthComputable) loadingUI.innerText = '加载地图 ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
+        });
 
-        // 2. ✅ 加载玩家自己的身体模型 (主角跳舞香蕉)
+        // 2. 加载主角的身体模型 
         let myBody = null;
+        let isTPS = false; // 初始默认是第一人称
+
         gltfLoader.load('dancing_banana.glb', function (gltf) {
             myBody = gltf.scene;
             myBody.scale.set(2.5, 2.5, 2.5); 
-            myBody.position.set(0, -1.25, 0); // 将模型放在相机视角（眼睛）的下方
-            myBody.rotation.y = Math.PI; // 让香蕉背对相机（面朝我们看着的方向）
+            myBody.position.set(0, -1.25, 0); 
+            myBody.rotation.y = Math.PI; 
             
             if (gltf.animations && gltf.animations.length > 0) {
                 let mixer = new THREE.AnimationMixer(myBody);
-                let action = mixer.clipAction(gltf.animations[0]); 
-                action.play();
+                mixer.clipAction(gltf.animations[0]).play();
                 mixers.push(mixer);
             }
-            playerContainer.add(myBody); // 将身体装入玩家容器
+            // ✅ 关键修复：初始是 FPS 时，隐藏玩家模型防止遮挡视野和碰撞
+            myBody.visible = isTPS; 
+            playerContainer.add(myBody); 
         });
 
         // 3. 加载武器
         const gunGroup = new THREE.Group();
-        camera.add(gunGroup); // 武器仍然挂在相机上，随抬头低头移动
+        camera.add(gunGroup); 
 
         let loadedGunModel = null;
         let defaultGunZ = -0.55; 
@@ -190,7 +155,7 @@
             gunGroup.add(loadedGunModel);
         });
 
-        // 4. 加载靶场里的其他香蕉敌人
+        // 4. 加载敌人靶子
         let targetPlayers = []; 
         const spawnPoints = [
             { x: 11, y: 1.0, z: -2, rot: Math.PI / 4 }, 
@@ -204,11 +169,9 @@
                 bananaModel.scale.set(2.5, 2.5, 2.5); 
                 bananaModel.position.set(pos.x, pos.y, pos.z);
                 bananaModel.rotation.y = pos.rot;
-                
                 if (gltf.animations && gltf.animations.length > 0) {
                     let mixer = new THREE.AnimationMixer(bananaModel);
-                    let action = mixer.clipAction(gltf.animations[0]); 
-                    action.play();
+                    mixer.clipAction(gltf.animations[0]).play();
                     mixers.push(mixer);
                 }
                 scene.add(bananaModel);
@@ -216,25 +179,23 @@
             });
         });
 
-        // ✅ 视角切换逻辑
-        let isTPS = false;
+        // 切换视角功能
         document.getElementById('btn-view').addEventListener('click', (e) => {
-            e.stopPropagation(); // 防止点击穿透
+            e.stopPropagation(); 
             isTPS = !isTPS;
             if(isTPS) {
-                // 第三人称：相机拉远、抬高并稍微低头
                 camera.position.set(0, 1.5, 4.5); 
                 camera.rotation.x = -0.15; 
-                if(loadedGunModel) loadedGunModel.visible = false; // TPS模式隐藏手枪
+                if(loadedGunModel) loadedGunModel.visible = false; 
+                if(myBody) myBody.visible = true; // ✅ 第三人称时显示身体
             } else {
-                // 第一人称：相机回到眼睛位置
                 camera.position.set(0, 0, 0); 
                 camera.rotation.x = 0;
-                if(loadedGunModel) loadedGunModel.visible = true; // 恢复显示手枪
+                if(loadedGunModel) loadedGunModel.visible = true; 
+                if(myBody) myBody.visible = false; // ✅ 第一人称时隐藏身体防止穿模
             }
         });
 
-        // 弹药与控制系统
         let ammoInMag = 7;
         const maxAmmoInMag = 7;
         let ammoReserve = 42;
@@ -255,15 +216,12 @@
         function reloadWeapon(e) {
             if (e) e.preventDefault();
             if (isReloading || ammoInMag === maxAmmoInMag || ammoReserve === 0) return;
-            isReloading = true;
-            updateAmmoUI();
+            isReloading = true; updateAmmoUI();
             if (loadedGunModel) loadedGunModel.position.y = defaultGunY - 0.6;
-
             setTimeout(() => {
                 let neededAmmo = maxAmmoInMag - ammoInMag;
                 let reloadAmount = Math.min(neededAmmo, ammoReserve);
-                ammoInMag += reloadAmount;
-                ammoReserve -= reloadAmount;
+                ammoInMag += reloadAmount; ammoReserve -= reloadAmount;
                 isReloading = false;
                 if (loadedGunModel) loadedGunModel.position.y = defaultGunY;
                 updateAmmoUI();
@@ -273,11 +231,9 @@
         document.getElementById('btn-reload').addEventListener('touchstart', reloadWeapon);
         document.getElementById('btn-reload').addEventListener('mousedown', reloadWeapon);
 
-        // 阵营传送
         document.getElementById('btn-red').addEventListener('click', () => { playerContainer.position.set(11, 1.25, 4); yVelocity = 0; });
         document.getElementById('btn-blue').addEventListener('click', () => { playerContainer.position.set(2, 1.25, 15); yVelocity = 0; });
 
-        // 控制变量
         const joyBase = document.getElementById('joystick-base');
         const joyStick = document.getElementById('joystick-stick');
         const coordsDisplay = document.getElementById('coords-display'); 
@@ -298,15 +254,12 @@
         document.getElementById('btn-jump').addEventListener('touchstart', handleJump);
         document.getElementById('btn-jump').addEventListener('mousedown', handleJump); 
 
-        // 触控逻辑
         document.addEventListener('touchstart', (e) => {
             if(e.target.tagName === 'BUTTON') return; 
             for (let t of e.changedTouches) {
                 if (t.clientX < window.innerWidth / 2) {
                     touches.left = { id: t.identifier, startX: t.clientX, startY: t.clientY };
-                    joyBase.style.display = 'block';
-                    joyBase.style.left = t.clientX + 'px';
-                    joyBase.style.top = t.clientY + 'px';
+                    joyBase.style.display = 'block'; joyBase.style.left = t.clientX + 'px'; joyBase.style.top = t.clientY + 'px';
                     joyStick.style.transform = `translate(-50%, -50%)`;
                 } else {
                     touches.right = { id: t.identifier, lastX: t.clientX, lastY: t.clientY, isTap: true };
@@ -320,21 +273,15 @@
                     let deltaX = t.clientX - touches.left.startX;
                     let deltaY = t.clientY - touches.left.startY;
                     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-                    if (distance > joyMaxRadius) {
-                        deltaX = (deltaX / distance) * joyMaxRadius;
-                        deltaY = (deltaY / distance) * joyMaxRadius;
-                    }
+                    if (distance > joyMaxRadius) { deltaX = (deltaX / distance) * joyMaxRadius; deltaY = (deltaY / distance) * joyMaxRadius; }
                     joyStick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
-                    moveInput.x = (deltaX / joyMaxRadius) * 0.15;
-                    moveInput.y = (deltaY / joyMaxRadius) * 0.15;
+                    moveInput.x = (deltaX / joyMaxRadius) * 0.15; moveInput.y = (deltaY / joyMaxRadius) * 0.15;
                 }
                 if (touches.right && t.identifier === touches.right.id) {
                     touches.right.isTap = false; 
-                    // ✅ 关键解耦：左右滑动旋转容器(身体)，上下滑动旋转相机(头部)
                     playerContainer.rotation.y -= (t.clientX - touches.right.lastX) * 0.005;
                     camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x - (t.clientY - touches.right.lastY) * 0.005));
-                    touches.right.lastX = t.clientX;
-                    touches.right.lastY = t.clientY;
+                    touches.right.lastX = t.clientX; touches.right.lastY = t.clientY;
                 }
             }
         });
@@ -351,53 +298,40 @@
             }
         });
 
-        // 射击判定
         const flashUI = document.getElementById('muzzle-flash');
         function shoot() {
             if (isShooting || (!isTPS && !loadedGunModel) || isReloading) return; 
-            
-            if (ammoInMag <= 0) {
-                reloadWeapon();
-                return;
-            }
+            if (ammoInMag <= 0) { reloadWeapon(); return; }
 
-            isShooting = true;
-            ammoInMag--;
-            updateAmmoUI();
-
-            if (!isTPS && loadedGunModel) {
-                loadedGunModel.position.z = defaultGunZ + 0.1; 
-            }
+            isShooting = true; ammoInMag--; updateAmmoUI();
+            if (!isTPS && loadedGunModel) loadedGunModel.position.z = defaultGunZ + 0.1; 
             flashUI.style.opacity = '1';
             
-            // 发射射线 (确保不会射中自己的身体，因为射线只检测 targetPlayers 数组)
-            shootRaycaster.set(camera.position, camera.getWorldDirection(new THREE.Vector3()));
+            // ✅ 关键修复：开火射线的起点现在基于相机的世界坐标（修复了偏移 Bug）
+            const shootOrigin = new THREE.Vector3();
+            camera.getWorldPosition(shootOrigin);
+            const shootDir = new THREE.Vector3();
+            camera.getWorldDirection(shootDir);
+            shootRaycaster.set(shootOrigin, shootDir);
+
             const intersects = shootRaycaster.intersectObjects(targetPlayers, true);
-            
             if (intersects.length > 0) {
                 let hitMesh = intersects[0].object;
                 let rootPlayer = null;
-                
                 targetPlayers.forEach(playerGroup => {
-                    playerGroup.traverse(child => {
-                        if(child === hitMesh) rootPlayer = playerGroup;
-                    });
+                    playerGroup.traverse(child => { if(child === hitMesh) rootPlayer = playerGroup; });
                 });
-
                 if (rootPlayer && rootPlayer.visible) {
                     hitMarker.style.opacity = '1';
                     setTimeout(() => { hitMarker.style.opacity = '0'; }, 200);
-
                     rootPlayer.visible = false;
                     setTimeout(() => { rootPlayer.visible = true; }, 3000);
                 }
             }
-
             setTimeout(() => { flashUI.style.opacity = '0'; }, 50);
             setTimeout(() => { isShooting = false; }, 150);
         }
 
-        // 防穿墙判定 (使用 playerContainer 的坐标)
         function checkCollision(startPos, endPos) {
             if (!mapMesh) return false; 
             const currentY = playerContainer.position.y;
@@ -413,23 +347,13 @@
             return false; 
         }
 
-        // 主渲染循环
         function animate() {
             requestAnimationFrame(animate);
-
-            // 更新所有骨骼动画 (包括主角自己的和敌人的)
             const delta = clock.getDelta();
             mixers.forEach(mixer => mixer.update(delta));
 
-            // 防掉落虚空
-            if (playerContainer.position.y < -10) {
-                playerContainer.position.set(2, 1.25, 15);
-                yVelocity = 0;
-            }
-
-            if (!isShooting && loadedGunModel && !isReloading) {
-                loadedGunModel.position.z += (defaultGunZ - loadedGunModel.position.z) * 0.2;
-            }
+            if (playerContainer.position.y < -10) { playerContainer.position.set(2, 1.25, 15); yVelocity = 0; }
+            if (!isShooting && loadedGunModel && !isReloading) loadedGunModel.position.z += (defaultGunZ - loadedGunModel.position.z) * 0.2;
 
             if (touches.left) {
                 let oldPosition = playerContainer.position.clone();
@@ -452,21 +376,14 @@
                 if (intersects.length > 0) {
                     const groundHeight = intersects[0].point.y;
                     const targetY = groundHeight + 1.25; 
-                    
                     if (targetY <= playerContainer.position.y + 1.0) {
                         if (playerContainer.position.y <= targetY) {
                             playerContainer.position.y += (targetY - playerContainer.position.y) * 0.4; 
                             isGrounded = true;
                             if (yVelocity < 0) yVelocity = 0; 
-                        } else {
-                            isGrounded = false;
-                        }
-                    } else {
-                        isGrounded = false;
-                    }
-                } else {
-                    isGrounded = false;
-                }
+                        } else { isGrounded = false; }
+                    } else { isGrounded = false; }
+                } else { isGrounded = false; }
             }
 
             coordsDisplay.innerText = `X: ${playerContainer.position.x.toFixed(1)} | Z: ${playerContainer.position.z.toFixed(1)}`;
