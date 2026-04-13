@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO - USP FFE2B7 Edition</title>
+    <title>Web CSGO - USP FFB954 Edition</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
         
+        /* 准星 */
         #crosshair { position: fixed; top: 50%; left: 50%; width: 4px; height: 4px; background: #00ff00; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none; z-index: 10; box-shadow: 0 0 5px #00ff00; }
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #00ff00; pointer-events: none; }
         #crosshair::before { top: -8px; left: 1px; width: 2px; height: 20px; }
@@ -15,6 +16,7 @@
         
         #ui { position: fixed; top: 10px; left: 10px; color: #00ff00; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 14px; text-shadow: 1px 1px 0 #000; font-weight: bold; }
         #coords-display { position: fixed; top: 10px; right: 10px; background: rgba(0, 0, 0, 0.7); border: 1px solid #00ff00; color: #00ff00; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 16px; font-weight: bold; pointer-events: none; z-index: 20; }
+        
         #team-select { position: fixed; top: 50px; left: 10px; z-index: 15; display: flex; gap: 10px; }
         button { padding: 10px 15px; font-size: 16px; font-weight: bold; color: white; border: none; border-radius: 5px; cursor: pointer; }
         #btn-red { background-color: #d32f2f; }
@@ -32,7 +34,7 @@
     </style>
 </head>
 <body>
-    <div id="ui">🔫 模式：OBJ 地图 (颜色: FFE2B7)</div>
+    <div id="ui">🔫 模式：OBJ 地图 (颜色: FFB954)</div>
     <div id="coords-display">X: 0 | 高度: 0</div>
     <div id="team-select">
         <button id="btn-red">传送 A</button>
@@ -41,7 +43,7 @@
     <div id="btn-up" class="flight-btn">UP</div>
     <div id="btn-down" class="flight-btn">DOWN</div>
     <div id="joystick-base"><div id="joystick-stick"></div></div>
-    <div id="loading">正在加载资源并涂色...<br><span id="load-progress">请稍后</span></div>
+    <div id="loading">正在加载 FFB954 地图...<br><span id="load-progress">请稍后</span></div>
     <div id="crosshair"></div>
     <div id="muzzle-flash"></div>
 
@@ -62,6 +64,7 @@
         renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
 
+        // 光照设置
         scene.add(new THREE.AmbientLight(0xffffff, 1.2));
         const pointLight = new THREE.PointLight(0xffffff, 0.8);
         camera.add(pointLight);
@@ -73,13 +76,13 @@
             if(modelsLoaded >= 1) { document.getElementById('loading').style.display = 'none'; }
         }
 
-        // 1. 加载并修改 OBJ 地图 (指定颜色 FFE2B7)
+        // 1. 加载 OBJ 地图并涂色为 FFB954
         const objLoader = new THREE.OBJLoader();
         objLoader.load('de_dust2.obj', function (obj) {
             obj.traverse(function (child) {
                 if (child.isMesh) {
                     child.material = new THREE.MeshStandardMaterial({
-                        color: 0xFFE2B7, // ✅ 这里已改为你要求的颜色
+                        color: 0xFFB954, // ✅ 已修改为你要求的 FFB954
                         metalness: 0.2,
                         roughness: 0.8
                     });
@@ -111,7 +114,7 @@
             checkLoadingStatus();
         });
 
-        // --- 交互逻辑 (完整保留) ---
+        // --- 交互与控制逻辑 (完整保留) ---
         document.getElementById('btn-red').addEventListener('click', () => { camera.position.set(220, 50, 80); });
         document.getElementById('btn-blue').addEventListener('click', () => { camera.position.set(40, 50, 300); });
 
