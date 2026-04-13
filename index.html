@@ -66,7 +66,7 @@
     </style>
 </head>
 <body>
-    <div id="ui">已升级 GLB 引擎，享受高清材质地图！</div>
+    <div id="ui">地图已校准：恢复之前的尺寸和角度</div>
     
     <div id="coords-display">X: 0.00 | Z: 0.00</div>
 
@@ -101,7 +101,8 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); 
+        // 环境光稍微调亮一点，让贴图更清晰
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); 
         scene.add(ambientLight);
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); 
         dirLight.position.set(100, 200, 50);
@@ -111,7 +112,6 @@
         const raycaster = new THREE.Raycaster();
         const downRaycaster = new THREE.Raycaster(); 
 
-        // 👇 修改：使用 GLTFLoader 加载 GLB 文件 👇
         const gltfLoader = new THREE.GLTFLoader();
         const loadingUI = document.getElementById('loading');
         const mapUrl = 'de_dust2_-_cs_map.glb'; 
@@ -121,21 +121,15 @@
             function (gltf) {
                 loadingUI.style.display = 'none';
                 
-                // GLB 的模型根节点存放在 gltf.scene 里
                 const object = gltf.scene;
 
-                // 我们不再强制覆盖材质，让 GLB 显示它原本华丽的贴图
-                object.traverse(function (child) {
-                    if (child.isMesh) {
-                        // 如果需要开启阴影可以在这里加： child.receiveShadow = true;
-                    }
-                });
-
-                // 注意：GLB 的尺寸可能跟以前的 OBJ 不一样。
-                // 我先保留之前的缩放比例。如果进去发现变成了“巨人”或“蚂蚁”，修改这里的数值。
+                // 👇 关键修改区 👇
+                // 1. 保持和你之前一样的缩放比例
                 object.scale.set(0.02, 0.02, 0.02); 
+                // 2. 位置不变
                 object.position.set(0, 0, 0);
-                object.rotation.x = -Math.PI / 2; 
+                // 3. 删除了导致地图竖起来的 rotation.x 代码，让 GLB 自带的正常角度生效
+                // 👆 关键修改区 👆
 
                 scene.add(object);
                 mapMesh = object; 
@@ -147,7 +141,7 @@
             },
             function (error) { 
                 console.error(error);
-                loadingUI.innerText = '加载失败! 检查控制台报错。'; 
+                loadingUI.innerText = '加载失败!'; 
                 loadingUI.style.color = 'red'; 
             }
         );
