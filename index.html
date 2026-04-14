@@ -29,10 +29,10 @@
         #start-button:active { transform: scale(0.95); background: #e65100; }
         #loading-text { color: white; margin-top: 20px; font-size: 18px; font-family: monospace; text-shadow: 1px 1px 2px #000; }
 
-        /* 状态 2: 战队选择屏幕 (根据照片设计) */
+        /* 状态 2: 战队选择屏幕 (纯黑背景，无多余图案) */
         #team-select-screen {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.9); /* 纯黑色背景 */
+            background: rgba(0, 0, 0, 0.95); /* 纯黑色背景，无图案 */
             display: none; flex-direction: column; justify-content: center; align-items: center;
             z-index: 2500; transition: opacity 0.5s;
         }
@@ -55,7 +55,7 @@
             border-color: rgba(255, 255, 255, 0.3);
         }
         
-        .team-column-header { color: white; font-size: 24px; font-weight: bold; text-transform: uppercase; margin-bottom: 20px; }
+        .team-column-header { color: white; font-size: 24px; font-weight: bold; text-transform: uppercase; margin-bottom: 20px; text-align: center; }
         
         .team-logo-placeholder {
             width: 150px; height: 150px;
@@ -100,8 +100,6 @@
 
         #ui { position: fixed; top: 10px; left: 10px; color: white; pointer-events: none; z-index: 10; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 14px; text-shadow: 1px 1px 0 #000; }
 
-        /* 移除原来的 team-select 按钮组，移到上面独立的选择屏幕 */
-
         #btn-view { position: fixed; top: 50px; left: 10px; z-index: 15; background-color: #ff9800; color: white; border: none; font-size: 16px; font-weight: bold; padding: 10px 15px; border-radius: 5px; cursor: pointer;}
         #btn-view:active { background-color: #e65100; }
 
@@ -143,7 +141,7 @@
     <div id="start-screen">
         <div id="start-logo">WEB CSGO<br><span style="font-size:24px; color:#fff;">Dust2 Edition</span></div>
         <button id="start-button">START WAR</button>
-        <div id="loading-text">资源加载中... 0%</div>
+        <div id="loading-text">资源加载中...</div>
     </div>
 
     <div id="team-select-screen">
@@ -204,17 +202,15 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getDatabase, ref, set, update, onValue, onDisconnect, remove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        // ==========================================
-        // ⚠️ 请在这里替换为你自己的 Firebase 配置！
-        // ==========================================
+        // 这是你真实的 Firebase 配置，已恢复！
         const firebaseConfig = {
-            apiKey: "PLACEHOLDER_apiKey_REPLACE_ME",
-            authDomain: "PLACEHOLDER_authDomain_REPLACE_ME",
-            databaseURL: "PLACEHOLDER_databaseURL_REPLACE_ME",
-            projectId: "PLACEHOLDER_projectId_REPLACE_ME",
-            storageBucket: "PLACEHOLDER_storageBucket_REPLACE_ME",
-            messagingSenderId: "PLACEHOLDER_messagingSenderId_REPLACE_ME",
-            appId: "PLACEHOLDER_appId_REPLACE_ME"
+            apiKey: "AIzaSyAX5TKLKkC_oHklROdhSB5QtdGZIu_9yIo",
+            authDomain: "diddy-gun-game.firebaseapp.com",
+            databaseURL: "https://diddy-gun-game-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "diddy-gun-game",
+            storageBucket: "diddy-gun-game.firebasestorage.app",
+            messagingSenderId: "712812379030",
+            appId: "1:712812379030:web:13f04859c2651d177cfbb7"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -291,7 +287,7 @@
         const mtlLoader = new MTLLoader(); 
         const gltfLoader = new GLTFLoader();
 
-        // 材质与地图加载
+        // 材质与地图加载 (已修复卡 0% 问题)
         mtlLoader.load('de_dust2.mtl?v=3', function (materials) {
             materials.preload();
             objLoader.setMaterials(materials);
@@ -302,16 +298,21 @@
                 object.rotation.x = -Math.PI / 2; 
                 scene.add(object);
                 mapMesh = object; 
+                
+                // 加载成功后激活按钮
+                loadingText.innerText = '加载完成，可以开始 War！';
+                loadingText.style.color = '#00ff00';
+                gameStarted = true; // 资源就绪
+                
             }, function (xhr) {
-                if (xhr.lengthComputable) {
+                // 如果服务器提供总大小，计算百分比
+                if (xhr.lengthComputable && xhr.total > 0) {
                     let p = Math.round(xhr.loaded / xhr.total * 100);
-                    if (p === 100) {
-                        loadingText.innerText = '加载完成，可以开始 War！';
-                        loadingText.style.color = '#00ff00';
-                        gameStarted = true; // 资源就绪
-                    } else {
-                        loadingText.innerText = '加载地图与材质 ' + p + '%';
-                    }
+                    loadingText.innerText = '加载地图与材质 ' + p + '%';
+                } else {
+                    // 否则，直接显示已下载的 MB，防止卡在 0%
+                    let mb = (xhr.loaded / 1024 / 1024).toFixed(2);
+                    loadingText.innerText = `正在下载数据... 已获取 ${mb} MB`;
                 }
             });
         });
@@ -398,8 +399,6 @@
                 const myRef = ref(database, `players/${myUid}`);
                 onDisconnect(myRef).remove();
                 
-                // 不在这里更新节点，等选完队伍后再更新，防止占座 AFK 被踢
-
                 const playersRef = ref(database, 'players');
                 onValue(playersRef, (snapshot) => {
                     if (isKicked) return; // 如果被踢了，不再同步别人的数据
@@ -434,7 +433,7 @@
                                 networkBanana.traverse((child) => {
                                     if (child.isMesh) {
                                         child.userData.uid = uid;
-                                        // 简单的颜色标记，将来可以用模型
+                                        // 简单的颜色标记
                                         if (data[uid].team === 'T') child.material.color.set(0xff0000); 
                                         else if (data[uid].team === 'CT') child.material.color.set(0x0000ff); 
                                     }
@@ -504,8 +503,6 @@
                 if(myBody) myBody.visible = false; 
             }
         });
-
-        // 移除原来的 team-select 按钮组监听
 
         // 弹药系统
         let ammoInMag = 7;
