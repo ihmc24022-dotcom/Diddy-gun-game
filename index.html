@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO Online (Health Update)</title>
+    <title>Web CSGO Online (Textured Map Update)</title>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -31,10 +31,7 @@
 
         #coords-display { position: fixed; top: 10px; right: 10px; background: rgba(0, 0, 0, 0.7); border: 1px solid #00ff00; color: #00ff00; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 16px; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 0 5px #00ff00; }
 
-        /* 左下角的血量显示 */
         #health-display { position: fixed; bottom: 40px; left: 40px; background: rgba(0, 0, 0, 0.7); border: 1px solid #ff5555; color: #ff5555; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 24px; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 0 5px #ff5555; }
-
-        /* 右下角的弹药显示 */
         #ammo-display { position: fixed; bottom: 40px; right: 40px; background: rgba(0, 0, 0, 0.7); border: 1px solid #ffce00; color: #ffce00; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 24px; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 0 5px #ffce00; }
 
         #joystick-base { position: fixed; width: 100px; height: 100px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 30; }
@@ -60,7 +57,7 @@
     </script>
 </head>
 <body>
-    <div id="ui">多人在线版 (战斗更新)</div>
+    <div id="ui">多人在线版 (材质更新)</div>
     <div id="online-count">在线人数: 连接中...</div>
     
     <div id="coords-display">X: 0.00 | Z: 0.00</div>
@@ -85,9 +82,9 @@
     <script type="module">
         import * as THREE from 'three';
         import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+        import { MTLLoader } from 'three/addons/loaders/MTLLoader.js'; // 导入材质加载器
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-        // 引入了 update 功能
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getDatabase, ref, set, update, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
@@ -139,23 +136,32 @@
         const shootRaycaster = new THREE.Raycaster();
 
         const objLoader = new OBJLoader();
+        const mtlLoader = new MTLLoader(); // 初始化材质加载器
         const gltfLoader = new GLTFLoader();
         const loadingUI = document.getElementById('loading');
 
-        objLoader.load('de_dust2.obj?v=2', function (object) {
-            const sandMaterial = new THREE.MeshStandardMaterial({ color: 0xFFC976, roughness: 0.9, side: THREE.DoubleSide });
-            object.traverse(function (child) { if (child.isMesh) child.material = sandMaterial; });
-            object.scale.set(0.02, 0.02, 0.02); 
-            object.position.set(0, 0, 0);
-            object.rotation.x = -Math.PI / 2; 
-            scene.add(object);
-            mapMesh = object; 
-        }, function (xhr) {
-            if (xhr.lengthComputable) {
-                let p = Math.round(xhr.loaded / xhr.total * 100);
-                if (p === 100) loadingUI.style.display = 'none';
-                else loadingUI.innerText = '加载地图 ' + p + '%';
-            }
+        // ==========================================
+        // 地图加载：先加载 MTL 材质，再加载 OBJ 模型
+        // ==========================================
+        mtlLoader.load('de_dust2.mtl?v=3', function (materials) {
+            materials.preload();
+            // 告诉 OBJLoader 使用刚刚加载好的材质
+            objLoader.setMaterials(materials);
+            
+            objLoader.load('de_dust2.obj?v=3', function (object) {
+                // 不再手动涂抹单一颜色，使用自动贴好的材质
+                object.scale.set(0.02, 0.02, 0.02); 
+                object.position.set(0, 0, 0);
+                object.rotation.x = -Math.PI / 2; 
+                scene.add(object);
+                mapMesh = object; 
+            }, function (xhr) {
+                if (xhr.lengthComputable) {
+                    let p = Math.round(xhr.loaded / xhr.total * 100);
+                    if (p === 100) loadingUI.style.display = 'none';
+                    else loadingUI.innerText = '加载地图与材质 ' + p + '%';
+                }
+            });
         });
 
         let myBody = null;
@@ -189,9 +195,7 @@
             gunGroup.add(loadedGunModel);
         });
 
-        // ==========================================
-        // 网络与血量同步逻辑
-        // ==========================================
+        // 网络同步与血量代码保持不变
         signInAnonymously(auth).catch(error => console.error("Firebase Login Error:", error));
 
         onAuthStateChanged(auth, (user) => {
@@ -199,8 +203,6 @@
                 myUid = user.uid;
                 const myRef = ref(database, `players/${myUid}`);
                 onDisconnect(myRef).remove();
-
-                // 初始化自己为 100 满血
                 update(myRef, { health: 100 });
 
                 const playersRef = ref(database, 'players');
@@ -208,15 +210,12 @@
                     const data = snapshot.val() || {};
                     let onlineCount = 0;
 
-                    // 1. 检查自己的血量 (看是不是被别人打了)
                     if (data[myUid] && data[myUid].health !== undefined) {
                         let myHP = data[myUid].health;
                         document.getElementById('health-display').innerText = `HP: ${myHP}`;
-                        
-                        // 死了！触发重生
                         if (myHP <= 0) {
-                            playerContainer.position.set(2 + (Math.random() * 4 - 2), 1.25, 15); // 回到出生点
-                            update(myRef, { health: 100 }); // 重置血量
+                            playerContainer.position.set(2 + (Math.random() * 4 - 2), 1.25, 15); 
+                            update(myRef, { health: 100 }); 
                         }
                     }
 
@@ -231,8 +230,6 @@
                                 networkBanana.scale.set(2.5, 2.5, 2.5);
                                 networkBanana.position.set(data[uid].x, data[uid].y - 1.25, data[uid].z);
                                 networkBanana.rotation.y = data[uid].rotY + Math.PI || 0;
-
-                                // 关键：给模型的所有部分贴上这名玩家的 UID 标签，方便我们知道打中了谁
                                 networkBanana.traverse((child) => {
                                     if (child.isMesh) child.userData.uid = uid;
                                 });
@@ -248,7 +245,7 @@
                                     model: networkBanana,
                                     targetPos: new THREE.Vector3(data[uid].x, data[uid].y - 1.25, data[uid].z),
                                     targetRotY: data[uid].rotY + Math.PI,
-                                    health: data[uid].health || 100 // 记录他的血量
+                                    health: data[uid].health || 100 
                                 };
                             });
                         } 
@@ -268,13 +265,11 @@
                             delete remotePlayers[uid];
                         }
                     }
-
                     document.getElementById('online-count').innerText = `在线人数: ${onlineCount}`;
                 });
             }
         });
 
-        // 按钮与控制逻辑
         document.getElementById('btn-view').addEventListener('click', (e) => {
             e.stopPropagation(); 
             isTPS = !isTPS;
@@ -413,18 +408,14 @@
 
             const intersects = shootRaycaster.intersectObjects(networkTargets, true);
             if (intersects.length > 0) {
-                // 显示命中准心
                 hitMarker.style.opacity = '1';
                 setTimeout(() => { hitMarker.style.opacity = '0'; }, 200);
 
-                // ==========================================
-                // 扣血系统：告诉 Firebase 这个玩家被打了
-                // ==========================================
                 let hitUid = intersects[0].object.userData.uid;
                 if (hitUid && remotePlayers[hitUid]) {
                     let currentTargetHP = remotePlayers[hitUid].health;
                     if (currentTargetHP > 0) {
-                        let newHP = currentTargetHP - 25; // 每次开火扣 25 血
+                        let newHP = currentTargetHP - 25; 
                         if (newHP < 0) newHP = 0;
                         update(ref(database, `players/${hitUid}`), { health: newHP });
                     }
@@ -457,7 +448,6 @@
             const delta = clock.getDelta();
             mixers.forEach(mixer => mixer.update(delta));
 
-            // 上传自己坐标 (注意这里换成了 update，避免覆盖掉别人打你的掉血状态)
             if (myUid && Date.now() - lastSyncTime > 66) {
                 const myRef = ref(database, `players/${myUid}`);
                 update(myRef, {
@@ -469,7 +459,6 @@
                 lastSyncTime = Date.now();
             }
 
-            // 平滑移动其他玩家
             for (let uid in remotePlayers) {
                 let rp = remotePlayers[uid];
                 if (rp !== "loading" && rp.model) {
@@ -480,7 +469,6 @@
                 }
             }
 
-            // 掉出地图自动重生
             if (playerContainer.position.y < -10) { 
                 playerContainer.position.set(2, 1.25, 15); 
                 yVelocity = 0; 
