@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO Online (Smooth Version)</title>
+    <title>Web CSGO Online (Health Update)</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
         canvas { display: block; }
@@ -27,13 +31,17 @@
 
         #coords-display { position: fixed; top: 10px; right: 10px; background: rgba(0, 0, 0, 0.7); border: 1px solid #00ff00; color: #00ff00; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 16px; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 0 5px #00ff00; }
 
+        /* 左下角的血量显示 */
+        #health-display { position: fixed; bottom: 40px; left: 40px; background: rgba(0, 0, 0, 0.7); border: 1px solid #ff5555; color: #ff5555; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 24px; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 0 5px #ff5555; }
+
+        /* 右下角的弹药显示 */
+        #ammo-display { position: fixed; bottom: 40px; right: 40px; background: rgba(0, 0, 0, 0.7); border: 1px solid #ffce00; color: #ffce00; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 24px; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 0 5px #ffce00; }
+
         #joystick-base { position: fixed; width: 100px; height: 100px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 30; }
         #joystick-stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: rgba(0, 0, 0, 0.9); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 10px rgba(0,0,0,0.8); pointer-events: none; }
 
-        #btn-jump { position: fixed; bottom: 40px; right: 40px; width: 70px; height: 70px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; color: white; font-size: 16px; font-weight: bold; z-index: 30; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
-        #btn-reload { position: fixed; bottom: 50px; right: 130px; width: 50px; height: 50px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; color: white; font-size: 18px; font-weight: bold; z-index: 30; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
-
-        #ammo-display { position: fixed; bottom: 120px; right: 40px; background: rgba(0, 0, 0, 0.7); border: 1px solid #ffce00; color: #ffce00; padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 20px; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 0 5px #ffce00; }
+        #btn-jump { position: fixed; bottom: 100px; right: 40px; width: 70px; height: 70px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; color: white; font-size: 16px; font-weight: bold; z-index: 30; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+        #btn-reload { position: fixed; bottom: 110px; right: 130px; width: 50px; height: 50px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; color: white; font-size: 18px; font-weight: bold; z-index: 30; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
 
         #online-count { position: fixed; top: 140px; left: 10px; background: rgba(0, 0, 0, 0.7); border: 1px solid #00ffff; color: #00ffff; padding: 5px 10px; border-radius: 5px; font-weight: bold; z-index: 20; }
 
@@ -52,10 +60,11 @@
     </script>
 </head>
 <body>
-    <div id="ui">多人在线版 (平滑插值版)</div>
+    <div id="ui">多人在线版 (战斗更新)</div>
     <div id="online-count">在线人数: 连接中...</div>
     
     <div id="coords-display">X: 0.00 | Z: 0.00</div>
+    <div id="health-display">HP: 100</div>
     <div id="ammo-display">7 / 42</div>
     
     <button id="btn-reload">R</button>
@@ -64,7 +73,7 @@
         <button id="btn-blue">加入蓝队 (CT)</button>
     </div>
     
-    <button id="btn-view">👁️ 切换视角 (FPS/TPS)</button>
+    <button id="btn-view">👁️ 切换视角</button>
     <button id="btn-jump">JUMP</button>
 
     <div id="joystick-base"><div id="joystick-stick"></div></div>
@@ -78,11 +87,10 @@
         import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-        // Firebase 模块
+        // 引入了 update 功能
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getDatabase, ref, set, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+        import { getDatabase, ref, set, update, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAX5TKLKkC_oHklROdhSB5QtdGZIu_9yIo",
@@ -91,19 +99,16 @@
             projectId: "diddy-gun-game",
             storageBucket: "diddy-gun-game.firebasestorage.app",
             messagingSenderId: "712812379030",
-            appId: "1:712812379030:web:13f04859c2651d177cfbb7",
-            measurementId: "G-WVXBDG2H45"
+            appId: "1:712812379030:web:13f04859c2651d177cfbb7"
         };
 
         const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
         const auth = getAuth(app);
         const database = getDatabase(app);
 
         let myUid = null;
-        let remotePlayers = {}; // 用于存储其他玩家的数据 (包含模型和目标坐标)
+        let remotePlayers = {}; 
 
-        // Three.js 初始化
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb); 
         scene.fog = new THREE.Fog(0x87ceeb, 10, 300); 
@@ -137,8 +142,7 @@
         const gltfLoader = new GLTFLoader();
         const loadingUI = document.getElementById('loading');
 
-        // 加载地图
-        objLoader.load('de_dust2.obj', function (object) {
+        objLoader.load('de_dust2.obj?v=2', function (object) {
             const sandMaterial = new THREE.MeshStandardMaterial({ color: 0xFFC976, roughness: 0.9, side: THREE.DoubleSide });
             object.traverse(function (child) { if (child.isMesh) child.material = sandMaterial; });
             object.scale.set(0.02, 0.02, 0.02); 
@@ -157,13 +161,11 @@
         let myBody = null;
         let isTPS = false; 
 
-        // 加载自己
-        gltfLoader.load('dancing_banana.glb', function (gltf) {
+        gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
             myBody = gltf.scene;
             myBody.scale.set(2.5, 2.5, 2.5); 
             myBody.position.set(0, -1.25, 0); 
             myBody.rotation.y = Math.PI; 
-            
             if (gltf.animations && gltf.animations.length > 0) {
                 let mixer = new THREE.AnimationMixer(myBody);
                 mixer.clipAction(gltf.animations[0]).play();
@@ -173,14 +175,13 @@
             playerContainer.add(myBody); 
         });
 
-        // 加载枪
         const gunGroup = new THREE.Group();
         camera.add(gunGroup); 
         let loadedGunModel = null;
         let defaultGunZ = -0.55; 
         let defaultGunY = -0.35; 
 
-        gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb', function (gltf) {
+        gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
             loadedGunModel = gltf.scene;
             loadedGunModel.scale.set(1.5, 1.5, 1.5); 
             loadedGunModel.position.set(0.35, defaultGunY, defaultGunZ); 
@@ -189,7 +190,7 @@
         });
 
         // ==========================================
-        // 核心修改：网络同步与插值 (Lerp)
+        // 网络与血量同步逻辑
         // ==========================================
         signInAnonymously(auth).catch(error => console.error("Firebase Login Error:", error));
 
@@ -199,23 +200,42 @@
                 const myRef = ref(database, `players/${myUid}`);
                 onDisconnect(myRef).remove();
 
+                // 初始化自己为 100 满血
+                update(myRef, { health: 100 });
+
                 const playersRef = ref(database, 'players');
                 onValue(playersRef, (snapshot) => {
                     const data = snapshot.val() || {};
                     let onlineCount = 0;
 
+                    // 1. 检查自己的血量 (看是不是被别人打了)
+                    if (data[myUid] && data[myUid].health !== undefined) {
+                        let myHP = data[myUid].health;
+                        document.getElementById('health-display').innerText = `HP: ${myHP}`;
+                        
+                        // 死了！触发重生
+                        if (myHP <= 0) {
+                            playerContainer.position.set(2 + (Math.random() * 4 - 2), 1.25, 15); // 回到出生点
+                            update(myRef, { health: 100 }); // 重置血量
+                        }
+                    }
+
                     for (let uid in data) {
                         onlineCount++;
                         if (uid === myUid) continue; 
 
-                        // 1. 如果是新玩家，创建模型并记录【目标坐标】
                         if (!remotePlayers[uid] && remotePlayers[uid] !== "loading") {
                             remotePlayers[uid] = "loading"; 
-                            gltfLoader.load('dancing_banana.glb', function(gltf) {
+                            gltfLoader.load('dancing_banana.glb?v=2', function(gltf) {
                                 let networkBanana = gltf.scene;
                                 networkBanana.scale.set(2.5, 2.5, 2.5);
                                 networkBanana.position.set(data[uid].x, data[uid].y - 1.25, data[uid].z);
                                 networkBanana.rotation.y = data[uid].rotY + Math.PI || 0;
+
+                                // 关键：给模型的所有部分贴上这名玩家的 UID 标签，方便我们知道打中了谁
+                                networkBanana.traverse((child) => {
+                                    if (child.isMesh) child.userData.uid = uid;
+                                });
 
                                 if (gltf.animations && gltf.animations.length > 0) {
                                     let mixer = new THREE.AnimationMixer(networkBanana);
@@ -224,27 +244,26 @@
                                 }
                                 scene.add(networkBanana);
                                 
-                                // 改动：把模型和它的"目标坐标"存起来，而不是只存模型
                                 remotePlayers[uid] = {
                                     model: networkBanana,
                                     targetPos: new THREE.Vector3(data[uid].x, data[uid].y - 1.25, data[uid].z),
-                                    targetRotY: data[uid].rotY + Math.PI
+                                    targetRotY: data[uid].rotY + Math.PI,
+                                    health: data[uid].health || 100 // 记录他的血量
                                 };
                             });
                         } 
-                        // 2. 如果玩家已经在场，更新他的【目标坐标】，不要直接移动他
                         else if (remotePlayers[uid] && remotePlayers[uid] !== "loading") {
                             let rp = remotePlayers[uid];
                             rp.targetPos.set(data[uid].x, data[uid].y - 1.25, data[uid].z); 
                             rp.targetRotY = data[uid].rotY + Math.PI; 
+                            rp.health = data[uid].health !== undefined ? data[uid].health : 100;
                         }
                     }
 
-                    // 3. 清理断线玩家
                     for (let uid in remotePlayers) {
                         if (!data[uid] && uid !== myUid) {
                             if (remotePlayers[uid] !== "loading") {
-                                scene.remove(remotePlayers[uid].model); // 删掉模型
+                                scene.remove(remotePlayers[uid].model);
                             }
                             delete remotePlayers[uid];
                         }
@@ -255,7 +274,7 @@
             }
         });
 
-        // 控制代码
+        // 按钮与控制逻辑
         document.getElementById('btn-view').addEventListener('click', (e) => {
             e.stopPropagation(); 
             isTPS = !isTPS;
@@ -363,7 +382,6 @@
             }
         });
 
-        // 支持电脑端鼠标左键开枪 (刚才加上去的)
         document.addEventListener('mousedown', (e) => {
             if(e.target.tagName === 'BUTTON' || e.target.closest('#team-select')) return; 
             if (e.button === 0) { shoot(); }
@@ -386,7 +404,6 @@
             camera.getWorldDirection(shootDir);
             shootRaycaster.set(shootOrigin, shootDir);
 
-            // 改动：适配新的 remotePlayers 数据结构
             let networkTargets = [];
             for (let uid in remotePlayers) {
                 if (remotePlayers[uid] !== "loading" && remotePlayers[uid].model) {
@@ -396,8 +413,22 @@
 
             const intersects = shootRaycaster.intersectObjects(networkTargets, true);
             if (intersects.length > 0) {
+                // 显示命中准心
                 hitMarker.style.opacity = '1';
                 setTimeout(() => { hitMarker.style.opacity = '0'; }, 200);
+
+                // ==========================================
+                // 扣血系统：告诉 Firebase 这个玩家被打了
+                // ==========================================
+                let hitUid = intersects[0].object.userData.uid;
+                if (hitUid && remotePlayers[hitUid]) {
+                    let currentTargetHP = remotePlayers[hitUid].health;
+                    if (currentTargetHP > 0) {
+                        let newHP = currentTargetHP - 25; // 每次开火扣 25 血
+                        if (newHP < 0) newHP = 0;
+                        update(ref(database, `players/${hitUid}`), { health: newHP });
+                    }
+                }
             }
 
             setTimeout(() => { flashUI.style.opacity = '0'; }, 50);
@@ -426,10 +457,10 @@
             const delta = clock.getDelta();
             mixers.forEach(mixer => mixer.update(delta));
 
-            // 上传自己坐标
+            // 上传自己坐标 (注意这里换成了 update，避免覆盖掉别人打你的掉血状态)
             if (myUid && Date.now() - lastSyncTime > 66) {
                 const myRef = ref(database, `players/${myUid}`);
-                set(myRef, {
+                update(myRef, {
                     x: playerContainer.position.x,
                     y: playerContainer.position.y,
                     z: playerContainer.position.z,
@@ -438,23 +469,24 @@
                 lastSyncTime = Date.now();
             }
 
-            // ========================================================
-            // 让其他玩家【平滑移动 (Lerp)】的核心代码
-            // ========================================================
+            // 平滑移动其他玩家
             for (let uid in remotePlayers) {
                 let rp = remotePlayers[uid];
                 if (rp !== "loading" && rp.model) {
-                    // 位置插值：以 0.2 的速度滑向目标坐标
                     rp.model.position.lerp(rp.targetPos, 0.2); 
-                    
-                    // 旋转插值：计算最短的旋转角度，平滑转身
                     let diff = rp.targetRotY - rp.model.rotation.y;
                     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
                     rp.model.rotation.y += diff * 0.2; 
                 }
             }
 
-            if (playerContainer.position.y < -10) { playerContainer.position.set(2, 1.25, 15); yVelocity = 0; }
+            // 掉出地图自动重生
+            if (playerContainer.position.y < -10) { 
+                playerContainer.position.set(2, 1.25, 15); 
+                yVelocity = 0; 
+                if (myUid) update(ref(database, `players/${myUid}`), { health: 100 });
+            }
+            
             if (!isShooting && loadedGunModel && !isReloading) loadedGunModel.position.z += (defaultGunZ - loadedGunModel.position.z) * 0.2;
 
             if (touches.left) {
