@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO Online (Textured Map Update)</title>
+    <title>Web CSGO Online (Textured + AFK System)</title>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -45,6 +45,14 @@
         #hit-marker { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: red; font-size: 24px; font-weight: bold; pointer-events: none; opacity: 0; transition: opacity 0.1s; z-index: 15; }
         #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ffce00; font-size: 24px; font-weight: bold; z-index: 20; pointer-events: none; text-shadow: 2px 2px 4px #000; text-align: center;}
         #muzzle-flash { position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
+
+        /* 新增：AFK 警告和踢出屏幕的样式 */
+        #afk-warning { position: fixed; top: 20%; left: 50%; transform: translate(-50%, -50%); background: rgba(255, 0, 0, 0.85); color: white; padding: 15px 30px; font-size: 20px; font-weight: bold; border-radius: 8px; z-index: 100; display: none; text-align: center; border: 2px solid white; box-shadow: 0 0 20px red; pointer-events: none; }
+        #kick-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.95); color: #ff5555; display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; font-family: sans-serif; text-align: center; }
+        #kick-screen h1 { font-size: 36px; margin-bottom: 10px; }
+        #kick-screen p { font-size: 18px; color: white; margin-bottom: 30px; }
+        #kick-screen button { padding: 15px 40px; font-size: 20px; background: #ff9800; color: white; border: none; cursor: pointer; border-radius: 5px; font-weight: bold; }
+        #kick-screen button:active { background: #e65100; }
     </style>
 
     <script type="importmap">
@@ -57,7 +65,7 @@
     </script>
 </head>
 <body>
-    <div id="ui">多人在线版 (材质更新)</div>
+    <div id="ui">多人在线版 (防挂机系统)</div>
     <div id="online-count">在线人数: 连接中...</div>
     
     <div id="coords-display">X: 0.00 | Z: 0.00</div>
@@ -79,15 +87,23 @@
     <div id="hit-marker">✖</div>
     <div id="muzzle-flash"></div>
 
+    <div id="afk-warning">⚠️ 警告: 你已经很久没动了！<br>请在 <span id="afk-countdown">10</span> 秒内活动，否则将被踢出房间。</div>
+    <div id="kick-screen">
+        <h1>已断开连接</h1>
+        <p>你因为长时间未活动 (AFK) 被移出游戏。</p>
+        <button onclick="location.reload()">重新连接</button>
+    </div>
+
     <script type="module">
         import * as THREE from 'three';
         import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
-        import { MTLLoader } from 'three/addons/loaders/MTLLoader.js'; // 导入材质加载器
+        import { MTLLoader } from 'three/addons/loaders/MTLLoader.js'; 
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+        // 引入了 remove 函数，用于把玩家从服务器踢出
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getDatabase, ref, set, update, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+        import { getDatabase, ref, set, update, onValue, onDisconnect, remove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAX5TKLKkC_oHklROdhSB5QtdGZIu_9yIo",
@@ -105,6 +121,23 @@
 
         let myUid = null;
         let remotePlayers = {}; 
+
+        // === 新增：防挂机 (AFK) 变量 ===
+        let lastActionTime = Date.now();
+        let isKicked = false;
+        const afkWarning = document.getElementById('afk-warning');
+        const afkCountdown = document.getElementById('afk-countdown');
+        const kickScreen = document.getElementById('kick-screen');
+
+        // 只要玩家做任何操作，就调用这个函数重置计时器
+        function resetAFK() {
+            if (isKicked) return;
+            lastActionTime = Date.now();
+            if (afkWarning.style.display === 'block') {
+                afkWarning.style.display = 'none'; // 玩家动了，隐藏警告
+            }
+        }
+        // ============================
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb); 
@@ -136,20 +169,15 @@
         const shootRaycaster = new THREE.Raycaster();
 
         const objLoader = new OBJLoader();
-        const mtlLoader = new MTLLoader(); // 初始化材质加载器
+        const mtlLoader = new MTLLoader(); 
         const gltfLoader = new GLTFLoader();
         const loadingUI = document.getElementById('loading');
 
-        // ==========================================
-        // 地图加载：先加载 MTL 材质，再加载 OBJ 模型
-        // ==========================================
         mtlLoader.load('de_dust2.mtl?v=3', function (materials) {
             materials.preload();
-            // 告诉 OBJLoader 使用刚刚加载好的材质
             objLoader.setMaterials(materials);
             
             objLoader.load('de_dust2.obj?v=3', function (object) {
-                // 不再手动涂抹单一颜色，使用自动贴好的材质
                 object.scale.set(0.02, 0.02, 0.02); 
                 object.position.set(0, 0, 0);
                 object.rotation.x = -Math.PI / 2; 
@@ -195,7 +223,6 @@
             gunGroup.add(loadedGunModel);
         });
 
-        // 网络同步与血量代码保持不变
         signInAnonymously(auth).catch(error => console.error("Firebase Login Error:", error));
 
         onAuthStateChanged(auth, (user) => {
@@ -207,6 +234,8 @@
 
                 const playersRef = ref(database, 'players');
                 onValue(playersRef, (snapshot) => {
+                    if (isKicked) return; // 如果被踢了，不再同步别人的数据
+
                     const data = snapshot.val() || {};
                     let onlineCount = 0;
 
@@ -272,6 +301,7 @@
 
         document.getElementById('btn-view').addEventListener('click', (e) => {
             e.stopPropagation(); 
+            resetAFK(); // 切换视角算作活动
             isTPS = !isTPS;
             if(isTPS) {
                 camera.position.set(0, 1.5, 4.5); 
@@ -304,6 +334,7 @@
 
         function reloadWeapon(e) {
             if (e) e.preventDefault();
+            resetAFK(); // 换弹算作活动
             if (isReloading || ammoInMag === maxAmmoInMag || ammoReserve === 0) return;
             isReloading = true; updateAmmoUI();
             if (loadedGunModel) loadedGunModel.position.y = defaultGunY - 0.6;
@@ -319,8 +350,9 @@
 
         document.getElementById('btn-reload').addEventListener('touchstart', reloadWeapon);
         document.getElementById('btn-reload').addEventListener('mousedown', reloadWeapon);
-        document.getElementById('btn-red').addEventListener('click', () => { playerContainer.position.set(11, 1.25, 4); yVelocity = 0; });
-        document.getElementById('btn-blue').addEventListener('click', () => { playerContainer.position.set(2, 1.25, 15); yVelocity = 0; });
+        
+        document.getElementById('btn-red').addEventListener('click', () => { resetAFK(); playerContainer.position.set(11, 1.25, 4); yVelocity = 0; });
+        document.getElementById('btn-blue').addEventListener('click', () => { resetAFK(); playerContainer.position.set(2, 1.25, 15); yVelocity = 0; });
 
         const joyBase = document.getElementById('joystick-base');
         const joyStick = document.getElementById('joystick-stick');
@@ -335,8 +367,8 @@
         let touches = { left: null, right: null };
         let isShooting = false;
 
-        document.getElementById('btn-jump').addEventListener('touchstart', (e) => { e.preventDefault(); if (isGrounded) { yVelocity = jumpStrength; isGrounded = false; }});
-        document.getElementById('btn-jump').addEventListener('mousedown', (e) => { e.preventDefault(); if (isGrounded) { yVelocity = jumpStrength; isGrounded = false; }});
+        document.getElementById('btn-jump').addEventListener('touchstart', (e) => { e.preventDefault(); resetAFK(); if (isGrounded) { yVelocity = jumpStrength; isGrounded = false; }});
+        document.getElementById('btn-jump').addEventListener('mousedown', (e) => { e.preventDefault(); resetAFK(); if (isGrounded) { yVelocity = jumpStrength; isGrounded = false; }});
 
         document.addEventListener('touchstart', (e) => {
             if(e.target.tagName === 'BUTTON') return; 
@@ -352,6 +384,7 @@
         });
 
         document.addEventListener('touchmove', (e) => {
+            resetAFK(); // 只要手指在屏幕上滑动，就重置 AFK 计时器
             for (let t of e.changedTouches) {
                 if (touches.left && t.identifier === touches.left.id) {
                     let deltaX = t.clientX - touches.left.startX;
@@ -386,6 +419,7 @@
         const hitMarker = document.getElementById('hit-marker');
 
         function shoot() {
+            resetAFK(); // 开枪算作活动
             if (isShooting || (!isTPS && !loadedGunModel) || isReloading) return; 
             if (ammoInMag <= 0) { reloadWeapon(); return; }
 
@@ -445,8 +479,35 @@
 
         function animate() {
             requestAnimationFrame(animate);
+
+            // === AFK 检查逻辑 ===
+            if (!isKicked) {
+                let inactiveTime = Date.now() - lastActionTime;
+                
+                // 超过 30 秒，彻底踢出
+                if (inactiveTime >= 30000) {
+                    isKicked = true;
+                    if (myUid) {
+                        // 从 Firebase 删除玩家节点，其他人会看到他消失
+                        remove(ref(database, `players/${myUid}`));
+                    }
+                    afkWarning.style.display = 'none';
+                    kickScreen.style.display = 'flex'; // 显示黑屏踢出界面
+                } 
+                // 超过 20 秒，显示警告
+                else if (inactiveTime >= 20000) {
+                    afkWarning.style.display = 'block';
+                    let timeLeft = Math.ceil((30000 - inactiveTime) / 1000);
+                    afkCountdown.innerText = timeLeft;
+                }
+            }
+            // ==================
+
             const delta = clock.getDelta();
             mixers.forEach(mixer => mixer.update(delta));
+
+            // 如果被踢了，停止发送位置同步，并停止游戏画面更新
+            if (isKicked) return;
 
             if (myUid && Date.now() - lastSyncTime > 66) {
                 const myRef = ref(database, `players/${myUid}`);
