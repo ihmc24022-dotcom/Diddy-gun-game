@@ -304,6 +304,7 @@
         const database = getDatabase(app);
 
         let myUid = null;
+        let myTeam = null; // ⚠️ 新增：记录当前自己的队伍
         let remotePlayers = {}; 
 
         let gameStarted = false; 
@@ -480,11 +481,12 @@
             lobbyDisplayGroup.visible = false;
             if (!isTPS && loadedGunModel) loadedGunModel.visible = true;
 
-            // ⚠️ 关键修复 1：修正 AUTO 的随机阵营分配，并提前定义出生点坐标 ⚠️
             let finalTeam = team;
             if (team === 'AUTO') {
                 finalTeam = Math.random() < 0.5 ? 'CT' : 'T';
             }
+            
+            myTeam = finalTeam; // ⚠️ 记录自己的阵营，用于判断友伤 ⚠️
 
             let startX = 0;
             let startZ = 0;
@@ -503,7 +505,6 @@
             camera.rotation.set(0, 0, 0);
 
             if (myUid) {
-                // ⚠️ 关键修复 2：加入时直接把 XYZ 同步上去，防止别人读取到 undefined 变隐形！⚠️
                 update(ref(database, `players/${myUid}`), {
                     health: 100,
                     team: finalTeam,
@@ -598,6 +599,7 @@
 
                     if (data[myUid] && data[myUid].health !== undefined && data[myUid].team) {
                         let myHP = data[myUid].health;
+                        myTeam = data[myUid].team; // ⚠️ 同步时确保本地队伍状态准确 ⚠️
                         document.getElementById('health-display').innerText = `HP: ${myHP}`;
                         if (myHP <= 0) {
                             joinMatch(data[myUid].team); 
@@ -616,7 +618,6 @@
                                 let networkBanana = gltf.scene;
                                 networkBanana.scale.set(2.5, 2.5, 2.5);
                                 
-                                // ⚠️ 关键修复 3：防断线锁！就算对方数据没发全，也默认放回出生点！ ⚠️
                                 let px = data[uid].x || 0;
                                 let py = data[uid].y !== undefined ? data[uid].y - 1.25 : 0;
                                 let pz = data[uid].z || 0;
@@ -647,12 +648,29 @@
                                     health: data[uid].health || 100,
                                     team: data[uid].team
                                 };
+                            }, undefined, function(error) {
+                                console.warn("找不到香蕉人模型，使用方块代替", uid);
+                                const boxGeo = new THREE.BoxGeometry(1, 2, 1);
+                                const boxMat = new THREE.MeshBasicMaterial({ 
+                                    color: data[uid].team === 'T' ? 0xff0000 : 0x0000ff 
+                                });
+                                const fallbackBox = new THREE.Mesh(boxGeo, boxMat);
+                                fallbackBox.userData.uid = uid;
+                                fallbackBox.position.set(data[uid].x, data[uid].y, data[uid].z);
+                                scene.add(fallbackBox);
+
+                                remotePlayers[uid] = {
+                                    model: fallbackBox,
+                                    targetPos: new THREE.Vector3(data[uid].x, data[uid].y, data[uid].z),
+                                    targetRotY: data[uid].rotY + Math.PI,
+                                    health: data[uid].health || 100,
+                                    team: data[uid].team
+                                };
                             });
                         } 
                         else if (remotePlayers[uid] && remotePlayers[uid] !== "loading") {
                             let rp = remotePlayers[uid];
                             
-                            // ⚠️ 关键修复 4：数据更新防脱轨 ⚠️
                             let px = data[uid].x || 0;
                             let py = data[uid].y !== undefined ? data[uid].y - 1.25 : 0;
                             let pz = data[uid].z || 0;
@@ -828,16 +846,24 @@
 
             const intersects = shootRaycaster.intersectObjects(networkTargets, true);
             if (intersects.length > 0) {
-                hitMarker.style.opacity = '1';
-                setTimeout(() => { hitMarker.style.opacity = '0'; }, 200);
-
                 let hitUid = intersects[0].object.userData.uid;
+                
+                // ⚠️ 关键修复：关闭队友伤害！ ⚠️
                 if (hitUid && remotePlayers[hitUid]) {
-                    let currentTargetHP = remotePlayers[hitUid].health;
-                    if (currentTargetHP > 0) {
-                        let newHP = currentTargetHP - 25; 
-                        if (newHP < 0) newHP = 0;
-                        update(ref(database, `players/${hitUid}`), { health: newHP });
+                    if (myTeam && remotePlayers[hitUid].team === myTeam) {
+                        // 如果打到的是队友，什么都不做，也不会显示命中红叉
+                        console.log("不要开火，那是自己人！");
+                    } else {
+                        // 如果是敌人，显示红叉并扣血
+                        hitMarker.style.opacity = '1';
+                        setTimeout(() => { hitMarker.style.opacity = '0'; }, 200);
+
+                        let currentTargetHP = remotePlayers[hitUid].health;
+                        if (currentTargetHP > 0) {
+                            let newHP = currentTargetHP - 25; 
+                            if (newHP < 0) newHP = 0;
+                            update(ref(database, `players/${hitUid}`), { health: newHP });
+                        }
                     }
                 }
             }
