@@ -355,7 +355,6 @@
         const mtlLoader = new MTLLoader(); 
         const gltfLoader = new GLTFLoader();
 
-        // ⚠️ 添加了这两行，修复 URL 报错，同时下面完全保留你的 ?v=3 ⚠️
         mtlLoader.setPath('');
         gltfLoader.setPath('');
 
@@ -481,23 +480,39 @@
             lobbyDisplayGroup.visible = false;
             if (!isTPS && loadedGunModel) loadedGunModel.visible = true;
 
-            if (myUid) {
-                update(ref(database, `players/${myUid}`), {
-                    health: 100,
-                    team: team 
-                });
+            // ⚠️ 关键修复 1：修正 AUTO 的随机阵营分配，并提前定义出生点坐标 ⚠️
+            let finalTeam = team;
+            if (team === 'AUTO') {
+                finalTeam = Math.random() < 0.5 ? 'CT' : 'T';
             }
 
-            if (team === 'CT' || (team === 'AUTO' && Math.random() < 0.5)) {
-                playerContainer.position.set(2 + (Math.random() * 4 - 2), 1.25, 15);
-                yVelocity = 0;
+            let startX = 0;
+            let startZ = 0;
+
+            if (finalTeam === 'CT') {
+                startX = 2 + (Math.random() * 4 - 2);
+                startZ = 15;
             } else {
-                playerContainer.position.set(11, 1.25, 4);
-                yVelocity = 0;
+                startX = 11;
+                startZ = 4;
             }
             
+            playerContainer.position.set(startX, 1.25, startZ);
+            yVelocity = 0;
             camera.position.set(0, 0, 0);
             camera.rotation.set(0, 0, 0);
+
+            if (myUid) {
+                // ⚠️ 关键修复 2：加入时直接把 XYZ 同步上去，防止别人读取到 undefined 变隐形！⚠️
+                update(ref(database, `players/${myUid}`), {
+                    health: 100,
+                    team: finalTeam,
+                    x: startX,
+                    y: 1.25,
+                    z: startZ,
+                    rotY: 0
+                });
+            }
 
             teamSelectScreen.style.opacity = '0';
             setTimeout(() => {
@@ -553,10 +568,9 @@
                 .catch((error) => { showAuthError("游客登录失败: " + error.message); });
         });
 
-        // 登出按钮逻辑
         document.getElementById('btn-signout').addEventListener('click', () => {
             signOut(auth).then(() => {
-                location.reload(); // 登出后刷新页面，重置所有状态
+                location.reload(); 
             }).catch((error) => {
                 console.error("登出失败:", error);
             });
@@ -601,8 +615,16 @@
                             gltfLoader.load('dancing_banana.glb?v=2', function(gltf) {
                                 let networkBanana = gltf.scene;
                                 networkBanana.scale.set(2.5, 2.5, 2.5);
-                                networkBanana.position.set(data[uid].x, data[uid].y - 1.25, data[uid].z);
-                                networkBanana.rotation.y = data[uid].rotY + Math.PI || 0;
+                                
+                                // ⚠️ 关键修复 3：防断线锁！就算对方数据没发全，也默认放回出生点！ ⚠️
+                                let px = data[uid].x || 0;
+                                let py = data[uid].y !== undefined ? data[uid].y - 1.25 : 0;
+                                let pz = data[uid].z || 0;
+                                let pr = data[uid].rotY || 0;
+                                
+                                networkBanana.position.set(px, py, pz);
+                                networkBanana.rotation.y = pr + Math.PI;
+                                
                                 networkBanana.traverse((child) => {
                                     if (child.isMesh) {
                                         child.userData.uid = uid;
@@ -620,8 +642,8 @@
                                 
                                 remotePlayers[uid] = {
                                     model: networkBanana,
-                                    targetPos: new THREE.Vector3(data[uid].x, data[uid].y - 1.25, data[uid].z),
-                                    targetRotY: data[uid].rotY + Math.PI,
+                                    targetPos: new THREE.Vector3(px, py, pz),
+                                    targetRotY: pr + Math.PI,
                                     health: data[uid].health || 100,
                                     team: data[uid].team
                                 };
@@ -629,8 +651,15 @@
                         } 
                         else if (remotePlayers[uid] && remotePlayers[uid] !== "loading") {
                             let rp = remotePlayers[uid];
-                            rp.targetPos.set(data[uid].x, data[uid].y - 1.25, data[uid].z); 
-                            rp.targetRotY = data[uid].rotY + Math.PI; 
+                            
+                            // ⚠️ 关键修复 4：数据更新防脱轨 ⚠️
+                            let px = data[uid].x || 0;
+                            let py = data[uid].y !== undefined ? data[uid].y - 1.25 : 0;
+                            let pz = data[uid].z || 0;
+                            let pr = data[uid].rotY || 0;
+                            
+                            rp.targetPos.set(px, py, pz); 
+                            rp.targetRotY = pr + Math.PI; 
                             rp.health = data[uid].health !== undefined ? data[uid].health : 100;
                             if (rp.team !== data[uid].team) {
                                 rp.team = data[uid].team;
