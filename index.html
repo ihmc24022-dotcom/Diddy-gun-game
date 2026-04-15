@@ -26,16 +26,16 @@
         #start-button:active { transform: scale(0.95); background: #e65100; }
         #loading-text { color: white; margin-top: 20px; font-size: 18px; font-family: monospace; text-shadow: 1px 1px 2px #000; }
 
-        /* 状态 1.5: 游戏主大厅 (根据你的手绘草图设计) */
+        /* 状态 1.5: 游戏主大厅 */
         #lobby-screen {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.7); /* 半透明背景，让后面能隐约看到 3D 场景 */
+            /* 两侧黑色半透明(让字看清楚)，中间完全透明(展示3D人物) */
+            background: linear-gradient(90deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.0) 50%, rgba(0,0,0,0.85) 100%);
             display: none; justify-content: space-between; align-items: stretch;
             z-index: 1800; transition: opacity 0.5s;
             padding: 40px; box-sizing: border-box;
         }
 
-        /* 大厅左侧：用户信息和商店 */
         .lobby-left { display: flex; flex-direction: column; justify-content: space-between; }
         .user-stats { color: white; font-family: 'Handlee', 'Comic Sans MS', cursive, sans-serif; font-size: 24px; }
         .user-stats div { margin-bottom: 10px; text-shadow: 2px 2px 4px #000; }
@@ -47,12 +47,10 @@
         }
         #btn-shop:hover { transform: scale(1.05); }
 
-        /* 大厅中央：占位符和进入游戏按钮 */
-        .lobby-center { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding-bottom: 40px; }
+        .lobby-center { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding-bottom: 40px; width: 40%;}
         .player-model-placeholder {
+            /* 删除了文字，保留 flex-grow 让底部的 FIND MATCH 按钮沉下去 */
             flex-grow: 1; display: flex; justify-content: center; align-items: center;
-            color: rgba(255,255,255,0.4); font-size: 32px; font-family: cursive;
-            text-align: center; flex-direction: column;
         }
         #btn-find-match {
             padding: 20px 80px; font-size: 28px; background: #4CAF50; color: white; 
@@ -61,7 +59,6 @@
         }
         #btn-find-match:hover { background: #45a049; transform: scale(1.05); }
 
-        /* 大厅右侧：功能按钮 */
         .lobby-right { display: flex; flex-direction: column; justify-content: flex-start; gap: 30px; padding-top: 20px;}
         .lobby-side-btn {
             padding: 15px 40px; font-size: 22px; background: rgba(255,255,255,0.9); color: #000; 
@@ -71,11 +68,11 @@
         }
         .lobby-side-btn:hover { transform: translateX(-10px); }
 
-
         /* 状态 2: 战队选择屏幕 */
         #team-select-screen {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.95);
+            /* 稍微透明一点，选队伍时也能隐约看到背后的香蕉 */
+            background: rgba(0, 0, 0, 0.85);
             display: none; flex-direction: column; justify-content: center; align-items: center;
             z-index: 2500; transition: opacity 0.5s;
         }
@@ -131,7 +128,6 @@
         #hit-marker { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: red; font-size: 24px; font-weight: bold; pointer-events: none; opacity: 0; transition: opacity 0.1s; z-index: 15; }
         #muzzle-flash { position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh; background: rgba(255, 200, 0, 0.2); transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
 
-        /* 防挂机 UI */
         #afk-warning { position: fixed; top: 20%; left: 50%; transform: translate(-50%, -50%); background: rgba(255, 0, 0, 0.85); color: white; padding: 15px 30px; font-size: 20px; font-weight: bold; border-radius: 8px; z-index: 100; display: none; text-align: center; border: 2px solid white; box-shadow: 0 0 20px red; pointer-events: none; }
         #kick-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.95); color: #ff5555; display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; font-family: sans-serif; text-align: center; }
         #kick-screen h1 { font-size: 36px; margin-bottom: 10px; }
@@ -169,12 +165,7 @@
         </div>
 
         <div class="lobby-center">
-            <div class="player-model-placeholder">
-                <span style="font-size: 48px;">player</span>
-                <span>model</span>
-                <span>with</span>
-                <span>gun in hand</span>
-            </div>
+            <div class="player-model-placeholder"></div>
             <button id="btn-find-match">FIND MATCH</button>
         </div>
 
@@ -265,45 +256,14 @@
 
         const startScreen = document.getElementById('start-screen');
         const startButton = document.getElementById('start-button');
-        const lobbyScreen = document.getElementById('lobby-screen'); // 新增大厅
-        const btnFindMatch = document.getElementById('btn-find-match'); // 寻找对局按钮
+        const lobbyScreen = document.getElementById('lobby-screen'); 
+        const btnFindMatch = document.getElementById('btn-find-match'); 
         const teamSelectScreen = document.getElementById('team-select-screen');
         const uiContainer = document.getElementById('ui-container');
         const afkWarning = document.getElementById('afk-warning');
         const afkCountdown = document.getElementById('afk-countdown');
         const kickScreen = document.getElementById('kick-screen');
         const loadingText = document.getElementById('loading-text');
-
-        // ==== 界面跳转逻辑 ====
-        // 1. 开始界面 -> 大厅
-        startButton.addEventListener('click', () => {
-            if (!gameStarted) return; 
-            startScreen.style.opacity = '0';
-            setTimeout(() => {
-                startScreen.style.display = 'none';
-                lobbyScreen.style.display = 'flex'; // 显示大厅
-                // 稍微抬高一点摄像机，让大厅背景更好看
-                camera.position.set(0, 3, 10);
-                camera.lookAt(0, 0, 0);
-            }, 500);
-        });
-
-        // 2. 大厅 -> 队伍选择
-        btnFindMatch.addEventListener('click', () => {
-            lobbyScreen.style.opacity = '0';
-            setTimeout(() => {
-                lobbyScreen.style.display = 'none';
-                teamSelectScreen.style.display = 'flex'; // 显示选择队伍
-            }, 500);
-        });
-
-        function resetAFK() {
-            if (isKicked || !matchActive) return; 
-            lastActionTime = Date.now();
-            if (afkWarning.style.display === 'block') {
-                afkWarning.style.display = 'none';
-            }
-        }
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb); 
@@ -312,8 +272,7 @@
         let mixers = []; 
 
         const playerContainer = new THREE.Group();
-        const startX = 2 + (Math.random() * 4 - 2);
-        playerContainer.position.set(startX, 1.25, 15); 
+        playerContainer.position.set(0, 1.25, 0); // 初始大厅位置
         scene.add(playerContainer);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
@@ -363,9 +322,43 @@
             });
         });
 
+        // ----------------------------------------------------
+        // 1. 新增：大厅专属 3D 展示模型组 (直接挂载在摄像机前方)
+        // ----------------------------------------------------
+        const lobbyDisplayGroup = new THREE.Group();
+        lobbyDisplayGroup.visible = false; // 初始隐藏
+        camera.add(lobbyDisplayGroup); // 绑定到相机
+
+        // 载入大厅展示用的香蕉
+        gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
+            let lobbyBanana = gltf.scene;
+            lobbyBanana.scale.set(1.2, 1.2, 1.2); // 为了防止穿墙，比例调小，位置调近
+            lobbyBanana.position.set(0, -0.6, -2.0); // 放在屏幕正中央前方
+            lobbyBanana.rotation.y = Math.PI - 0.2; // 稍微向侧边一点，更有造型
+            
+            if (gltf.animations && gltf.animations.length > 0) {
+                let mixer = new THREE.AnimationMixer(lobbyBanana);
+                mixer.clipAction(gltf.animations[0]).play();
+                mixers.push(mixer);
+            }
+            lobbyDisplayGroup.add(lobbyBanana);
+        });
+
+        // 载入大厅展示用的枪 (通过视觉错觉放在手里)
+        gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
+            let lobbyGun = gltf.scene;
+            lobbyGun.scale.set(0.8, 0.8, 0.8);
+            lobbyGun.position.set(-0.35, -0.1, -1.7); // 根据视角调整，看起来像在拿枪
+            lobbyGun.rotation.y = Math.PI - 0.2; 
+            lobbyDisplayGroup.add(lobbyGun);
+        });
+        // ----------------------------------------------------
+
+
         let myBody = null;
         let isTPS = false; 
 
+        // 这是游戏里的实际身体 (TPS用)
         gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
             myBody = gltf.scene;
             myBody.scale.set(2.5, 2.5, 2.5); 
@@ -386,6 +379,7 @@
         let defaultGunZ = -0.55; 
         let defaultGunY = -0.35; 
 
+        // 这是游戏里实际用的手枪 (FPS用)
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
             loadedGunModel = gltf.scene;
             loadedGunModel.scale.set(1.5, 1.5, 1.5); 
@@ -394,9 +388,44 @@
             gunGroup.add(loadedGunModel);
         });
 
+        // ==== 界面跳转逻辑 ====
+        // 1. 开始界面 -> 大厅
+        startButton.addEventListener('click', () => {
+            if (!gameStarted) return; 
+            startScreen.style.opacity = '0';
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+                lobbyScreen.style.display = 'flex';
+                
+                // 开启大厅展示模型
+                lobbyDisplayGroup.visible = true; 
+                if (loadedGunModel) loadedGunModel.visible = false; // 隐藏FPS视角枪
+                
+                // 把镜头放在地图上方俯瞰，作为炫酷背景
+                playerContainer.position.set(0, 5, 10);
+                camera.position.set(0, 0, 0);
+                camera.lookAt(0, -2, 0);
+            }, 500);
+        });
+
+        // 2. 大厅 -> 队伍选择
+        btnFindMatch.addEventListener('click', () => {
+            lobbyScreen.style.opacity = '0';
+            setTimeout(() => {
+                lobbyScreen.style.display = 'none';
+                teamSelectScreen.style.display = 'flex';
+                // 此时大厅模型依然保留，当做选队伍的酷炫背景
+            }, 500);
+        });
+
+        // 3. 选完队伍 -> 进入游戏
         function joinMatch(team) {
             matchActive = true;
             lastActionTime = Date.now(); 
+
+            // 隐藏大厅展示模型，恢复游戏内设定
+            lobbyDisplayGroup.visible = false;
+            if (!isTPS && loadedGunModel) loadedGunModel.visible = true;
 
             if (myUid) {
                 update(ref(database, `players/${myUid}`), {
@@ -413,7 +442,7 @@
                 yVelocity = 0;
             }
             
-            // 恢复第一人称摄像机位置
+            // 恢复游戏摄像机朝向
             camera.position.set(0, 0, 0);
             camera.rotation.set(0, 0, 0);
 
@@ -428,6 +457,14 @@
         document.getElementById('btn-t').addEventListener('click', () => joinMatch('T'));
         document.getElementById('btn-ct').addEventListener('click', () => joinMatch('CT'));
 
+
+        function resetAFK() {
+            if (isKicked || !matchActive) return; 
+            lastActionTime = Date.now();
+            if (afkWarning.style.display === 'block') {
+                afkWarning.style.display = 'none';
+            }
+        }
 
         signInAnonymously(auth).catch(error => console.error("Firebase Login Error:", error));
 
@@ -705,6 +742,12 @@
             if (!gameStarted) {
                 renderer.render(scene, camera);
                 return;
+            }
+
+            // 大厅动画效果(模型缓慢上下浮动)
+            if (lobbyDisplayGroup.visible) {
+                const time = Date.now() * 0.002;
+                lobbyDisplayGroup.position.y = Math.sin(time) * 0.05; 
             }
 
             if (!matchActive || isKicked) {
