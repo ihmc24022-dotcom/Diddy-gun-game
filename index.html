@@ -26,6 +26,36 @@
         #start-button:active { transform: scale(0.95); background: #e65100; }
         #loading-text { color: white; margin-top: 20px; font-size: 18px; font-family: monospace; text-shadow: 1px 1px 2px #000; }
 
+        /* 状态 1.2: 账号登录/注册屏幕 (新增) */
+        #auth-screen {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.9);
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 1900; transition: opacity 0.5s;
+        }
+        .auth-container {
+            background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255, 255, 255, 0.2);
+            padding: 40px; border-radius: 12px; display: flex; flex-direction: column; align-items: center;
+            width: 300px; box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+        .auth-container h2 { color: white; margin-top: 0; margin-bottom: 25px; font-size: 24px; letter-spacing: 2px; }
+        .auth-input {
+            width: 100%; padding: 12px; margin-bottom: 15px; border: none; border-radius: 4px;
+            background: rgba(255, 255, 255, 0.9); font-size: 16px; box-sizing: border-box;
+        }
+        .auth-btn {
+            width: 100%; padding: 12px; font-size: 16px; font-weight: bold; border: none; border-radius: 4px;
+            cursor: pointer; transition: background 0.2s; margin-bottom: 10px; color: white;
+        }
+        #btn-login-auth { background: #4CAF50; }
+        #btn-login-auth:hover { background: #45a049; }
+        #btn-register-auth { background: #2196F3; }
+        #btn-register-auth:hover { background: #1976D2; }
+        .auth-divider { color: #888; margin: 15px 0; font-size: 14px; }
+        #btn-guest-auth { background: #ff9800; }
+        #btn-guest-auth:hover { background: #e65100; }
+        #auth-error { color: #ff5555; font-size: 14px; margin-bottom: 15px; text-align: center; display: none; }
+
         /* 状态 1.5: 游戏主大厅 */
         #lobby-screen {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -148,10 +178,23 @@
         <div id="loading-text">资源加载中...</div>
     </div>
 
+    <div id="auth-screen">
+        <div class="auth-container">
+            <h2>ACCOUNT LOGIN</h2>
+            <input type="email" id="auth-email" class="auth-input" placeholder="Email">
+            <input type="password" id="auth-password" class="auth-input" placeholder="Password">
+            <div id="auth-error"></div>
+            <button id="btn-login-auth" class="auth-btn">LOGIN</button>
+            <button id="btn-register-auth" class="auth-btn">REGISTER</button>
+            <div class="auth-divider">--- OR ---</div>
+            <button id="btn-guest-auth" class="auth-btn">PLAY AS GUEST</button>
+        </div>
+    </div>
+
     <div id="lobby-screen">
         <div class="lobby-left">
             <div class="user-stats">
-                <div id="lobby-username">username: Player_1</div>
+                <div id="lobby-username">username: Loading...</div>
                 <div id="lobby-level">level... 1</div>
                 <div id="lobby-xp">xp ... / ...</div>
             </div>
@@ -225,8 +268,9 @@
         import { MTLLoader } from 'three/addons/loaders/MTLLoader.js'; 
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+        // 注意：这里更新了 Firebase Auth 的导入，加入了邮箱密码功能
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getDatabase, ref, set, update, onValue, onDisconnect, remove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
         const firebaseConfig = {
@@ -253,6 +297,7 @@
 
         const startScreen = document.getElementById('start-screen');
         const startButton = document.getElementById('start-button');
+        const authScreen = document.getElementById('auth-screen'); // 新增
         const lobbyScreen = document.getElementById('lobby-screen'); 
         const btnFindMatch = document.getElementById('btn-find-match'); 
         const teamSelectScreen = document.getElementById('team-select-screen');
@@ -320,18 +365,17 @@
         });
 
         // ----------------------------------------------------
-        // 大厅专属 3D 展示模型组 (直接挂载在摄像机前方)
+        // 大厅专属 3D 展示模型组
         // ----------------------------------------------------
         const lobbyDisplayGroup = new THREE.Group();
         lobbyDisplayGroup.visible = false; 
         camera.add(lobbyDisplayGroup); 
 
-        // 载入大厅展示用的香蕉，已旋转朝向屏幕
         gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
             let lobbyBanana = gltf.scene;
             lobbyBanana.scale.set(1.2, 1.2, 1.2); 
             lobbyBanana.position.set(0, -0.6, -2.0); 
-            lobbyBanana.rotation.y = 0; // 改为 0 正对屏幕
+            lobbyBanana.rotation.y = 0; 
             
             if (gltf.animations && gltf.animations.length > 0) {
                 let mixer = new THREE.AnimationMixer(lobbyBanana);
@@ -341,21 +385,18 @@
             lobbyDisplayGroup.add(lobbyBanana);
         });
 
-        // 载入大厅展示用的枪，调整朝向和位置以适配
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
             let lobbyGun = gltf.scene;
             lobbyGun.scale.set(0.8, 0.8, 0.8);
-            lobbyGun.position.set(0.35, -0.1, -1.7); // 翻转了一下 X 坐标以对应正确的持枪手
-            lobbyGun.rotation.y = 0; // 同样改为 0
+            lobbyGun.position.set(0.35, -0.1, -1.7); 
+            lobbyGun.rotation.y = 0; 
             lobbyDisplayGroup.add(lobbyGun);
         });
         // ----------------------------------------------------
 
-
         let myBody = null;
         let isTPS = false; 
 
-        // 游戏里的实际身体 (TPS用)
         gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
             myBody = gltf.scene;
             myBody.scale.set(2.5, 2.5, 2.5); 
@@ -376,7 +417,6 @@
         let defaultGunZ = -0.55; 
         let defaultGunY = -0.35; 
 
-        // 游戏里实际用的手枪 (FPS用)
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
             loadedGunModel = gltf.scene;
             loadedGunModel.scale.set(1.5, 1.5, 1.5); 
@@ -386,20 +426,33 @@
         });
 
         // ==== 界面跳转逻辑 ====
-        // 1. 开始界面 -> 大厅
+        
+        // 进入大厅的统一函数
+        function showLobby() {
+            authScreen.style.display = 'none';
+            lobbyScreen.style.display = 'flex';
+            
+            lobbyDisplayGroup.visible = true; 
+            if (loadedGunModel) loadedGunModel.visible = false; 
+            
+            playerContainer.position.set(0, 5, 10);
+            camera.position.set(0, 0, 0);
+            camera.lookAt(0, -2, 0);
+        }
+
+        // 1. 开始界面 -> 检查是否登录 -> 账号界面 OR 大厅
         startButton.addEventListener('click', () => {
             if (!gameStarted) return; 
             startScreen.style.opacity = '0';
             setTimeout(() => {
                 startScreen.style.display = 'none';
-                lobbyScreen.style.display = 'flex';
-                
-                lobbyDisplayGroup.visible = true; 
-                if (loadedGunModel) loadedGunModel.visible = false; 
-                
-                playerContainer.position.set(0, 5, 10);
-                camera.position.set(0, 0, 0);
-                camera.lookAt(0, -2, 0);
+                if (auth.currentUser) {
+                    // 如果以前登录过或者刷新了页面，直接进大厅
+                    showLobby();
+                } else {
+                    // 没登录，显示账号界面
+                    authScreen.style.display = 'flex';
+                }
             }, 500);
         });
 
@@ -457,11 +510,59 @@
             }
         }
 
-        signInAnonymously(auth).catch(error => console.error("Firebase Login Error:", error));
+        // ==========================================
+        // Firebase 账号验证逻辑 
+        // ==========================================
+        const emailInput = document.getElementById('auth-email');
+        const passwordInput = document.getElementById('auth-password');
+        const authError = document.getElementById('auth-error');
 
+        function showAuthError(message) {
+            authError.innerText = message;
+            authError.style.display = 'block';
+        }
+
+        // 登录按钮
+        document.getElementById('btn-login-auth').addEventListener('click', () => {
+            const email = emailInput.value.trim();
+            const pass = passwordInput.value;
+            if(!email || !pass) return showAuthError("请输入邮箱和密码！");
+            
+            signInWithEmailAndPassword(auth, email, pass)
+                .then(() => { showLobby(); })
+                .catch((error) => { showAuthError("登录失败: " + error.message); });
+        });
+
+        // 注册按钮
+        document.getElementById('btn-register-auth').addEventListener('click', () => {
+            const email = emailInput.value.trim();
+            const pass = passwordInput.value;
+            if(!email || !pass) return showAuthError("请输入邮箱和密码！");
+
+            createUserWithEmailAndPassword(auth, email, pass)
+                .then(() => { showLobby(); })
+                .catch((error) => { showAuthError("注册失败: " + error.message); });
+        });
+
+        // 游客按钮
+        document.getElementById('btn-guest-auth').addEventListener('click', () => {
+            signInAnonymously(auth)
+                .then(() => { showLobby(); })
+                .catch((error) => { showAuthError("游客登录失败: " + error.message); });
+        });
+
+        // 监听账号状态变化
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 myUid = user.uid;
+                
+                // 更新大厅用户名显示
+                let displayUsername = "Guest_" + user.uid.substring(0, 5);
+                if (user.email) {
+                    displayUsername = user.email.split('@')[0]; // 取邮箱 @ 前面的部分作为名字
+                }
+                document.getElementById('lobby-username').innerText = `username: ${displayUsername}`;
+
                 const myRef = ref(database, `players/${myUid}`);
                 onDisconnect(myRef).remove();
                 
@@ -546,6 +647,8 @@
                 });
             }
         });
+        // ==========================================
+
 
         document.getElementById('btn-view').addEventListener('click', (e) => {
             e.stopPropagation(); 
@@ -616,7 +719,7 @@
         document.getElementById('btn-jump').addEventListener('mousedown', (e) => { e.preventDefault(); resetAFK(); if (isGrounded) { yVelocity = jumpStrength; isGrounded = false; }});
 
         document.addEventListener('touchstart', (e) => {
-            if(e.target.tagName === 'BUTTON' || !matchActive) return; 
+            if(e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || !matchActive) return; 
             for (let t of e.changedTouches) {
                 if (t.clientX < window.innerWidth / 2) {
                     touches.left = { id: t.identifier, startX: t.clientX, startY: t.clientY };
@@ -658,7 +761,7 @@
         });
 
         document.addEventListener('mousedown', (e) => {
-            if(e.target.tagName === 'BUTTON' || e.target.closest('.team-column') || !matchActive) return; 
+            if(e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.closest('.team-column') || !matchActive) return; 
             if (e.button === 0) { shoot(); }
         });
 
@@ -735,7 +838,7 @@
                 return;
             }
 
-            // 大厅动画效果(模型缓慢上下浮动)
+            // 大厅动画效果
             if (lobbyDisplayGroup.visible) {
                 const time = Date.now() * 0.002;
                 lobbyDisplayGroup.position.y = Math.sin(time) * 0.05; 
