@@ -355,13 +355,15 @@
         const mtlLoader = new MTLLoader(); 
         const gltfLoader = new GLTFLoader();
 
-        // ⚠️ 修复核心：设置基础路径为空，彻底去除 ?v=3，解决 TypeError! ⚠️
-        mtlLoader.setPath(''); 
-        mtlLoader.load('de_dust2.mtl', function (materials) {
+        // ⚠️ 添加了这两行，修复 URL 报错，同时下面完全保留你的 ?v=3 ⚠️
+        mtlLoader.setPath('');
+        gltfLoader.setPath('');
+
+        mtlLoader.load('de_dust2.mtl?v=3', function (materials) {
             materials.preload();
             objLoader.setMaterials(materials);
             
-            objLoader.load('de_dust2.obj', function (object) {
+            objLoader.load('de_dust2.obj?v=3', function (object) {
                 object.scale.set(0.02, 0.02, 0.02); 
                 object.position.set(0, 0, 0);
                 object.rotation.x = -Math.PI / 2; 
@@ -386,8 +388,7 @@
         lobbyDisplayGroup.visible = false; 
         camera.add(lobbyDisplayGroup); 
 
-        // 去除所有的 ?v=x 以防万一
-        gltfLoader.load('dancing_banana.glb', function (gltf) {
+        gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
             let lobbyBanana = gltf.scene;
             lobbyBanana.scale.set(1.2, 1.2, 1.2); 
             lobbyBanana.position.set(0, -0.6, -2.0); 
@@ -401,7 +402,7 @@
             lobbyDisplayGroup.add(lobbyBanana);
         });
 
-        gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb', function (gltf) {
+        gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
             let lobbyGun = gltf.scene;
             lobbyGun.scale.set(0.8, 0.8, 0.8);
             lobbyGun.position.set(0.35, -0.1, -1.7); 
@@ -412,7 +413,7 @@
         let myBody = null;
         let isTPS = false; 
 
-        gltfLoader.load('dancing_banana.glb', function (gltf) {
+        gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
             myBody = gltf.scene;
             myBody.scale.set(2.5, 2.5, 2.5); 
             myBody.position.set(0, -1.25, 0); 
@@ -432,7 +433,7 @@
         let defaultGunZ = -0.55; 
         let defaultGunY = -0.35; 
 
-        gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb', function (gltf) {
+        gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
             loadedGunModel = gltf.scene;
             loadedGunModel.scale.set(1.5, 1.5, 1.5); 
             loadedGunModel.position.set(0.35, defaultGunY, defaultGunZ); 
@@ -597,7 +598,7 @@
 
                         if (!remotePlayers[uid] && remotePlayers[uid] !== "loading") {
                             remotePlayers[uid] = "loading"; 
-                            gltfLoader.load('dancing_banana.glb', function(gltf) {
+                            gltfLoader.load('dancing_banana.glb?v=2', function(gltf) {
                                 let networkBanana = gltf.scene;
                                 networkBanana.scale.set(2.5, 2.5, 2.5);
                                 networkBanana.position.set(data[uid].x, data[uid].y - 1.25, data[uid].z);
