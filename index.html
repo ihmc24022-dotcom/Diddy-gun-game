@@ -205,8 +205,8 @@
         <div class="lobby-left">
             <div class="user-stats">
                 <div id="lobby-username">username: Loading...</div>
-                <div id="lobby-level">level... 1</div>
-                <div id="lobby-xp">xp ... / ...</div>
+                <div id="lobby-level">Level: Loading...</div>
+                <div id="lobby-xp">XP: Loading...</div>
             </div>
             <div class="lobby-bottom-btns">
                 <div>
@@ -284,10 +284,10 @@
         import { MTLLoader } from 'three/addons/loaders/MTLLoader.js'; 
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-        // 增加了 signOut 的引入
+        // ⚠️ 新增引入了 get 用于读取用户数据库 ⚠️
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getDatabase, ref, set, update, onValue, onDisconnect, remove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+        import { getDatabase, ref, set, update, onValue, onDisconnect, remove, get } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAX5TKLKkC_oHklROdhSB5QtdGZIu_9yIo",
@@ -304,7 +304,7 @@
         const database = getDatabase(app);
 
         let myUid = null;
-        let myTeam = null; // ⚠️ 新增：记录当前自己的队伍
+        let myTeam = null; 
         let remotePlayers = {}; 
 
         let gameStarted = false; 
@@ -486,7 +486,7 @@
                 finalTeam = Math.random() < 0.5 ? 'CT' : 'T';
             }
             
-            myTeam = finalTeam; // ⚠️ 记录自己的阵营，用于判断友伤 ⚠️
+            myTeam = finalTeam; 
 
             let startX = 0;
             let startZ = 0;
@@ -587,6 +587,31 @@
                 }
                 document.getElementById('lobby-username').innerText = `username: ${displayUsername}`;
 
+                // ⚠️ 新增等级系统：检查或创建用户持久化数据 ⚠️
+                const userProfileRef = ref(database, `users/${myUid}`);
+                get(userProfileRef).then((snapshot) => {
+                    if (!snapshot.exists()) {
+                        // 如果是新号，默认给 Level 1 和 0 经验
+                        set(userProfileRef, {
+                            level: 1,
+                            xp: 0
+                        });
+                        document.getElementById('lobby-level').innerText = `Level: 1`;
+                        document.getElementById('lobby-xp').innerText = `XP: 0 / 100`;
+                    } else {
+                        // 如果是老号，读取之前的等级
+                        const data = snapshot.val();
+                        let lvl = data.level || 1;
+                        let xp = data.xp || 0;
+                        let nextLvlXp = lvl * 100;
+                        document.getElementById('lobby-level').innerText = `Level: ${lvl}`;
+                        document.getElementById('lobby-xp').innerText = `XP: ${xp} / ${nextLvlXp}`;
+                    }
+                }).catch(error => {
+                    console.error("读取玩家等级失败: ", error);
+                });
+                // ⚠️ 等级系统代码结束 ⚠️
+
                 const myRef = ref(database, `players/${myUid}`);
                 onDisconnect(myRef).remove();
                 
@@ -599,7 +624,7 @@
 
                     if (data[myUid] && data[myUid].health !== undefined && data[myUid].team) {
                         let myHP = data[myUid].health;
-                        myTeam = data[myUid].team; // ⚠️ 同步时确保本地队伍状态准确 ⚠️
+                        myTeam = data[myUid].team; 
                         document.getElementById('health-display').innerText = `HP: ${myHP}`;
                         if (myHP <= 0) {
                             joinMatch(data[myUid].team); 
@@ -848,13 +873,10 @@
             if (intersects.length > 0) {
                 let hitUid = intersects[0].object.userData.uid;
                 
-                // ⚠️ 关键修复：关闭队友伤害！ ⚠️
                 if (hitUid && remotePlayers[hitUid]) {
                     if (myTeam && remotePlayers[hitUid].team === myTeam) {
-                        // 如果打到的是队友，什么都不做，也不会显示命中红叉
-                        console.log("不要开火，那是自己人！");
+                        // 队友，什么都不做
                     } else {
-                        // 如果是敌人，显示红叉并扣血
                         hitMarker.style.opacity = '1';
                         setTimeout(() => { hitMarker.style.opacity = '0'; }, 200);
 
