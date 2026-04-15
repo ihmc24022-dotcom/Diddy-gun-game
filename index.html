@@ -284,7 +284,6 @@
         import { MTLLoader } from 'three/addons/loaders/MTLLoader.js'; 
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-        // ⚠️ 新增引入了 get 用于读取用户数据库 ⚠️
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getDatabase, ref, set, update, onValue, onDisconnect, remove, get } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
@@ -491,12 +490,15 @@
             let startX = 0;
             let startZ = 0;
 
+            // ⚠️ 修改：蓝队(CT)的新出生点设置在这里 ⚠️
             if (finalTeam === 'CT') {
-                startX = 2 + (Math.random() * 4 - 2);
-                startZ = 15;
+                // 在 -28 和 -56 附近加一点点随机偏移，防止完全重叠
+                startX = -28 + (Math.random() * 4 - 2);
+                startZ = -56 + (Math.random() * 4 - 2);
             } else {
-                startX = 11;
-                startZ = 4;
+                // T阵营默认出生点
+                startX = 11 + (Math.random() * 4 - 2);
+                startZ = 4 + (Math.random() * 4 - 2);
             }
             
             playerContainer.position.set(startX, 1.25, startZ);
@@ -587,11 +589,9 @@
                 }
                 document.getElementById('lobby-username').innerText = `username: ${displayUsername}`;
 
-                // ⚠️ 新增等级系统：检查或创建用户持久化数据 ⚠️
                 const userProfileRef = ref(database, `users/${myUid}`);
                 get(userProfileRef).then((snapshot) => {
                     if (!snapshot.exists()) {
-                        // 如果是新号，默认给 Level 1 和 0 经验
                         set(userProfileRef, {
                             level: 1,
                             xp: 0
@@ -599,7 +599,6 @@
                         document.getElementById('lobby-level').innerText = `Level: 1`;
                         document.getElementById('lobby-xp').innerText = `XP: 0 / 100`;
                     } else {
-                        // 如果是老号，读取之前的等级
                         const data = snapshot.val();
                         let lvl = data.level || 1;
                         let xp = data.xp || 0;
@@ -610,7 +609,6 @@
                 }).catch(error => {
                     console.error("读取玩家等级失败: ", error);
                 });
-                // ⚠️ 等级系统代码结束 ⚠️
 
                 const myRef = ref(database, `players/${myUid}`);
                 onDisconnect(myRef).remove();
@@ -971,7 +969,12 @@
             }
 
             if (playerContainer.position.y < -10) { 
-                playerContainer.position.set(2, 1.25, 15); 
+                // ⚠️ 如果玩家掉出地图外，同样把 CT 传送回新的出生点
+                if (myTeam === 'CT') {
+                    playerContainer.position.set(-28, 1.25, -56);
+                } else {
+                    playerContainer.position.set(11, 1.25, 4);
+                }
                 yVelocity = 0; 
                 if (myUid) update(ref(database, `players/${myUid}`), { health: 100 });
             }
