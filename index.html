@@ -142,7 +142,7 @@
         }
         .team-column:hover .team-choose-btn { background: white; color: black; border-color: white; }
 
-        /* --- 修正版：背包/武器系统 CSS (修复白色背景设计) --- */
+        /* 新增：背包/武器系统 CSS (白底黑字) */
         #backpack-screen {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0, 0, 0, 0.9); display: none; justify-content: space-between; align-items: stretch;
@@ -167,7 +167,6 @@
         }
         #bp-gun-list { flex-grow: 1; overflow-y: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
         
-        /* 设置白底黑字 */
         .gun-item { 
             background: #ffffff; padding: 15px; border-radius: 5px; cursor: pointer; 
             display: flex; justify-content: space-between; align-items: center; font-weight: bold; 
@@ -435,16 +434,12 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // --- 全局更亮的灯光设置 ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+        // --- 核心修复：完全恢复正常的安全全局灯光 ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
         scene.add(ambientLight);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
         dirLight.position.set(100, 200, 50);
         scene.add(dirLight);
-        
-        // --- 核心修复：为摄像机附加专属的头灯，照亮背包里的枪 ---
-        const headLight = new THREE.PointLight(0xffffff, 1.5, 50);
-        camera.add(headLight);
 
         let ammoInMag = 7;
         let maxAmmoInMag = 7;
@@ -848,11 +843,16 @@
             }, 100);
         }
 
-        // --- 核心修复：直接将展示组挂载到 camera 上，并正确调整缩放 ---
+        // --- 安全的背包展示打光系统 ---
         const backpackDisplayGroup = new THREE.Group();
         const backpackPivot = new THREE.Group();
-        backpackPivot.position.set(0, -0.3, -3.0); // 调整位置防止被镜头切掉
+        backpackPivot.position.set(0, -0.3, -3.0); 
         backpackDisplayGroup.add(backpackPivot);
+        
+        // 使用 AmbientLight（环境光）安全打光，永远不会引起着色器崩溃
+        const bpLight = new THREE.AmbientLight(0xffffff, 2.0);
+        backpackDisplayGroup.add(bpLight);
+
         backpackDisplayGroup.visible = false;
         camera.add(backpackDisplayGroup); 
 
@@ -860,7 +860,7 @@
 
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
             let bpGun = gltf.scene;
-            bpGun.scale.set(3.5, 3.5, 3.5); // 设置为完美适应镜头的大小
+            bpGun.scale.set(3.5, 3.5, 3.5); 
             bpGun.position.set(0, 0, 0); 
             bpGun.visible = false;
             backpackPivot.add(bpGun);
@@ -895,13 +895,13 @@
             if (!gun) return;
             
             document.getElementById('stat-damage').style.width = gun.stats.damage + '%';
-            document.getElementById('val-damage').innerText = gun.stats.damage; // 更新数值
+            document.getElementById('val-damage').innerText = gun.stats.damage; 
             
             document.getElementById('stat-ammo').style.width = gun.stats.ammo + '%';
-            document.getElementById('val-ammo').innerText = gun.stats.ammo; // 更新数值
+            document.getElementById('val-ammo').innerText = gun.stats.ammo; 
             
             document.getElementById('stat-reload').style.width = gun.stats.reload + '%';
-            document.getElementById('val-reload').innerText = gun.stats.reload; // 更新数值
+            document.getElementById('val-reload').innerText = gun.stats.reload; 
             
             document.getElementById('bp-desc').innerText = gun.desc;
             
