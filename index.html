@@ -403,7 +403,6 @@
         let lastActionTime = Date.now();
         let isKicked = false;
 
-        // 【致命 Bug 修复处】：彻底补齐遗漏的 DOM 元素引用！
         const startScreen = document.getElementById('start-screen');
         const startButton = document.getElementById('start-button');
         const authScreen = document.getElementById('auth-screen');
@@ -944,11 +943,33 @@
             }
 
             if (matchActive) {
+                
+                // --- 融入了水平碰撞检测 (防撞墙) 的移动逻辑 ---
                 if (moveInput.x !== 0 || moveInput.y !== 0) {
                     const speed = 0.15;
-                    playerContainer.translateX(moveInput.x * speed);
-                    playerContainer.translateZ(moveInput.y * speed);
+                    let canMove = true;
+                    
+                    if (mapMesh) {
+                        const localMoveDir = new THREE.Vector3(moveInput.x, 0, moveInput.y).normalize();
+                        const worldMoveDir = localMoveDir.applyQuaternion(playerContainer.quaternion);
+                        
+                        const rayOrigin = playerContainer.position.clone();
+                        rayOrigin.y += 1.0; 
+                        
+                        const collisionRaycaster = new THREE.Raycaster(rayOrigin, worldMoveDir);
+                        const intersects = collisionRaycaster.intersectObject(mapMesh, true);
+                        
+                        if (intersects.length > 0 && intersects[0].distance < 0.8) {
+                            canMove = false;
+                        }
+                    }
+
+                    if (canMove) {
+                        playerContainer.translateX(moveInput.x * speed);
+                        playerContainer.translateZ(moveInput.y * speed);
+                    }
                 }
+                // ------------------------------------------------
                 
                 if (mapMesh) {
                     yVelocity += gravity;
