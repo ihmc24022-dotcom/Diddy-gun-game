@@ -142,7 +142,7 @@
         }
         .team-column:hover .team-choose-btn { background: white; color: black; border-color: white; }
 
-        /* 新增：背包/武器系统 CSS */
+        /* 背包/武器系统 CSS */
         #backpack-screen {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0, 0, 0, 0.9); display: none; justify-content: space-between; align-items: stretch;
@@ -169,7 +169,7 @@
         .gun-item { 
             background: rgba(255,255,255,0.1); padding: 15px; border-radius: 5px; cursor: pointer; 
             display: flex; justify-content: space-between; align-items: center; font-weight: bold; 
-            border: 2px solid transparent; transition: 0.2s; font-size: 18px;
+            border: 2px solid transparent; transition: 0.2s; font-size: 18px; color: #fff;
         }
         .gun-item:hover { background: rgba(255,255,255,0.2); }
         .gun-item.active { border-color: #ff9800; background: rgba(255, 152, 0, 0.2); }
@@ -403,6 +403,7 @@
         let lastActionTime = Date.now();
         let isKicked = false;
 
+        // 【致命 Bug 修复处】：彻底补齐遗漏的 DOM 元素引用！
         const startScreen = document.getElementById('start-screen');
         const startButton = document.getElementById('start-button');
         const authScreen = document.getElementById('auth-screen');
@@ -414,6 +415,20 @@
         const afkCountdown = document.getElementById('afk-countdown');
         const kickScreen = document.getElementById('kick-screen');
         const loadingText = document.getElementById('loading-text');
+
+        const backpackScreen = document.getElementById('backpack-screen');
+        const btnLeaveBp = document.getElementById('btn-leave-bp');
+        const bpGunList = document.getElementById('bp-gun-list');
+
+        const emailInput = document.getElementById('auth-email');
+        const passwordInput = document.getElementById('auth-password');
+        const authError = document.getElementById('auth-error');
+        
+        const flashUI = document.getElementById('muzzle-flash');
+        const hitMarker = document.getElementById('hit-marker');
+        const joyBase = document.getElementById('joystick-base');
+        const joyStick = document.getElementById('joystick-stick');
+        const coordsDisplay = document.getElementById('coords-display');
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb);
@@ -591,10 +606,6 @@
             if (afkWarning.style.display === 'block') { afkWarning.style.display = 'none'; }
         }
 
-        const emailInput = document.getElementById('auth-email');
-        const passwordInput = document.getElementById('auth-password');
-        const authError = document.getElementById('auth-error');
-
         function showAuthError(message) {
             authError.innerText = message;
             authError.style.display = 'block';
@@ -735,11 +746,7 @@
         document.getElementById('btn-reload').addEventListener('touchstart', reloadWeapon);
         document.getElementById('btn-reload').addEventListener('mousedown', reloadWeapon);
 
-        const joyBase = document.getElementById('joystick-base');
-        const joyStick = document.getElementById('joystick-stick');
-        const coordsDisplay = document.getElementById('coords-display');
         const joyMaxRadius = 50;
-        
         let yVelocity = 0;
         let isGrounded = false;
         const gravity = -0.012; 
@@ -794,8 +801,6 @@
             if (e.button === 0) { shoot(); }
         });
 
-        const flashUI = document.getElementById('muzzle-flash');
-        const hitMarker = document.getElementById('hit-marker');
         const shootRaycaster = new THREE.Raycaster();
 
         function shoot() {
@@ -841,23 +846,22 @@
             }, 100);
         }
 
-        // --- 核心修复：彻底删除挂载在相机上的灯光，防止导致屏幕全黑崩溃 ---
+        // 背包武器展示组
         const backpackDisplayGroup = new THREE.Group();
         const backpackPivot = new THREE.Group();
-        
-        // Z轴调整到 -3.0，给放大的模型留出充足的空间
         backpackPivot.position.set(0, -0.2, -3.0); 
         backpackDisplayGroup.add(backpackPivot);
+        
+        const bpLight = new THREE.AmbientLight(0xffffff, 2.0); 
+        backpackDisplayGroup.add(bpLight);
 
         backpackDisplayGroup.visible = false;
-        camera.add(backpackDisplayGroup); // 依然绑定在相机前，但不再包含光源！
+        camera.add(backpackDisplayGroup); 
 
         let previewGuns = {};
 
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
             let bpGun = gltf.scene;
-            
-            // 按照你的要求，将武器放大到 5.0 倍，变得非常巨大
             bpGun.scale.set(5.0, 5.0, 5.0); 
             bpGun.position.set(0, 0, 0); 
             bpGun.visible = false;
