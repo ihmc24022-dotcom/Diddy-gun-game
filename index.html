@@ -176,7 +176,7 @@
         .gun-item.locked { opacity: 0.5; cursor: not-allowed; }
 
         .stat-row { margin-bottom: 25px; }
-        .stat-row span { display: block; font-weight: bold; margin-bottom: 8px; font-size: 16px; letter-spacing: 1px;}
+        .stat-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 16px; letter-spacing: 1px; font-weight: bold;}
         .stat-bar-bg { width: 100%; height: 18px; background: rgba(0,0,0,0.6); border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); overflow: hidden;}
         .stat-bar-fill { height: 100%; transition: width 0.4s ease-out; }
 
@@ -307,15 +307,15 @@
         <div class="bp-right">
             <h2>STATS</h2>
             <div class="stat-row">
-                <span>Damage</span>
+                <div class="stat-header"><span>Damage</span> <span id="val-damage" style="color:#ff5555;">0</span></div>
                 <div class="stat-bar-bg"><div id="stat-damage" class="stat-bar-fill" style="background: #ff5555; width: 0%;"></div></div>
             </div>
             <div class="stat-row">
-                <span>Ammo</span>
+                <div class="stat-header"><span>Ammo</span> <span id="val-ammo" style="color:#4CAF50;">0</span></div>
                 <div class="stat-bar-bg"><div id="stat-ammo" class="stat-bar-fill" style="background: #4CAF50; width: 0%;"></div></div>
             </div>
             <div class="stat-row">
-                <span>Reload</span>
+                <div class="stat-header"><span>Reload</span> <span id="val-reload" style="color:#ffce00;">0</span></div>
                 <div class="stat-bar-bg"><div id="stat-reload" class="stat-bar-fill" style="background: #ffce00; width: 0%;"></div></div>
             </div>
             
@@ -458,12 +458,9 @@
             objLoader.setMaterials(materials);
             objLoader.setPath('');
             objLoader.load('de_dust2.obj?v=3', function (object) {
-                
-                // RESTORED SCALE AND ROTATION FIX 
                 object.scale.set(0.02, 0.02, 0.02);
                 object.rotation.x = -Math.PI / 2;
                 object.position.set(0, 0, 0);
-                
                 mapMesh = object;
                 scene.add(object);
                 loadingText.innerText = "资源加载完成！";
@@ -848,19 +845,20 @@
         const btnLeaveBp = document.getElementById('btn-leave-bp');
         const bpGunList = document.getElementById('bp-gun-list');
 
+        // 【关键修复 1】: 将 backpackDisplayGroup 添加到 camera，而不是 scene，这样模型就会永远在摄像机前面显示。
         const backpackDisplayGroup = new THREE.Group();
         const backpackPivot = new THREE.Group();
-        backpackPivot.position.set(0, -0.2, -2.0);
+        backpackPivot.position.set(0, -0.2, -2.5); // 调整位置使其居中显示
         backpackDisplayGroup.add(backpackPivot);
         backpackDisplayGroup.visible = false;
-        scene.add(backpackDisplayGroup);
+        camera.add(backpackDisplayGroup); // 关键修改点
 
         let previewGuns = {};
 
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
             let bpGun = gltf.scene;
-            bpGun.scale.set(1.5, 1.5, 1.5);
-            bpGun.position.set(0.3, 0, 0); 
+            bpGun.scale.set(2.0, 2.0, 2.0); // 稍微放大了枪的展示模型
+            bpGun.position.set(0, 0, 0); // 让枪在中心点自转
             bpGun.visible = false;
             backpackPivot.add(bpGun);
             previewGuns['usp'] = bpGun;
@@ -886,6 +884,7 @@
             });
         }
 
+        // 【关键修复 2】: 在选择武器时，更新文本旁边的具体数值显示
         function selectGun(gunId) {
             currentSelectedGun = gunId;
             populateBackpack();
@@ -894,8 +893,14 @@
             if (!gun) return;
             
             document.getElementById('stat-damage').style.width = gun.stats.damage + '%';
+            document.getElementById('val-damage').innerText = gun.stats.damage; // 更新具体数值
+            
             document.getElementById('stat-ammo').style.width = gun.stats.ammo + '%';
+            document.getElementById('val-ammo').innerText = gun.stats.ammo; // 更新具体数值
+            
             document.getElementById('stat-reload').style.width = gun.stats.reload + '%';
+            document.getElementById('val-reload').innerText = gun.stats.reload; // 更新具体数值
+            
             document.getElementById('bp-desc').innerText = gun.desc;
             
             Object.values(previewGuns).forEach(model => model.visible = false);
@@ -941,7 +946,6 @@
                     playerContainer.translateZ(moveInput.y * speed);
                 }
                 
-                // EXACT COLLISION LOGIC FROM ORIGINAL FILE RESTORED
                 if (mapMesh) {
                     yVelocity += gravity;
                     playerContainer.position.y += yVelocity;
