@@ -414,6 +414,28 @@
         let lastActionTime = Date.now();
         let isKicked = false;
 
+        // ==========================================
+        // 【新增】：版本控制系统 (防卡死、防缓存)
+        // ==========================================
+        const CURRENT_VERSION = 2; // 每次更新代码时将此数字加 1
+        const versionRef = ref(database, 'server_info/version');
+
+        get(versionRef).then((snapshot) => {
+            let serverVersion = snapshot.val() || 0;
+            if (serverVersion < CURRENT_VERSION) {
+                set(versionRef, CURRENT_VERSION); 
+            }
+        });
+
+        onValue(versionRef, (snapshot) => {
+            let serverVersion = snapshot.val() || 0;
+            if (serverVersion > CURRENT_VERSION) {
+                alert("⚠️ 发现游戏新版本！(Game Updated!)\n为了防止卡死，即将自动为您加载最新版本...");
+                window.location.href = window.location.href.split('?')[0] + '?v=' + Date.now();
+            }
+        });
+        // ==========================================
+
         const startScreen = document.getElementById('start-screen');
         const startButton = document.getElementById('start-button');
         const authScreen = document.getElementById('auth-screen');
@@ -1056,7 +1078,7 @@
                         const collisionRaycaster = new THREE.Raycaster(rayOrigin, worldMoveDir);
                         const intersects = collisionRaycaster.intersectObject(mapMesh, true);
                         
-                        // 【修改点】：将碰撞距离从 0.8 改大到 1.5，让箱子和墙壁显得更“厚实”
+                        // 碰撞距离设置为 1.5，防止穿模
                         if (intersects.length > 0 && intersects[0].distance < 1.5) {
                             canMove = false;
                         }
