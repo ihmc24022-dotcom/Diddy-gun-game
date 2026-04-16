@@ -142,7 +142,7 @@
         }
         .team-column:hover .team-choose-btn { background: white; color: black; border-color: white; }
 
-        /* 新增：背包/武器系统 CSS (白底黑字) */
+        /* --- 完美回归原版：黑色背包系统 CSS --- */
         #backpack-screen {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0, 0, 0, 0.9); display: none; justify-content: space-between; align-items: stretch;
@@ -168,13 +168,13 @@
         #bp-gun-list { flex-grow: 1; overflow-y: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
         
         .gun-item { 
-            background: #ffffff; padding: 15px; border-radius: 5px; cursor: pointer; 
+            background: rgba(255,255,255,0.1); padding: 15px; border-radius: 5px; cursor: pointer; 
             display: flex; justify-content: space-between; align-items: center; font-weight: bold; 
-            border: 2px solid transparent; transition: 0.2s; font-size: 18px; color: #000000;
+            border: 2px solid transparent; transition: 0.2s; font-size: 18px; color: #fff;
         }
-        .gun-item:hover { background: #f0f0f0; }
-        .gun-item.active { border-color: #ff9800; background: #ffe0b2; color: #d84315; }
-        .gun-item.locked { opacity: 0.5; cursor: not-allowed; background: #cccccc; color: #666; }
+        .gun-item:hover { background: rgba(255,255,255,0.2); }
+        .gun-item.active { border-color: #ff9800; background: rgba(255, 152, 0, 0.2); }
+        .gun-item.locked { opacity: 0.5; cursor: not-allowed; }
 
         .stat-row { margin-bottom: 25px; }
         .stat-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 16px; letter-spacing: 1px; font-weight: bold;}
@@ -434,58 +434,55 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // 恢复安全的光照设置，避免黑屏崩溃
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
         scene.add(ambientLight);
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
         dirLight.position.set(100, 200, 50);
         scene.add(dirLight);
 
-        let mapMesh = null;
-        const raycaster = new THREE.Raycaster();
-        const downRaycaster = new THREE.Raycaster();
-        const shootRaycaster = new THREE.Raycaster();
+        let ammoInMag = 7;
+        let maxAmmoInMag = 7;
+        let ammoReserve = 42;
+        let isReloading = false;
+        function updateAmmoUI() { document.getElementById('ammo-display').innerText = `${ammoInMag} / ${ammoReserve}`; }
 
-        // 100% 原始地图加载代码
+        let mapMesh = null;
         const objLoader = new OBJLoader();
         const mtlLoader = new MTLLoader();
         const gltfLoader = new GLTFLoader();
 
+        // 【100% 原始的代码逻辑 - 不加 fallback，完全退回你之前能用的那个版本】
         mtlLoader.setPath('');
         gltfLoader.setPath('');
 
         mtlLoader.load('de_dust2.mtl?v=3', function (materials) {
             materials.preload();
             objLoader.setMaterials(materials);
+            objLoader.setPath('');
             objLoader.load('de_dust2.obj?v=3', function (object) {
                 object.scale.set(0.02, 0.02, 0.02);
-                object.position.set(0, 0, 0);
                 object.rotation.x = -Math.PI / 2;
-                scene.add(object);
+                object.position.set(0, 0, 0);
                 mapMesh = object;
-                loadingText.innerText = '加载完成，可以开始 War！';
-                loadingText.style.color = '#00ff00';
+                scene.add(object);
+                loadingText.innerText = "资源加载完成！";
                 gameStarted = true;
-            }, function (xhr) {
-                if (xhr.lengthComputable && xhr.total > 0) {
-                    let p = Math.round(xhr.loaded / xhr.total * 100);
-                    loadingText.innerText = '加载地图与材质 ' + p + '%';
-                } else {
-                    let mb = (xhr.loaded / 1024 / 1024).toFixed(2);
-                    loadingText.innerText = `正在下载数据... 已获取 ${mb} MB`;
-                }
+                startButton.style.background = '#4CAF50';
+                startButton.innerText = "START WAR";
+            }, undefined, function (error) {
+                console.error("模型加载错误: ", error);
             });
         });
 
         const lobbyDisplayGroup = new THREE.Group();
-        lobbyDisplayGroup.visible = false;
+        lobbyDisplayGroup.position.set(0, -2, -5);
         camera.add(lobbyDisplayGroup);
+        lobbyDisplayGroup.visible = false;
 
         gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
             let lobbyBanana = gltf.scene;
-            lobbyBanana.scale.set(1.2, 1.2, 1.2);
-            lobbyBanana.position.set(0, -0.6, -2.0);
-            lobbyBanana.rotation.y = 0;
+            lobbyBanana.scale.set(2, 2, 2);
+            lobbyBanana.position.set(0, 0, 0);
             if (gltf.animations && gltf.animations.length > 0) {
                 let mixer = new THREE.AnimationMixer(lobbyBanana);
                 mixer.clipAction(gltf.animations[0]).play();
@@ -503,7 +500,7 @@
         });
 
         let myBody = null;
-        let isTPS = false;
+        let isTPS = false; 
         gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
             myBody = gltf.scene;
             myBody.scale.set(2.5, 2.5, 2.5);
@@ -558,40 +555,37 @@
             }, 500);
         });
 
-        // 100% 原版出生点逻辑
         function joinMatch(team) {
-            matchActive = true; lastActionTime = Date.now();
+            matchActive = true;
+            lastActionTime = Date.now(); 
             lobbyDisplayGroup.visible = false;
             if (!isTPS && loadedGunModel) loadedGunModel.visible = true;
-            let finalTeam = team;
-            if (team === 'AUTO') { finalTeam = Math.random() < 0.5 ? 'CT' : 'T'; }
-            myTeam = finalTeam;
-            let startX = 0; let startZ = 0;
-            if (finalTeam === 'CT') {
-                startX = -28 + (Math.random() * 4 - 2);
-                startZ = -56 + (Math.random() * 4 - 2);
+            myTeam = team;
+            teamSelectScreen.style.display = 'none';
+            uiContainer.style.display = 'block';
+
+            if(team === 'T') {
+                playerContainer.position.set(11, 2, 4);
+                playerContainer.rotation.y = Math.PI;
             } else {
-                startX = 11 + (Math.random() * 4 - 2);
-                startZ = 4 + (Math.random() * 4 - 2);
+                playerContainer.position.set(-28, 2, -56);
+                playerContainer.rotation.y = 0;
             }
-            playerContainer.position.set(startX, 1.25, startZ);
-            yVelocity = 0;
             camera.position.set(0, 0, 0);
             camera.rotation.set(0, 0, 0);
 
-            if (myUid) {
-                update(ref(database, `players/${myUid}`), { health: 100, team: finalTeam, x: startX, y: 1.25, z: startZ, rotY: 0 });
-            }
-            teamSelectScreen.style.opacity = '0';
-            setTimeout(() => {
-                teamSelectScreen.style.display = 'none';
-                uiContainer.style.display = 'block';
-            }, 500);
+            const myRef = ref(database, `players/${myUid}`);
+            set(myRef, {
+                x: playerContainer.position.x, y: playerContainer.position.y, z: playerContainer.position.z,
+                rotY: playerContainer.rotation.y, team: myTeam, health: 100
+            });
         }
 
-        document.getElementById('btn-auto').addEventListener('click', () => joinMatch('AUTO'));
         document.getElementById('btn-t').addEventListener('click', () => joinMatch('T'));
         document.getElementById('btn-ct').addEventListener('click', () => joinMatch('CT'));
+        document.getElementById('btn-auto').addEventListener('click', () => {
+            if (Math.random() > 0.5) joinMatch('T'); else joinMatch('CT');
+        });
 
         function resetAFK() {
             if (isKicked || !matchActive) return;
@@ -726,12 +720,6 @@
             if (isTPS) { camera.position.set(0, 1.5, 4); camera.rotation.x = -0.2; } else { camera.position.set(0, 0, 0); camera.rotation.x = 0; }
         });
 
-        let ammoInMag = 7;
-        let maxAmmoInMag = 7;
-        let ammoReserve = 42;
-        let isReloading = false;
-        function updateAmmoUI() { document.getElementById('ammo-display').innerText = `${ammoInMag} / ${ammoReserve}`; }
-
         function reloadWeapon() {
             if (isReloading || ammoInMag === maxAmmoInMag || ammoReserve === 0) return;
             isReloading = true; updateAmmoUI();
@@ -810,6 +798,7 @@
 
         const flashUI = document.getElementById('muzzle-flash');
         const hitMarker = document.getElementById('hit-marker');
+        const shootRaycaster = new THREE.Raycaster();
 
         function shoot() {
             resetAFK();
@@ -854,13 +843,14 @@
             }, 100);
         }
 
-        // --- 安全环境光照亮背包武器，绝对不会产生崩溃黑屏 ---
+        // --- 安全的背包展示打光系统 (还原暗黑风格，保持大尺寸且不黑屏) ---
         const backpackDisplayGroup = new THREE.Group();
         const backpackPivot = new THREE.Group();
         backpackPivot.position.set(0, -0.3, -3.0); 
         backpackDisplayGroup.add(backpackPivot);
         
-        const bpLight = new THREE.AmbientLight(0xffffff, 2.0); // 仅使用安全环境光增强武器亮度
+        // 使用非常强的环境光专门照亮背包里的模型，不会引发错误
+        const bpLight = new THREE.AmbientLight(0xffffff, 3.0); 
         backpackDisplayGroup.add(bpLight);
 
         backpackDisplayGroup.visible = false;
@@ -870,7 +860,7 @@
 
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
             let bpGun = gltf.scene;
-            bpGun.scale.set(3.5, 3.5, 3.5); 
+            bpGun.scale.set(4.0, 4.0, 4.0); // 枪放得够大
             bpGun.position.set(0, 0, 0); 
             bpGun.visible = false;
             backpackPivot.add(bpGun);
@@ -938,6 +928,9 @@
             backpackDisplayGroup.visible = false;
             lobbyDisplayGroup.visible = true;
         });
+
+        const downRaycaster = new THREE.Raycaster();
+        let lastSyncTime = 0;
 
         function animate() {
             requestAnimationFrame(animate);
