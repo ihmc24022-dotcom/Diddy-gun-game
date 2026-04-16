@@ -142,7 +142,7 @@
         }
         .team-column:hover .team-choose-btn { background: white; color: black; border-color: white; }
 
-        /* 新增：背包/武器系统 CSS (暗黑风格原版) */
+        /* 背包/武器系统 CSS (暗黑风格原版) */
         #backpack-screen {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0, 0, 0, 0.9); display: none; justify-content: space-between; align-items: stretch;
@@ -841,13 +841,15 @@
             }, 100);
         }
 
-        // 【关键功能】: 让旋转的武器变得超大，并且打光不会黑屏
+        // --- 修复点：巨大的旋转武器且不会黑屏 ---
         const backpackDisplayGroup = new THREE.Group();
         const backpackPivot = new THREE.Group();
-        backpackPivot.position.set(0, -0.2, -3.0); // 往后退一点，给大模型留出空间
+        
+        // Z轴调整到 -3.0，给放大的模型留出空间
+        backpackPivot.position.set(0, -0.2, -3.0); 
         backpackDisplayGroup.add(backpackPivot);
         
-        // 安全的环境光打亮武器，绝对不黑屏
+        // 安全的环境光打亮武器，绝对不会引发除以零的黑屏错误
         const bpLight = new THREE.AmbientLight(0xffffff, 2.0); 
         backpackDisplayGroup.add(bpLight);
 
@@ -858,8 +860,10 @@
 
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
             let bpGun = gltf.scene;
-            bpGun.scale.set(5.0, 5.0, 5.0); // ！！这里让枪变大了两倍半！！
-            bpGun.position.set(0, 0, 0); // 让枪在中心点自转
+            
+            // 将武器放大到 5.0 倍
+            bpGun.scale.set(5.0, 5.0, 5.0); 
+            bpGun.position.set(0, 0, 0); 
             bpGun.visible = false;
             backpackPivot.add(bpGun);
             previewGuns['usp'] = bpGun;
@@ -893,13 +897,13 @@
             if (!gun) return;
             
             document.getElementById('stat-damage').style.width = gun.stats.damage + '%';
-            document.getElementById('val-damage').innerText = gun.stats.damage; // 更新具体数值
+            document.getElementById('val-damage').innerText = gun.stats.damage; 
             
             document.getElementById('stat-ammo').style.width = gun.stats.ammo + '%';
-            document.getElementById('val-ammo').innerText = gun.stats.ammo; // 更新具体数值
+            document.getElementById('val-ammo').innerText = gun.stats.ammo; 
             
             document.getElementById('stat-reload').style.width = gun.stats.reload + '%';
-            document.getElementById('val-reload').innerText = gun.stats.reload; // 更新具体数值
+            document.getElementById('val-reload').innerText = gun.stats.reload; 
             
             document.getElementById('bp-desc').innerText = gun.desc;
             
