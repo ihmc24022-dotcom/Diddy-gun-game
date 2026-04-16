@@ -538,18 +538,41 @@
             playerContainer.add(myBody);
         });
 
+        // === 新增：第一人称视角的武器组与动态切换系统 ===
         const gunGroup = new THREE.Group();
         camera.add(gunGroup);
-        let loadedGunModel = null;
-        let defaultGunZ = -0.55;
-        let defaultGunY = -0.35;
+        
+        let inGameGuns = {}; // 存放游戏中第一人称的枪械模型
+        let loadedGunModel = null; // 当前正在使用的模型引用
+
+        // 1. 加载 USP
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
-            loadedGunModel = gltf.scene;
-            loadedGunModel.scale.set(1.5, 1.5, 1.5);
-            loadedGunModel.position.set(0.35, defaultGunY, defaultGunZ);
-            loadedGunModel.rotation.y = Math.PI + 0.08;
-            gunGroup.add(loadedGunModel);
+            let model = gltf.scene;
+            model.scale.set(1.5, 1.5, 1.5);
+            model.position.set(0.35, -0.35, -0.55);
+            model.rotation.y = Math.PI + 0.08;
+            model.userData = { defaultZ: -0.55, defaultY: -0.35 }; // 记录默认位置用于动画
+            gunGroup.add(model);
+            inGameGuns['usp'] = model;
+            
+            if (equippedGun !== 'usp') model.visible = false;
+            else loadedGunModel = model;
         });
+
+        // 2. 加载 AWP 狙击枪
+        gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function (gltf) {
+            let model = gltf.scene;
+            model.scale.set(1.2, 1.2, 1.2); // 狙击枪比较大，缩放调小一点
+            model.position.set(0.4, -0.4, -0.8); // 往后退一点，往右一点
+            model.rotation.y = Math.PI + 0.05;
+            model.userData = { defaultZ: -0.8, defaultY: -0.4 };
+            gunGroup.add(model);
+            inGameGuns['awp'] = model;
+            
+            if (equippedGun !== 'awp') model.visible = false;
+            else loadedGunModel = model;
+        });
+        // ==============================================
 
         function showLobby() {
             authScreen.style.display = 'none';
@@ -742,13 +765,16 @@
         function reloadWeapon() {
             if (isReloading || ammoInMag === maxAmmoInMag || ammoReserve === 0) return;
             isReloading = true; updateAmmoUI();
-            if (loadedGunModel) loadedGunModel.position.y = defaultGunY - 0.6;
+            
+            let defY = loadedGunModel ? loadedGunModel.userData.defaultY : -0.35;
+            if (loadedGunModel) loadedGunModel.position.y = defY - 0.6; // 换弹下沉动画
+            
             setTimeout(() => {
                 let neededAmmo = maxAmmoInMag - ammoInMag;
                 let reloadAmount = Math.min(neededAmmo, ammoReserve);
                 ammoInMag += reloadAmount; ammoReserve -= reloadAmount;
                 isReloading = false;
-                if (loadedGunModel) loadedGunModel.position.y = defaultGunY;
+                if (loadedGunModel) loadedGunModel.position.y = defY; // 恢复位置
                 updateAmmoUI();
             }, 1500);
         }
@@ -819,8 +845,14 @@
             if (ammoInMag <= 0) { reloadWeapon(); return; }
             
             isShooting = true; ammoInMag--; updateAmmoUI();
-            if (!isTPS && loadedGunModel) loadedGunModel.position.z = defaultGunZ + 0.1;
+            
+            let defZ = loadedGunModel ? loadedGunModel.userData.defaultZ : -0.55;
+            if (!isTPS && loadedGunModel) loadedGunModel.position.z = defZ + 0.1; // 后坐力动画
             flashUI.style.opacity = '1';
+            
+            // --- 动态获取当前装备武器的伤害值 ---
+            let currentGunData = gunDatabase.find(g => g.id === equippedGun);
+            let damage = currentGunData ? currentGunData.stats.damage : 25;
             
             const shootOrigin = new THREE.Vector3(); camera.getWorldPosition(shootOrigin);
             const shootDir = new THREE.Vector3(); camera.getWorldDirection(shootDir);
@@ -836,13 +868,13 @@
                 let hitUid = intersects[0].object.userData.uid;
                 if (hitUid && remotePlayers[hitUid]) {
                     if (myTeam && remotePlayers[hitUid].team === myTeam) {
-                        // Teammate, do nothing
+                        // 队友伤害关闭
                     } else {
                         hitMarker.style.opacity = '1';
                         setTimeout(() => { hitMarker.style.opacity = '0'; }, 200);
                         let currentTargetHP = remotePlayers[hitUid].health;
                         if (currentTargetHP > 0) {
-                            let newHP = currentTargetHP - 25;
+                            let newHP = currentTargetHP - damage; // 使用真实的武器伤害
                             if (newHP < 0) newHP = 0;
                             update(ref(database, `players/${hitUid}`), { health: newHP });
                         }
@@ -852,7 +884,7 @@
             
             setTimeout(() => {
                 flashUI.style.opacity = '0'; isShooting = false;
-                if (!isTPS && loadedGunModel) loadedGunModel.position.z = defaultGunZ;
+                if (!isTPS && loadedGunModel) loadedGunModel.position.z = defZ; // 恢复位置
             }, 100);
         }
 
@@ -870,6 +902,7 @@
 
         let previewGuns = {};
 
+        // 1. 背包里的 USP
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
             let bpGun = gltf.scene;
             bpGun.scale.set(5.0, 5.0, 5.0); 
@@ -879,15 +912,26 @@
             previewGuns['usp'] = bpGun;
         });
 
+        // 2. 背包里的 AWP
+        gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function (gltf) {
+            let bpGun = gltf.scene;
+            bpGun.scale.set(3.0, 3.0, 3.0); // 狙击枪较长，缩放控制在 3.0 刚刚好
+            bpGun.position.set(0, 0, 0); 
+            bpGun.visible = false;
+            backpackPivot.add(bpGun);
+            previewGuns['awp'] = bpGun;
+        });
+
+        // 将 AWP 设置为已解锁用于测试
         const gunDatabase = [
             { id: 'usp', name: 'USP 手枪', unlocked: true, stats: { damage: 25, ammo: 42, reload: 60 }, desc: '标准半自动手枪。性能可靠，后坐力极小。' },
             { id: 'glock', name: '格洛克 18', unlocked: false, stats: { damage: 18, ammo: 80, reload: 85 }, desc: '射速快，弹匣容量大。在近距离交战中效果极佳。' },
             { id: 'ak47', name: 'AK-47 步枪', unlocked: false, stats: { damage: 85, ammo: 60, reload: 40 }, desc: '伤害极高但伴随着巨大的后坐力。需要达到 10 级解锁。' },
-            { id: 'awp', name: 'AWP 狙击枪', unlocked: false, stats: { damage: 100, ammo: 10, reload: 20 }, desc: '一击必杀。高风险高回报的终极武器。需要达到 20 级解锁。' }
+            { id: 'awp', name: 'AWP 狙击枪', unlocked: true, stats: { damage: 100, ammo: 10, reload: 20 }, desc: '一击必杀。高风险高回报的终极武器。' } // <-- 解锁了 AWP
         ];
 
         let currentSelectedGun = 'usp';
-        let equippedGun = 'usp'; // 新增：记录当前装备的武器
+        let equippedGun = 'usp'; 
 
         function populateBackpack() {
             bpGunList.innerHTML = '';
@@ -921,30 +965,41 @@
             Object.values(previewGuns).forEach(model => model.visible = false);
             if (previewGuns[gunId]) previewGuns[gunId].visible = true;
 
-            // --- 新增：更新 USE 按钮的状态 ---
             const btnEquip = document.getElementById('btn-equip');
             if (!gun.unlocked) {
                 btnEquip.innerText = 'LOCKED';
                 btnEquip.disabled = true;
-                btnEquip.style.background = ''; // 使用 disabled 的默认灰色
+                btnEquip.style.background = ''; 
             } else if (gun.id === equippedGun) {
                 btnEquip.innerText = 'EQUIPPED';
                 btnEquip.disabled = true;
-                btnEquip.style.background = '#4CAF50'; // 已经装备时显示绿色
+                btnEquip.style.background = '#4CAF50'; 
             } else {
                 btnEquip.innerText = 'USE WEAPON';
                 btnEquip.disabled = false;
-                btnEquip.style.background = '#ff9800'; // 可装备时显示橙色
+                btnEquip.style.background = '#ff9800'; 
             }
-            // -------------------------------
         }
 
-        // --- 新增：装备武器按钮点击逻辑 ---
+        // --- 核心武器切换逻辑 ---
         document.getElementById('btn-equip').addEventListener('click', () => {
-            equippedGun = currentSelectedGun; // 将当前预览的武器设为正式装备
-            selectGun(currentSelectedGun);    // 重新调用一次以刷新按钮 UI 为绿色 "EQUIPPED"
+            equippedGun = currentSelectedGun; 
+            selectGun(currentSelectedGun);    
+            
+            // 切换第一人称视角的 3D 模型
+            Object.values(inGameGuns).forEach(model => model.visible = false);
+            if (inGameGuns[equippedGun]) {
+                inGameGuns[equippedGun].visible = !isTPS;
+                loadedGunModel = inGameGuns[equippedGun];
+                
+                // 更新弹药 UI 为新枪的容量
+                const gunStats = gunDatabase.find(g => g.id === equippedGun).stats;
+                maxAmmoInMag = gunStats.ammo > 30 ? 30 : gunStats.ammo; // 弹匣最大限制
+                ammoInMag = maxAmmoInMag;
+                ammoReserve = gunStats.ammo * 3; // 备弹
+                updateAmmoUI();
+            }
         });
-        // ---------------------------------
 
         document.querySelectorAll('.lobby-side-btn').forEach(btn => {
             if (btn.innerText.toLowerCase().includes('backpack') || btn.innerText.includes('背包')) {
@@ -979,8 +1034,6 @@
             }
 
             if (matchActive) {
-                
-                // --- 融入了水平碰撞检测 (防撞墙) 的移动逻辑 ---
                 if (moveInput.x !== 0 || moveInput.y !== 0) {
                     const speed = 0.15;
                     let canMove = true;
@@ -1005,7 +1058,6 @@
                         playerContainer.translateZ(moveInput.y * speed);
                     }
                 }
-                // ------------------------------------------------
                 
                 if (mapMesh) {
                     yVelocity += gravity;
