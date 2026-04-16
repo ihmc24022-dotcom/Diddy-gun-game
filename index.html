@@ -392,14 +392,19 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getDatabase, ref, set, update, onValue, onDisconnect, remove, get } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
+        // ==========================================
+        // 核心更新：使用你提供的全新 Firebase 配置
+        // （已自动补全 Realtime Database 所需的 databaseURL）
+        // ==========================================
         const firebaseConfig = {
-            apiKey: "AIzaSyAX5TKLKkC_oHklROdhSB5QtdGZIu_9yIo",
-            authDomain: "diddy-gun-game.firebaseapp.com",
-            databaseURL: "https://diddy-gun-game-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "diddy-gun-game",
-            storageBucket: "diddy-gun-game.firebasestorage.app",
-            messagingSenderId: "712812379030",
-            appId: "1:712812379030:web:13f04859c2651d177cfbb7"
+            apiKey: "AIzaSyCRAfAAprJGArPzfHHYPSTkjNOEeplyv7E",
+            authDomain: "skibidi-f2309.firebaseapp.com",
+            databaseURL: "https://skibidi-f2309-default-rtdb.firebaseio.com", // 关键修复点：增加这一行以启用联机同步！
+            projectId: "skibidi-f2309",
+            storageBucket: "skibidi-f2309.firebasestorage.app",
+            messagingSenderId: "859511726441",
+            appId: "1:859511726441:web:52c15f633ba4da92ba5df8",
+            measurementId: "G-0V1XHYKDQ8"
         };
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -414,10 +419,8 @@
         let lastActionTime = Date.now();
         let isKicked = false;
 
-        // ==========================================
-        // 【新增】：版本控制系统 (防卡死、防缓存)
-        // ==========================================
-        const CURRENT_VERSION = 2; // 每次更新代码时将此数字加 1
+        // 版本控制系统 (防卡死、防缓存)
+        const CURRENT_VERSION = 3; // 升级到了版本 3
         const versionRef = ref(database, 'server_info/version');
 
         get(versionRef).then((snapshot) => {
@@ -434,7 +437,6 @@
                 window.location.href = window.location.href.split('?')[0] + '?v=' + Date.now();
             }
         });
-        // ==========================================
 
         const startScreen = document.getElementById('start-screen');
         const startButton = document.getElementById('start-button');
@@ -1078,7 +1080,6 @@
                         const collisionRaycaster = new THREE.Raycaster(rayOrigin, worldMoveDir);
                         const intersects = collisionRaycaster.intersectObject(mapMesh, true);
                         
-                        // 碰撞距离设置为 1.5，防止穿模
                         if (intersects.length > 0 && intersects[0].distance < 1.5) {
                             canMove = false;
                         }
