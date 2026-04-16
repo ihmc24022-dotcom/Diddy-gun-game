@@ -538,20 +538,18 @@
             playerContainer.add(myBody);
         });
 
-        // === 新增：第一人称视角的武器组与动态切换系统 ===
         const gunGroup = new THREE.Group();
         camera.add(gunGroup);
         
-        let inGameGuns = {}; // 存放游戏中第一人称的枪械模型
-        let loadedGunModel = null; // 当前正在使用的模型引用
+        let inGameGuns = {}; 
+        let loadedGunModel = null; 
 
-        // 1. 加载 USP
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
             let model = gltf.scene;
             model.scale.set(1.5, 1.5, 1.5);
             model.position.set(0.35, -0.35, -0.55);
             model.rotation.y = Math.PI + 0.08;
-            model.userData = { defaultZ: -0.55, defaultY: -0.35 }; // 记录默认位置用于动画
+            model.userData = { defaultZ: -0.55, defaultY: -0.35 }; 
             gunGroup.add(model);
             inGameGuns['usp'] = model;
             
@@ -559,11 +557,10 @@
             else loadedGunModel = model;
         });
 
-        // 2. 加载 AWP 狙击枪
         gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function (gltf) {
             let model = gltf.scene;
-            model.scale.set(1.2, 1.2, 1.2); // 狙击枪比较大，缩放调小一点
-            model.position.set(0.4, -0.4, -0.8); // 往后退一点，往右一点
+            model.scale.set(1.2, 1.2, 1.2); 
+            model.position.set(0.4, -0.4, -0.8); 
             model.rotation.y = Math.PI + 0.05;
             model.userData = { defaultZ: -0.8, defaultY: -0.4 };
             gunGroup.add(model);
@@ -572,7 +569,6 @@
             if (equippedGun !== 'awp') model.visible = false;
             else loadedGunModel = model;
         });
-        // ==============================================
 
         function showLobby() {
             authScreen.style.display = 'none';
@@ -581,6 +577,7 @@
             if (loadedGunModel) loadedGunModel.visible = false;
             playerContainer.position.set(0, 5, 10);
             camera.position.set(0, 0, 0);
+            camera.rotation.set(0, 0, 0); // 确保从游戏中出来时视角回正
             camera.lookAt(0, -2, 0);
         }
 
@@ -759,7 +756,13 @@
             isTPS = !isTPS;
             if (myBody) myBody.visible = isTPS;
             if (loadedGunModel) loadedGunModel.visible = !isTPS;
-            if (isTPS) { camera.position.set(0, 1.5, 4); camera.rotation.x = -0.2; } else { camera.position.set(0, 0, 0); camera.rotation.x = 0; }
+            if (isTPS) { 
+                camera.position.set(0, 1.5, 4); 
+                camera.rotation.x = -0.2; 
+            } else { 
+                camera.position.set(0, 0, 0); 
+                camera.rotation.x = 0; 
+            }
         });
 
         function reloadWeapon() {
@@ -767,14 +770,14 @@
             isReloading = true; updateAmmoUI();
             
             let defY = loadedGunModel ? loadedGunModel.userData.defaultY : -0.35;
-            if (loadedGunModel) loadedGunModel.position.y = defY - 0.6; // 换弹下沉动画
+            if (loadedGunModel) loadedGunModel.position.y = defY - 0.6; 
             
             setTimeout(() => {
                 let neededAmmo = maxAmmoInMag - ammoInMag;
                 let reloadAmount = Math.min(neededAmmo, ammoReserve);
                 ammoInMag += reloadAmount; ammoReserve -= reloadAmount;
                 isReloading = false;
-                if (loadedGunModel) loadedGunModel.position.y = defY; // 恢复位置
+                if (loadedGunModel) loadedGunModel.position.y = defY; 
                 updateAmmoUI();
             }, 1500);
         }
@@ -795,6 +798,9 @@
         document.getElementById('btn-jump').addEventListener('touchstart', (e) => { e.preventDefault(); resetAFK(); if (isGrounded) { yVelocity = jumpStrength; isGrounded = false; }});
         document.getElementById('btn-jump').addEventListener('mousedown', (e) => { e.preventDefault(); resetAFK(); if (isGrounded) { yVelocity = jumpStrength; isGrounded = false; }});
 
+        // ==========================================
+        // 核心修改点：加入全自由视角 (上下左右看)
+        // ==========================================
         document.addEventListener('touchstart', (e) => {
             if(e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || !matchActive) return;
             for (let t of e.changedTouches) {
@@ -802,7 +808,10 @@
                     touches.left = { id: t.identifier, startX: t.clientX, startY: t.clientY };
                     joyBase.style.display = 'block'; joyBase.style.left = t.clientX + 'px'; joyBase.style.top = t.clientY + 'px';
                     joyStick.style.transform = `translate(-50%, -50%)`;
-                } else { touches.right = { id: t.identifier, lastX: t.clientX, lastY: t.clientY, isTap: true }; }
+                } else { 
+                    // 初始化右手的 X 和 Y 坐标
+                    touches.right = { id: t.identifier, lastX: t.clientX, lastY: t.clientY, isTap: true }; 
+                }
             }
         });
 
@@ -816,11 +825,29 @@
                     joyStick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
                     moveInput.x = deltaX / joyMaxRadius; moveInput.y = deltaY / joyMaxRadius;
                 }
+                
+                // 自由视角滑动逻辑
                 if (touches.right && t.identifier === touches.right.id) {
                     touches.right.isTap = false;
+                    
+                    // 计算手指的移动距离
                     let deltaX = t.clientX - touches.right.lastX;
+                    let deltaY = t.clientY - touches.right.lastY; 
+                    
+                    // 左右转头：作用于玩家身体 (Y轴旋转)
                     playerContainer.rotation.y -= deltaX * 0.005;
+                    
+                    // 上下抬头：只作用于摄像机 (X轴旋转)
+                    camera.rotation.x -= deltaY * 0.005;
+                    
+                    // 限制最大抬头/低头角度，防止后空翻断脖子 (约 85 度)
+                    const maxPitch = Math.PI / 2 - 0.1;
+                    if (camera.rotation.x > maxPitch) camera.rotation.x = maxPitch;
+                    if (camera.rotation.x < -maxPitch) camera.rotation.x = -maxPitch;
+                    
+                    // 更新最后坐标
                     touches.right.lastX = t.clientX;
+                    touches.right.lastY = t.clientY; 
                 }
             }
         });
@@ -847,14 +874,14 @@
             isShooting = true; ammoInMag--; updateAmmoUI();
             
             let defZ = loadedGunModel ? loadedGunModel.userData.defaultZ : -0.55;
-            if (!isTPS && loadedGunModel) loadedGunModel.position.z = defZ + 0.1; // 后坐力动画
+            if (!isTPS && loadedGunModel) loadedGunModel.position.z = defZ + 0.1; 
             flashUI.style.opacity = '1';
             
-            // --- 动态获取当前装备武器的伤害值 ---
             let currentGunData = gunDatabase.find(g => g.id === equippedGun);
             let damage = currentGunData ? currentGunData.stats.damage : 25;
             
             const shootOrigin = new THREE.Vector3(); camera.getWorldPosition(shootOrigin);
+            // 这里因为我们加了上下视角，getWorldDirection 会自动获取包含抬头低头的精准 3D 方向
             const shootDir = new THREE.Vector3(); camera.getWorldDirection(shootDir);
             shootRaycaster.set(shootOrigin, shootDir);
             
@@ -868,13 +895,13 @@
                 let hitUid = intersects[0].object.userData.uid;
                 if (hitUid && remotePlayers[hitUid]) {
                     if (myTeam && remotePlayers[hitUid].team === myTeam) {
-                        // 队友伤害关闭
+                        // 队友免伤
                     } else {
                         hitMarker.style.opacity = '1';
                         setTimeout(() => { hitMarker.style.opacity = '0'; }, 200);
                         let currentTargetHP = remotePlayers[hitUid].health;
                         if (currentTargetHP > 0) {
-                            let newHP = currentTargetHP - damage; // 使用真实的武器伤害
+                            let newHP = currentTargetHP - damage; 
                             if (newHP < 0) newHP = 0;
                             update(ref(database, `players/${hitUid}`), { health: newHP });
                         }
@@ -884,11 +911,10 @@
             
             setTimeout(() => {
                 flashUI.style.opacity = '0'; isShooting = false;
-                if (!isTPS && loadedGunModel) loadedGunModel.position.z = defZ; // 恢复位置
+                if (!isTPS && loadedGunModel) loadedGunModel.position.z = defZ; 
             }, 100);
         }
 
-        // 背包武器展示组
         const backpackDisplayGroup = new THREE.Group();
         const backpackPivot = new THREE.Group();
         backpackPivot.position.set(0, -0.2, -3.0); 
@@ -902,7 +928,6 @@
 
         let previewGuns = {};
 
-        // 1. 背包里的 USP
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
             let bpGun = gltf.scene;
             bpGun.scale.set(5.0, 5.0, 5.0); 
@@ -912,22 +937,20 @@
             previewGuns['usp'] = bpGun;
         });
 
-        // 2. 背包里的 AWP
         gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function (gltf) {
             let bpGun = gltf.scene;
-            bpGun.scale.set(3.0, 3.0, 3.0); // 狙击枪较长，缩放控制在 3.0 刚刚好
+            bpGun.scale.set(3.0, 3.0, 3.0); 
             bpGun.position.set(0, 0, 0); 
             bpGun.visible = false;
             backpackPivot.add(bpGun);
             previewGuns['awp'] = bpGun;
         });
 
-        // 将 AWP 设置为已解锁用于测试
         const gunDatabase = [
             { id: 'usp', name: 'USP 手枪', unlocked: true, stats: { damage: 25, ammo: 42, reload: 60 }, desc: '标准半自动手枪。性能可靠，后坐力极小。' },
             { id: 'glock', name: '格洛克 18', unlocked: false, stats: { damage: 18, ammo: 80, reload: 85 }, desc: '射速快，弹匣容量大。在近距离交战中效果极佳。' },
             { id: 'ak47', name: 'AK-47 步枪', unlocked: false, stats: { damage: 85, ammo: 60, reload: 40 }, desc: '伤害极高但伴随着巨大的后坐力。需要达到 10 级解锁。' },
-            { id: 'awp', name: 'AWP 狙击枪', unlocked: true, stats: { damage: 100, ammo: 10, reload: 20 }, desc: '一击必杀。高风险高回报的终极武器。' } // <-- 解锁了 AWP
+            { id: 'awp', name: 'AWP 狙击枪', unlocked: true, stats: { damage: 100, ammo: 10, reload: 20 }, desc: '一击必杀。高风险高回报的终极武器。' }
         ];
 
         let currentSelectedGun = 'usp';
@@ -981,22 +1004,19 @@
             }
         }
 
-        // --- 核心武器切换逻辑 ---
         document.getElementById('btn-equip').addEventListener('click', () => {
             equippedGun = currentSelectedGun; 
             selectGun(currentSelectedGun);    
             
-            // 切换第一人称视角的 3D 模型
             Object.values(inGameGuns).forEach(model => model.visible = false);
             if (inGameGuns[equippedGun]) {
                 inGameGuns[equippedGun].visible = !isTPS;
                 loadedGunModel = inGameGuns[equippedGun];
                 
-                // 更新弹药 UI 为新枪的容量
                 const gunStats = gunDatabase.find(g => g.id === equippedGun).stats;
-                maxAmmoInMag = gunStats.ammo > 30 ? 30 : gunStats.ammo; // 弹匣最大限制
+                maxAmmoInMag = gunStats.ammo > 30 ? 30 : gunStats.ammo; 
                 ammoInMag = maxAmmoInMag;
-                ammoReserve = gunStats.ammo * 3; // 备弹
+                ammoReserve = gunStats.ammo * 3; 
                 updateAmmoUI();
             }
         });
