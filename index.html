@@ -142,7 +142,7 @@
         }
         .team-column:hover .team-choose-btn { background: white; color: black; border-color: white; }
 
-        /* 背包/武器系统 CSS (暗黑风格原版) */
+        /* 新增：背包/武器系统 CSS */
         #backpack-screen {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0, 0, 0, 0.9); display: none; justify-content: space-between; align-items: stretch;
@@ -169,7 +169,7 @@
         .gun-item { 
             background: rgba(255,255,255,0.1); padding: 15px; border-radius: 5px; cursor: pointer; 
             display: flex; justify-content: space-between; align-items: center; font-weight: bold; 
-            border: 2px solid transparent; transition: 0.2s; font-size: 18px; color: #fff;
+            border: 2px solid transparent; transition: 0.2s; font-size: 18px;
         }
         .gun-item:hover { background: rgba(255,255,255,0.2); }
         .gun-item.active { border-color: #ff9800; background: rgba(255, 152, 0, 0.2); }
@@ -841,27 +841,23 @@
             }, 100);
         }
 
-        // --- 修复点：巨大的旋转武器且不会黑屏 ---
+        // --- 核心修复：彻底删除挂载在相机上的灯光，防止导致屏幕全黑崩溃 ---
         const backpackDisplayGroup = new THREE.Group();
         const backpackPivot = new THREE.Group();
         
-        // Z轴调整到 -3.0，给放大的模型留出空间
+        // Z轴调整到 -3.0，给放大的模型留出充足的空间
         backpackPivot.position.set(0, -0.2, -3.0); 
         backpackDisplayGroup.add(backpackPivot);
-        
-        // 安全的环境光打亮武器，绝对不会引发除以零的黑屏错误
-        const bpLight = new THREE.AmbientLight(0xffffff, 2.0); 
-        backpackDisplayGroup.add(bpLight);
 
         backpackDisplayGroup.visible = false;
-        camera.add(backpackDisplayGroup); // 绑定在相机前
+        camera.add(backpackDisplayGroup); // 依然绑定在相机前，但不再包含光源！
 
         let previewGuns = {};
 
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
             let bpGun = gltf.scene;
             
-            // 将武器放大到 5.0 倍
+            // 按照你的要求，将武器放大到 5.0 倍，变得非常巨大
             bpGun.scale.set(5.0, 5.0, 5.0); 
             bpGun.position.set(0, 0, 0); 
             bpGun.visible = false;
