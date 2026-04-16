@@ -640,7 +640,7 @@
             set(myRef, {
                 x: playerContainer.position.x, y: playerContainer.position.y, z: playerContainer.position.z,
                 rotY: playerContainer.rotation.y, team: myTeam, health: 100,
-                status: 'playing', lastActive: Date.now() // 标记状态为游戏中
+                status: 'playing', lastActive: Date.now() 
             });
         }
 
@@ -706,9 +706,6 @@
                 const myRef = ref(database, `players/${myUid}`);
                 onDisconnect(myRef).remove();
                 
-                // ===============================================
-                // 【核心新增】：防幽灵节点，精准在线人数统计
-                // ===============================================
                 const playersRef = ref(database, 'players');
                 onValue(playersRef, (snapshot) => {
                     if (!matchActive) return;
@@ -716,7 +713,6 @@
                     let onlineCount = 0;
                     let now = Date.now();
 
-                    // 1. 过滤出真正活着、且在30秒内有过行动的真实玩家
                     for (let uid in data) {
                         let p = data[uid];
                         if (p.status === 'playing' && p.lastActive && (now - p.lastActive < 30000)) {
@@ -725,7 +721,6 @@
                     }
                     document.getElementById('online-count').innerText = `在线玩家: ${onlineCount}`;
 
-                    // 2. 渲染玩家模型，剔除幽灵节点
                     for (let uid in data) {
                         let p = data[uid];
                         let isValid = p.status === 'playing' && p.lastActive && (now - p.lastActive < 30000);
@@ -742,7 +737,7 @@
                             if (!remotePlayers[uid]) {
                                 remotePlayers[uid] = "loading";
                                 gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
-                                    if (remotePlayers[uid] === undefined) return; // 如果在加载中途玩家断线了，直接取消
+                                    if (remotePlayers[uid] === undefined) return; 
                                     let networkBanana = gltf.scene;
                                     networkBanana.scale.set(2.5, 2.5, 2.5);
                                     let px = data[uid].x || 0; let py = data[uid].y !== undefined ? data[uid].y - 1.25 : 0;
@@ -780,7 +775,6 @@
                                 }
                             }
                         } else {
-                            // 遇到幽灵节点：直接从你的屏幕里抹除它的模型！
                             if (remotePlayers[uid] && remotePlayers[uid] !== "loading") {
                                 if (remotePlayers[uid].model) scene.remove(remotePlayers[uid].model);
                             }
@@ -788,7 +782,6 @@
                         }
                     }
                     
-                    // 3. 清理那些在数据库中已经被移除的玩家
                     for (let uid in remotePlayers) {
                         if (!data[uid]) {
                             if (remotePlayers[uid] !== "loading" && remotePlayers[uid].model) { 
@@ -950,7 +943,6 @@
                 flashUI.style.opacity = '0'; isShooting = false;
                 if (!isTPS && loadedGunModel) loadedGunModel.position.z = defZ; 
 
-                // AWP 自动上膛逻辑
                 if (ammoInMag === 0 && ammoReserve > 0) {
                     reloadWeapon();
                 }
@@ -988,11 +980,14 @@
             previewGuns['awp'] = bpGun;
         });
 
+        // ==========================================
+        // 修改点：修改狙击枪名字为 "charlie's sniper"，描述为 "Charlie Charlie cookie"
+        // ==========================================
         const gunDatabase = [
             { id: 'usp', name: 'USP 手枪', unlocked: true, stats: { damage: 25, ammo: 42, mag: 7, reserve: 42, reload: 60 }, desc: '标准半自动手枪。性能可靠，后坐力极小。' },
             { id: 'glock', name: '格洛克 18', unlocked: false, stats: { damage: 18, ammo: 80, mag: 20, reserve: 100, reload: 85 }, desc: '射速快，弹匣容量大。在近距离交战中效果极佳。' },
             { id: 'ak47', name: 'AK-47 步枪', unlocked: false, stats: { damage: 85, ammo: 60, mag: 30, reserve: 90, reload: 40 }, desc: '伤害极高但伴随着巨大的后坐力。需要达到 10 级解锁。' },
-            { id: 'awp', name: 'AWP 狙击枪', unlocked: true, stats: { damage: 100, ammo: 10, mag: 1, reserve: 9, reload: 20 }, desc: '一击必杀。打完一发后会自动上膛 (1/9 弹药)。' }
+            { id: 'awp', name: "charlie's sniper", unlocked: true, stats: { damage: 100, ammo: 10, mag: 1, reserve: 9, reload: 20 }, desc: 'Charlie Charlie cookie' }
         ];
 
         let currentSelectedGun = 'usp';
@@ -1159,9 +1154,6 @@
                     afkCountdown.innerText = timeLeft;
                 }
 
-                // ===============================================
-                // 【核心新增】：心跳发送系统，随时报告自己活着
-                // ===============================================
                 if (myUid && Date.now() - lastSyncTime > 66) {
                     const myRef = ref(database, `players/${myUid}`);
                     update(myRef, { 
@@ -1169,8 +1161,8 @@
                         y: playerContainer.position.y, 
                         z: playerContainer.position.z, 
                         rotY: playerContainer.rotation.y,
-                        lastActive: Date.now(), // 将时间戳上报给服务器
-                        status: 'playing'       // 明确上报自己正在地图中
+                        lastActive: Date.now(), 
+                        status: 'playing'       
                     });
                     lastSyncTime = Date.now();
                 }
