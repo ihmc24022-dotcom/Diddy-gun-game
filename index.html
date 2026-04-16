@@ -142,7 +142,7 @@
         }
         .team-column:hover .team-choose-btn { background: white; color: black; border-color: white; }
 
-        /* --- 完美回归原版：黑色背包系统 CSS --- */
+        /* 新增：背包/武器系统 CSS (原始的深色背景) */
         #backpack-screen {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0, 0, 0, 0.9); display: none; justify-content: space-between; align-items: stretch;
@@ -166,11 +166,10 @@
             padding-bottom: 10px; font-family: 'Segoe UI', sans-serif; font-size: 24px; letter-spacing: 2px;
         }
         #bp-gun-list { flex-grow: 1; overflow-y: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
-        
         .gun-item { 
             background: rgba(255,255,255,0.1); padding: 15px; border-radius: 5px; cursor: pointer; 
             display: flex; justify-content: space-between; align-items: center; font-weight: bold; 
-            border: 2px solid transparent; transition: 0.2s; font-size: 18px; color: #fff;
+            border: 2px solid transparent; transition: 0.2s; font-size: 18px;
         }
         .gun-item:hover { background: rgba(255,255,255,0.2); }
         .gun-item.active { border-color: #ff9800; background: rgba(255, 152, 0, 0.2); }
@@ -446,12 +445,11 @@
         let isReloading = false;
         function updateAmmoUI() { document.getElementById('ammo-display').innerText = `${ammoInMag} / ${ammoReserve}`; }
 
-        let mapMesh = null;
+        let mapMesh;
         const objLoader = new OBJLoader();
         const mtlLoader = new MTLLoader();
         const gltfLoader = new GLTFLoader();
 
-        // 【100% 原始的代码逻辑 - 不加 fallback，完全退回你之前能用的那个版本】
         mtlLoader.setPath('');
         gltfLoader.setPath('');
 
@@ -843,25 +841,20 @@
             }, 100);
         }
 
-        // --- 安全的背包展示打光系统 (还原暗黑风格，保持大尺寸且不黑屏) ---
+        // 【关键修复 1】: 将 backpackDisplayGroup 添加到 camera，而不是 scene，这样模型就会永远在摄像机前面显示。
         const backpackDisplayGroup = new THREE.Group();
         const backpackPivot = new THREE.Group();
-        backpackPivot.position.set(0, -0.3, -3.0); 
+        backpackPivot.position.set(0, -0.2, -2.5); // 调整位置使其居中显示
         backpackDisplayGroup.add(backpackPivot);
-        
-        // 使用非常强的环境光专门照亮背包里的模型，不会引发错误
-        const bpLight = new THREE.AmbientLight(0xffffff, 3.0); 
-        backpackDisplayGroup.add(bpLight);
-
         backpackDisplayGroup.visible = false;
-        camera.add(backpackDisplayGroup); 
+        camera.add(backpackDisplayGroup); // 关键修改点
 
         let previewGuns = {};
 
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
             let bpGun = gltf.scene;
-            bpGun.scale.set(4.0, 4.0, 4.0); // 枪放得够大
-            bpGun.position.set(0, 0, 0); 
+            bpGun.scale.set(2.0, 2.0, 2.0); // 稍微放大了枪的展示模型
+            bpGun.position.set(0, 0, 0); // 让枪在中心点自转
             bpGun.visible = false;
             backpackPivot.add(bpGun);
             previewGuns['usp'] = bpGun;
@@ -887,6 +880,7 @@
             });
         }
 
+        // 【关键修复 2】: 在选择武器时，更新文本旁边的具体数值显示
         function selectGun(gunId) {
             currentSelectedGun = gunId;
             populateBackpack();
@@ -895,13 +889,13 @@
             if (!gun) return;
             
             document.getElementById('stat-damage').style.width = gun.stats.damage + '%';
-            document.getElementById('val-damage').innerText = gun.stats.damage; 
+            document.getElementById('val-damage').innerText = gun.stats.damage; // 更新具体数值
             
             document.getElementById('stat-ammo').style.width = gun.stats.ammo + '%';
-            document.getElementById('val-ammo').innerText = gun.stats.ammo; 
+            document.getElementById('val-ammo').innerText = gun.stats.ammo; // 更新具体数值
             
             document.getElementById('stat-reload').style.width = gun.stats.reload + '%';
-            document.getElementById('val-reload').innerText = gun.stats.reload; 
+            document.getElementById('val-reload').innerText = gun.stats.reload; // 更新具体数值
             
             document.getElementById('bp-desc').innerText = gun.desc;
             
