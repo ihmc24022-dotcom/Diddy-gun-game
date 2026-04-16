@@ -180,6 +180,15 @@
         .stat-bar-bg { width: 100%; height: 18px; background: rgba(0,0,0,0.6); border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); overflow: hidden;}
         .stat-bar-fill { height: 100%; transition: width 0.4s ease-out; }
 
+        #btn-equip {
+            width: 100%; padding: 15px; margin-top: 10px; margin-bottom: 15px;
+            background: #ff9800; color: white; border: 2px solid #fff; border-radius: 6px;
+            font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4); text-transform: uppercase;
+        }
+        #btn-equip:hover:not(:disabled) { background: #e65100; transform: scale(1.02); }
+        #btn-equip:disabled { background: #555; color: #999; border-color: #666; cursor: not-allowed; box-shadow: none; transform: none; }
+
         #bp-desc { 
             margin-top: auto; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 5px; 
             font-size: 15px; line-height: 1.6; color: #ccc; border: 1px solid rgba(255,255,255,0.1); min-height: 120px;
@@ -319,6 +328,8 @@
                 <div class="stat-bar-bg"><div id="stat-reload" class="stat-bar-fill" style="background: #ffce00; width: 0%;"></div></div>
             </div>
             
+            <button id="btn-equip">USE WEAPON</button>
+
             <div id="bp-desc">
                 Select a weapon to view details.
             </div>
@@ -876,6 +887,7 @@
         ];
 
         let currentSelectedGun = 'usp';
+        let equippedGun = 'usp'; // 新增：记录当前装备的武器
 
         function populateBackpack() {
             bpGunList.innerHTML = '';
@@ -908,7 +920,31 @@
             
             Object.values(previewGuns).forEach(model => model.visible = false);
             if (previewGuns[gunId]) previewGuns[gunId].visible = true;
+
+            // --- 新增：更新 USE 按钮的状态 ---
+            const btnEquip = document.getElementById('btn-equip');
+            if (!gun.unlocked) {
+                btnEquip.innerText = 'LOCKED';
+                btnEquip.disabled = true;
+                btnEquip.style.background = ''; // 使用 disabled 的默认灰色
+            } else if (gun.id === equippedGun) {
+                btnEquip.innerText = 'EQUIPPED';
+                btnEquip.disabled = true;
+                btnEquip.style.background = '#4CAF50'; // 已经装备时显示绿色
+            } else {
+                btnEquip.innerText = 'USE WEAPON';
+                btnEquip.disabled = false;
+                btnEquip.style.background = '#ff9800'; // 可装备时显示橙色
+            }
+            // -------------------------------
         }
+
+        // --- 新增：装备武器按钮点击逻辑 ---
+        document.getElementById('btn-equip').addEventListener('click', () => {
+            equippedGun = currentSelectedGun; // 将当前预览的武器设为正式装备
+            selectGun(currentSelectedGun);    // 重新调用一次以刷新按钮 UI 为绿色 "EQUIPPED"
+        });
+        // ---------------------------------
 
         document.querySelectorAll('.lobby-side-btn').forEach(btn => {
             if (btn.innerText.toLowerCase().includes('backpack') || btn.innerText.includes('背包')) {
