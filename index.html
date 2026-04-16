@@ -577,7 +577,7 @@
             if (loadedGunModel) loadedGunModel.visible = false;
             playerContainer.position.set(0, 5, 10);
             camera.position.set(0, 0, 0);
-            camera.rotation.set(0, 0, 0); // 确保从游戏中出来时视角回正
+            camera.rotation.set(0, 0, 0); 
             camera.lookAt(0, -2, 0);
         }
 
@@ -798,9 +798,6 @@
         document.getElementById('btn-jump').addEventListener('touchstart', (e) => { e.preventDefault(); resetAFK(); if (isGrounded) { yVelocity = jumpStrength; isGrounded = false; }});
         document.getElementById('btn-jump').addEventListener('mousedown', (e) => { e.preventDefault(); resetAFK(); if (isGrounded) { yVelocity = jumpStrength; isGrounded = false; }});
 
-        // ==========================================
-        // 核心修改点：加入全自由视角 (上下左右看)
-        // ==========================================
         document.addEventListener('touchstart', (e) => {
             if(e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || !matchActive) return;
             for (let t of e.changedTouches) {
@@ -809,7 +806,6 @@
                     joyBase.style.display = 'block'; joyBase.style.left = t.clientX + 'px'; joyBase.style.top = t.clientY + 'px';
                     joyStick.style.transform = `translate(-50%, -50%)`;
                 } else { 
-                    // 初始化右手的 X 和 Y 坐标
                     touches.right = { id: t.identifier, lastX: t.clientX, lastY: t.clientY, isTap: true }; 
                 }
             }
@@ -826,26 +822,19 @@
                     moveInput.x = deltaX / joyMaxRadius; moveInput.y = deltaY / joyMaxRadius;
                 }
                 
-                // 自由视角滑动逻辑
                 if (touches.right && t.identifier === touches.right.id) {
                     touches.right.isTap = false;
                     
-                    // 计算手指的移动距离
                     let deltaX = t.clientX - touches.right.lastX;
                     let deltaY = t.clientY - touches.right.lastY; 
                     
-                    // 左右转头：作用于玩家身体 (Y轴旋转)
                     playerContainer.rotation.y -= deltaX * 0.005;
-                    
-                    // 上下抬头：只作用于摄像机 (X轴旋转)
                     camera.rotation.x -= deltaY * 0.005;
                     
-                    // 限制最大抬头/低头角度，防止后空翻断脖子 (约 85 度)
                     const maxPitch = Math.PI / 2 - 0.1;
                     if (camera.rotation.x > maxPitch) camera.rotation.x = maxPitch;
                     if (camera.rotation.x < -maxPitch) camera.rotation.x = -maxPitch;
                     
-                    // 更新最后坐标
                     touches.right.lastX = t.clientX;
                     touches.right.lastY = t.clientY; 
                 }
@@ -881,7 +870,6 @@
             let damage = currentGunData ? currentGunData.stats.damage : 25;
             
             const shootOrigin = new THREE.Vector3(); camera.getWorldPosition(shootOrigin);
-            // 这里因为我们加了上下视角，getWorldDirection 会自动获取包含抬头低头的精准 3D 方向
             const shootDir = new THREE.Vector3(); camera.getWorldDirection(shootDir);
             shootRaycaster.set(shootOrigin, shootDir);
             
@@ -1068,7 +1056,8 @@
                         const collisionRaycaster = new THREE.Raycaster(rayOrigin, worldMoveDir);
                         const intersects = collisionRaycaster.intersectObject(mapMesh, true);
                         
-                        if (intersects.length > 0 && intersects[0].distance < 0.8) {
+                        // 【修改点】：将碰撞距离从 0.8 改大到 1.5，让箱子和墙壁显得更“厚实”
+                        if (intersects.length > 0 && intersects[0].distance < 1.5) {
                             canMove = false;
                         }
                     }
