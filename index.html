@@ -142,7 +142,7 @@
         }
         .team-column:hover .team-choose-btn { background: white; color: black; border-color: white; }
 
-        /* 新增：背包/武器系统 CSS (修复白色背景) */
+        /* --- 修正版：背包/武器系统 CSS (修复白色背景设计) --- */
         #backpack-screen {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0, 0, 0, 0.9); display: none; justify-content: space-between; align-items: stretch;
@@ -167,13 +167,13 @@
         }
         #bp-gun-list { flex-grow: 1; overflow-y: auto; margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
         
-        /* 武器选项：白色背景、黑色文字 */
+        /* 设置白底黑字 */
         .gun-item { 
             background: #ffffff; padding: 15px; border-radius: 5px; cursor: pointer; 
             display: flex; justify-content: space-between; align-items: center; font-weight: bold; 
             border: 2px solid transparent; transition: 0.2s; font-size: 18px; color: #000000;
         }
-        .gun-item:hover { background: #e0e0e0; }
+        .gun-item:hover { background: #f0f0f0; }
         .gun-item.active { border-color: #ff9800; background: #ffe0b2; color: #d84315; }
         .gun-item.locked { opacity: 0.5; cursor: not-allowed; background: #cccccc; color: #666; }
 
@@ -435,11 +435,16 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        // --- 全局更亮的灯光设置 ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
         scene.add(ambientLight);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
         dirLight.position.set(100, 200, 50);
         scene.add(dirLight);
+        
+        // --- 核心修复：为摄像机附加专属的头灯，照亮背包里的枪 ---
+        const headLight = new THREE.PointLight(0xffffff, 1.5, 50);
+        camera.add(headLight);
 
         let ammoInMag = 7;
         let maxAmmoInMag = 7;
@@ -843,27 +848,19 @@
             }, 100);
         }
 
-        // --- 核心修复点 1: 绑定到 Camera 并打光 ---
+        // --- 核心修复：直接将展示组挂载到 camera 上，并正确调整缩放 ---
         const backpackDisplayGroup = new THREE.Group();
         const backpackPivot = new THREE.Group();
-        backpackPivot.position.set(0, -0.2, -2.0); // 使其居中
+        backpackPivot.position.set(0, -0.3, -3.0); // 调整位置防止被镜头切掉
         backpackDisplayGroup.add(backpackPivot);
-        
-        // 加入专门的补光灯，确保枪械明亮
-        const bpLight = new THREE.AmbientLight(0xffffff, 2.0);
-        backpackDisplayGroup.add(bpLight);
-        const bpDirLight = new THREE.DirectionalLight(0xffffff, 3.0);
-        bpDirLight.position.set(5, 5, 2);
-        backpackDisplayGroup.add(bpDirLight);
-
         backpackDisplayGroup.visible = false;
-        camera.add(backpackDisplayGroup); // 绑定在玩家摄像机前
+        camera.add(backpackDisplayGroup); 
 
         let previewGuns = {};
 
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
             let bpGun = gltf.scene;
-            bpGun.scale.set(6.0, 6.0, 6.0); // --- 核心修复点 2: 放大枪械模型 ---
+            bpGun.scale.set(3.5, 3.5, 3.5); // 设置为完美适应镜头的大小
             bpGun.position.set(0, 0, 0); 
             bpGun.visible = false;
             backpackPivot.add(bpGun);
@@ -890,7 +887,6 @@
             });
         }
 
-        // --- 核心修复点 3: 更新具体数值文本 ---
         function selectGun(gunId) {
             currentSelectedGun = gunId;
             populateBackpack();
@@ -899,13 +895,13 @@
             if (!gun) return;
             
             document.getElementById('stat-damage').style.width = gun.stats.damage + '%';
-            document.getElementById('val-damage').innerText = gun.stats.damage; // 更新文本
+            document.getElementById('val-damage').innerText = gun.stats.damage; // 更新数值
             
             document.getElementById('stat-ammo').style.width = gun.stats.ammo + '%';
-            document.getElementById('val-ammo').innerText = gun.stats.ammo; // 更新文本
+            document.getElementById('val-ammo').innerText = gun.stats.ammo; // 更新数值
             
             document.getElementById('stat-reload').style.width = gun.stats.reload + '%';
-            document.getElementById('val-reload').innerText = gun.stats.reload; // 更新文本
+            document.getElementById('val-reload').innerText = gun.stats.reload; // 更新数值
             
             document.getElementById('bp-desc').innerText = gun.desc;
             
