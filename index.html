@@ -99,11 +99,50 @@
             padding: 15px 40px; font-size: 22px; background: rgba(255,255,255,0.9); color: #000;
             border: 2px solid #000; cursor: pointer; font-weight: bold;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: transform 0.2s;
-            font-family: 'Handlee', cursive, sans-serif;
+            font-family: 'Handlee', cursive, sans-serif; text-transform: lowercase;
         }
         .lobby-side-btn:hover { transform: translateX(-10px); }
 
-        /* 背包/武器系统 CSS */
+        /* 状态 2: 战队选择屏幕 */
+        #team-select-screen {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 2500; transition: opacity 0.5s;
+        }
+        #team-select-title { color: white; font-size: 36px; font-weight: bold; text-shadow: 0 0 10px rgba(255,255,255,0.5); margin-bottom: 40px; text-transform: uppercase; letter-spacing: 3px;}
+        #team-columns { display: flex; gap: 30px; }
+        .team-column {
+            width: 280px; padding: 20px; background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 12px;
+            display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+            transition: background 0.2s, border-color 0.2s; cursor: pointer;
+        }
+        .team-column:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.3); }
+        .team-column-header { color: white; font-size: 24px; font-weight: bold; text-transform: uppercase; margin-bottom: 20px; text-align: center; }
+        .team-logo-placeholder {
+            width: 150px; height: 150px; background-color: rgba(255,255,255,0.02);
+            border: 2px solid rgba(255,255,255,0.1); border-radius: 50%; margin-bottom: 30px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 60px; font-weight: bold; color: white; transition: all 0.2s;
+        }
+        #btn-t { border-color: rgba(211, 47, 47, 0.3); }
+        #btn-t .team-column-header { color: #d32f2f; text-shadow: 0 0 10px rgba(211, 47, 47, 0.5); }
+        #btn-t .team-logo-placeholder { border-color: rgba(211, 47, 47, 0.3); color: #d32f2f; box-shadow: 0 0 20px rgba(211, 47, 47, 0.2); }
+        #btn-t:hover { background: rgba(211, 47, 47, 0.1); border-color: #d32f2f; }
+        #btn-ct { border-color: rgba(25, 118, 210, 0.3); }
+        #btn-ct .team-column-header { color: #1976d2; text-shadow: 0 0 10px rgba(25, 118, 210, 0.5); }
+        #btn-ct .team-logo-placeholder { border-color: rgba(25, 118, 210, 0.3); color: #1976d2; box-shadow: 0 0 20px rgba(25, 118, 210, 0.2); }
+        #btn-ct:hover { background: rgba(25, 118, 210, 0.1); border-color: #1976d2; }
+
+        .team-choose-btn {
+            padding: 12px 40px; font-size: 18px; color: white; background: none;
+            border: 2px solid rgba(255,255,255,0.3); border-radius: 6px; font-weight: bold;
+            text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+        }
+        .team-column:hover .team-choose-btn { background: white; color: black; border-color: white; }
+
+        /* --- 新增：背包/武器系统 CSS --- */
         #backpack-screen {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0, 0, 0, 0.9); display: none; justify-content: space-between; align-items: stretch;
@@ -146,38 +185,6 @@
             font-size: 15px; line-height: 1.6; color: #ccc; border: 1px solid rgba(255,255,255,0.1); min-height: 120px;
         }
 
-        /* 状态 2: 战队选择屏幕 */
-        #team-select-screen {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0, 0, 0, 0.85); display: none; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 2500; transition: opacity 0.5s;
-        }
-        #team-select-title { color: white; font-size: 36px; font-weight: bold; text-shadow: 0 0 10px rgba(255,255,255,0.5); margin-bottom: 40px; text-transform: uppercase; letter-spacing: 3px;}
-        #team-columns { display: flex; gap: 30px; }
-        .team-column {
-            width: 280px; padding: 20px; background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 12px;
-            display: flex; flex-direction: column; align-items: center; justify-content: space-between; transition: background 0.2s, border-color 0.2s; cursor: pointer;
-        }
-        .team-column:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.3); }
-        .team-column-header { color: white; font-size: 24px; font-weight: bold; text-transform: uppercase; margin-bottom: 20px; text-align: center; }
-        .team-logo-placeholder {
-            width: 150px; height: 150px; background-color: rgba(255,255,255,0.02); border: 2px solid rgba(255,255,255,0.1); border-radius: 50%; margin-bottom: 30px;
-            display: flex; justify-content: center; align-items: center; font-size: 60px; font-weight: bold; color: white; transition: all 0.2s;
-        }
-        #btn-t { border-color: rgba(211, 47, 47, 0.3); }
-        #btn-t .team-column-header { color: #d32f2f; text-shadow: 0 0 10px rgba(211, 47, 47, 0.5); }
-        #btn-t .team-logo-placeholder { border-color: rgba(211, 47, 47, 0.3); color: #d32f2f; box-shadow: 0 0 20px rgba(211, 47, 47, 0.2); }
-        #btn-t:hover { background: rgba(211, 47, 47, 0.1); border-color: #d32f2f; }
-        #btn-ct { border-color: rgba(25, 118, 210, 0.3); }
-        #btn-ct .team-column-header { color: #1976d2; text-shadow: 0 0 10px rgba(25, 118, 210, 0.5); }
-        #btn-ct .team-logo-placeholder { border-color: rgba(25, 118, 210, 0.3); color: #1976d2; box-shadow: 0 0 20px rgba(25, 118, 210, 0.2); }
-        #btn-ct:hover { background: rgba(25, 118, 210, 0.1); border-color: #1976d2; }
-        .team-choose-btn {
-            padding: 12px 40px; font-size: 18px; color: white; background: none; border: 2px solid rgba(255,255,255,0.3); border-radius: 6px; font-weight: bold;
-            text-transform: uppercase; cursor: pointer; transition: all 0.2s;
-        }
-        .team-column:hover .team-choose-btn { background: white; color: black; border-color: white; }
-
         /* 状态 3: 游戏界面 UI */
         #ui-container { display: none; }
         #crosshair { position: fixed; top: 50%; left: 50%; width: 4px; height: 4px; background: #00ff00; transform: translate(-50%, -50%); border-radius: 50%;
@@ -191,19 +198,24 @@
             padding: 10px 15px; border-radius: 5px; cursor: pointer;}
         #btn-view:active { background-color: #e65100; }
         #coords-display { position: fixed; top: 10px; right: 10px; background: rgba(0, 0, 0, 0.7); border: 1px solid #00ff00; color: #00ff00;
-            padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 16px; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 0 5px #00ff00; }
+            padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 16px; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 0 5px #00ff00;
+        }
         #health-display { position: fixed; bottom: 40px; left: 40px; background: rgba(0, 0, 0, 0.7); border: 1px solid #ff5555; color: #ff5555;
-            padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 24px; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 0 5px #ff5555; }
+            padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 24px; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 0 5px #ff5555;
+        }
         #ammo-display { position: fixed; bottom: 40px; right: 40px; background: rgba(0, 0, 0, 0.7); border: 1px solid #ffce00; color: #ffce00;
-            padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 24px; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 0 5px #ffce00; }
+            padding: 8px 15px; border-radius: 5px; font-family: monospace; font-size: 24px; font-weight: bold; pointer-events: none; z-index: 20; text-shadow: 0 0 5px #ffce00;
+        }
         #joystick-base { position: fixed; width: 100px; height: 100px; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(0, 0, 0, 0.7);
             border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 30; }
         #joystick-stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: rgba(0, 0, 0, 0.9); border-radius: 50%;
             transform: translate(-50%, -50%); box-shadow: 0 0 10px rgba(0,0,0,0.8); pointer-events: none; }
         #btn-jump { position: fixed; bottom: 100px; right: 40px; width: 70px; height: 70px; background: rgba(0, 0, 0, 0.4);
-            border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; color: white; font-size: 16px; font-weight: bold; z-index: 30; cursor: pointer; user-select: none; }
+            border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; color: white; font-size: 16px; font-weight: bold; z-index: 30; cursor: pointer;
+            user-select: none; -webkit-user-select: none; touch-action: manipulation; }
         #btn-reload { position: fixed; bottom: 110px; right: 130px; width: 50px; height: 50px; background: rgba(0, 0, 0, 0.4);
-            border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; color: white; font-size: 18px; font-weight: bold; z-index: 30; cursor: pointer; user-select: none; }
+            border: 2px solid rgba(0, 0, 0, 0.7); border-radius: 50%; color: white; font-size: 18px; font-weight: bold; z-index: 30; cursor: pointer;
+            user-select: none; -webkit-user-select: none; touch-action: manipulation; }
         #online-count { position: fixed; top: 90px; left: 10px; background: rgba(0, 0, 0, 0.7); border: 1px solid #00ffff; color: #00ffff;
             padding: 5px 10px; border-radius: 5px; font-weight: bold; z-index: 20; }
         #hit-marker { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: red; font-size: 24px; font-weight: bold; pointer-events: none;
@@ -212,7 +224,8 @@
             pointer-events: none; opacity: 0; transition: opacity 0.05s; z-index: 5; }
 
         #afk-warning { position: fixed; top: 20%; left: 50%; transform: translate(-50%, -50%); background: rgba(255, 0, 0, 0.85); color: white;
-            padding: 15px 30px; font-size: 20px; font-weight: bold; border-radius: 8px; z-index: 100; display: none; text-align: center; border: 2px solid white; box-shadow: 0 0 20px red; pointer-events: none; }
+            padding: 15px 30px; font-size: 20px; font-weight: bold; border-radius: 8px; z-index: 100; display: none; text-align: center; border: 2px solid white;
+            box-shadow: 0 0 20px red; pointer-events: none; }
         #kick-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.95); color: #ff5555;
             display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; font-family: sans-serif; text-align: center; }
         #kick-screen h1 { font-size: 36px; margin-bottom: 10px; }
@@ -232,102 +245,103 @@
 <body>
     <div id="start-screen">
         <div id="start-logo">WEB CSGO<br><span style="font-size:24px; color:#fff;">Dust2 Edition</span></div>
-        <button id="start-button">进入战斗</button>
+        <button id="start-button">START WAR</button>
         <div id="loading-text">资源加载中...</div>
     </div>
 
     <div id="auth-screen">
         <div class="auth-container">
-            <h2>账号登录</h2>
-            <input type="email" id="auth-email" class="auth-input" placeholder="邮箱 (Email)">
-            <input type="password" id="auth-password" class="auth-input" placeholder="密码 (Password)">
+            <h2>ACCOUNT LOGIN</h2>
+            <input type="email" id="auth-email" class="auth-input" placeholder="Email">
+            <input type="password" id="auth-password" class="auth-input" placeholder="Password">
             <div id="auth-error"></div>
-            <button id="btn-login-auth" class="auth-btn">登录</button>
-            <button id="btn-register-auth" class="auth-btn">注册新账号</button>
-            <div class="auth-divider">--- 或 ---</div>
-            <button id="btn-guest-auth" class="auth-btn">作为游客游玩</button>
+            <button id="btn-login-auth" class="auth-btn">LOGIN</button>
+            <button id="btn-register-auth" class="auth-btn">REGISTER</button>
+            <div class="auth-divider">--- OR ---</div>
+            <button id="btn-guest-auth" class="auth-btn">PLAY AS GUEST</button>
         </div>
     </div>
 
     <div id="lobby-screen">
         <div class="lobby-left">
             <div class="user-stats">
-                <div id="lobby-username">玩家: 加载中...</div>
-                <div id="lobby-level">等级: 加载中...</div>
-                <div id="lobby-xp">经验值: 加载中...</div>
+                <div id="lobby-username">username: Loading...</div>
+                <div id="lobby-level">Level: Loading...</div>
+                <div id="lobby-xp">XP: Loading...</div>
             </div>
             <div class="lobby-bottom-btns">
                 <div>
-                    <button id="btn-shop">Shop</button>
-                    <div style="color:white; font-family:cursive; margin-top:5px; text-align:center; font-size:20px;">商店</div>
+                    <button id="btn-shop">shop</button>
+                    <div style="color:white; font-family:cursive; margin-top:5px; text-align:center; font-size:20px;">Shop</div>
                 </div>
                 <div>
-                    <button id="btn-signout">Quit</button>
-                    <div style="color:white; font-family:cursive; margin-top:5px; text-align:center; font-size:20px;">登出</div>
+                    <button id="btn-signout">sign out</button>
+                    <div style="color:white; font-family:cursive; margin-top:5px; text-align:center; font-size:20px;">Logout</div>
                 </div>
             </div>
         </div>
 
         <div class="lobby-center">
             <div class="player-model-placeholder"></div>
-            <button id="btn-find-match">寻找对局</button>
+            <button id="btn-find-match">FIND MATCH</button>
         </div>
 
         <div class="lobby-right">
-            <button class="lobby-side-btn">任务 (Quest)</button>
-            <button class="lobby-side-btn">武器背包 (Backpack)</button>
+            <button class="lobby-side-btn">gun</button>
+            <button class="lobby-side-btn">quest</button>
+            <button class="lobby-side-btn">backpack</button>
         </div>
     </div>
 
     <div id="backpack-screen">
         <div class="bp-left">
-            <h2>武器列表</h2>
+            <h2>WEAPONS</h2>
             <div id="bp-gun-list">
-                </div>
+            </div>
         </div>
         
         <div class="bp-center">
-            <button id="btn-leave-bp">返回大厅</button>
+            <button id="btn-leave-bp">LEAVE</button>
         </div>
         
         <div class="bp-right">
-            <h2>武器属性</h2>
+            <h2>STATS</h2>
             <div class="stat-row">
-                <span>伤害 (Damage)</span>
+                <span>Damage</span>
                 <div class="stat-bar-bg"><div id="stat-damage" class="stat-bar-fill" style="background: #ff5555; width: 0%;"></div></div>
             </div>
             <div class="stat-row">
-                <span>弹药量 (Ammo)</span>
+                <span>Ammo</span>
                 <div class="stat-bar-bg"><div id="stat-ammo" class="stat-bar-fill" style="background: #4CAF50; width: 0%;"></div></div>
             </div>
             <div class="stat-row">
-                <span>换弹速度 (Reload)</span>
+                <span>Reload</span>
                 <div class="stat-bar-bg"><div id="stat-reload" class="stat-bar-fill" style="background: #ffce00; width: 0%;"></div></div>
             </div>
             
             <div id="bp-desc">
-                请选择一把武器查看详情。
+                Select a weapon to view details.
             </div>
         </div>
     </div>
 
     <div id="team-select-screen">
-        <div id="team-select-title">选择你的阵营</div>
+        <div id="team-select-title">CHOOSE YOUR TEAM</div>
         <div id="team-columns">
             <div class="team-column" id="btn-auto">
-                <div class="team-column-header">自动分配</div>
+                <div class="team-column-header">AUTO SELECT</div>
                 <div class="team-logo-placeholder">?</div>
-                <button class="team-choose-btn">选择</button>
+                <button class="team-choose-btn">CHOOSE</button>
             </div>
             <div class="team-column" id="btn-t">
-                <div class="team-column-header">恐怖分子 (T)</div>
+                <div class="team-column-header">TERRORISTS</div>
                 <div class="team-logo-placeholder">T</div>
-                <button class="team-choose-btn">选择</button>
+                <button class="team-choose-btn">CHOOSE</button>
             </div>
             <div class="team-column" id="btn-ct">
-                <div class="team-column-header">反恐精英 (CT)</div>
+                <div class="team-column-header">COUNTER-TERRORISTS</div>
                 <div class="team-logo-placeholder">CT</div>
-                <button class="team-choose-btn">选择</button>
+                <button class="team-choose-btn">CHOOSE</button>
             </div>
         </div>
     </div>
@@ -339,9 +353,9 @@
         <div id="health-display">HP: 100</div>
         <div id="ammo-display">7 / 42</div>
 
-        <button id="btn-reload">R (换弹)</button>
+        <button id="btn-reload">R</button>
         <button id="btn-view">👁️ 切换视角</button>
-        <button id="btn-jump">跳跃</button>
+        <button id="btn-jump">JUMP</button>
 
         <div id="joystick-base"><div id="joystick-stick"></div></div>
         <div id="crosshair"></div>
@@ -367,473 +381,476 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getDatabase, ref, set, update, onValue, onDisconnect, remove, get } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        const firebaseConfig = { 
-            apiKey: "AIzaSyAX5TKLKkC_oHklROdhSB5QtdGZIu_9yIo", 
-            authDomain: "diddy-gun-game.firebaseapp.com", 
-            databaseURL: "https://diddy-gun-game-default-rtdb.asia-southeast1.firebasedatabase.app", 
-            projectId: "diddy-gun-game", 
-            storageBucket: "diddy-gun-game.firebasestorage.app", 
-            messagingSenderId: "712812379030", 
-            appId: "1:712812379030:web:13f04859c2651d177cfbb7" 
+        const firebaseConfig = {
+            apiKey: "AIzaSyAX5TKLKkC_oHklROdhSB5QtdGZIu_9yIo",
+            authDomain: "diddy-gun-game.firebaseapp.com",
+            databaseURL: "https://diddy-gun-game-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "diddy-gun-game",
+            storageBucket: "diddy-gun-game.firebasestorage.app",
+            messagingSenderId: "712812379030",
+            appId: "1:712812379030:web:13f04859c2651d177cfbb7"
         };
-        
-        const app = initializeApp(firebaseConfig); 
-        const auth = getAuth(app); 
-        const database = getDatabase(app);  
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const database = getDatabase(app);
 
-        let myUid = null; 
+        let myUid = null;
         let myTeam = null;
-        let remotePlayers = {};  
-        let gameStarted = false; 
-        let matchActive = false; 
-        let lastActionTime = Date.now(); 
+        let remotePlayers = {};
+
+        let gameStarted = false;
+        let matchActive = false;
+        let lastActionTime = Date.now();
         let isKicked = false;
 
-        const startScreen = document.getElementById('start-screen'); 
-        const startButton = document.getElementById('start-button'); 
-        const authScreen = document.getElementById('auth-screen'); 
-        const lobbyScreen = document.getElementById('lobby-screen'); 
+        const startScreen = document.getElementById('start-screen');
+        const startButton = document.getElementById('start-button');
+        const authScreen = document.getElementById('auth-screen');
+        const lobbyScreen = document.getElementById('lobby-screen');
         const btnFindMatch = document.getElementById('btn-find-match');
-        const teamSelectScreen = document.getElementById('team-select-screen'); 
-        const uiContainer = document.getElementById('ui-container'); 
-        const afkWarning = document.getElementById('afk-warning'); 
-        const afkCountdown = document.getElementById('afk-countdown'); 
+        const teamSelectScreen = document.getElementById('team-select-screen');
+        const uiContainer = document.getElementById('ui-container');
+        const afkWarning = document.getElementById('afk-warning');
+        const afkCountdown = document.getElementById('afk-countdown');
         const kickScreen = document.getElementById('kick-screen');
-        const loadingText = document.getElementById('loading-text');  
+        const loadingText = document.getElementById('loading-text');
 
-        // ===== 场景初始化 =====
-        const scene = new THREE.Scene(); 
-        scene.background = new THREE.Color(0x87ceeb); 
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87ceeb);
         scene.fog = new THREE.Fog(0x87ceeb, 10, 300);
-        const clock = new THREE.Clock(); 
-        let mixers = [];  
 
-        const playerContainer = new THREE.Group(); 
-        playerContainer.position.set(0, 1.25, 0); 
+        const clock = new THREE.Clock();
+        let mixers = [];
+
+        const playerContainer = new THREE.Group();
+        playerContainer.position.set(0, 1.25, 0);
         scene.add(playerContainer);
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000); 
-        playerContainer.add(camera);  
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        playerContainer.add(camera);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight); 
-        document.body.appendChild(renderer.domElement);  
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); 
-        scene.add(ambientLight); 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
-        dirLight.position.set(50, 100, 50); 
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(100, 200, 50);
         scene.add(dirLight);
 
-        // ===== 武器与枪械逻辑 =====
-        let ammoInMag = 7; 
-        let maxAmmoInMag = 7; 
-        let ammoReserve = 42; 
+        let ammoInMag = 7;
+        let maxAmmoInMag = 7;
+        let ammoReserve = 42;
         let isReloading = false;
-        
-        function updateAmmoUI() {
-            document.getElementById('ammo-display').innerText = `${ammoInMag} / ${ammoReserve}`;
-        }
+        function updateAmmoUI() { document.getElementById('ammo-display').innerText = `${ammoInMag} / ${ammoReserve}`; }
 
-        // ===== 模型加载 =====
-        const gltfLoader = new GLTFLoader();
+        // ====== 完美恢复的地图加载器逻辑 ======
         let mapMesh;
+        const objLoader = new OBJLoader();
         const mtlLoader = new MTLLoader();
+        const gltfLoader = new GLTFLoader();
+
+        mtlLoader.setPath('');
+        gltfLoader.setPath('');
+
         mtlLoader.load('de_dust2.mtl?v=3', function (materials) {
             materials.preload();
-            const objLoader = new OBJLoader();
             objLoader.setMaterials(materials);
+            objLoader.setPath('');
             objLoader.load('de_dust2.obj?v=3', function (object) {
                 mapMesh = object;
                 scene.add(object);
-                loadingText.innerText = "加载完成！";
+                loadingText.innerText = "资源加载完成！";
                 gameStarted = true;
                 startButton.style.background = '#4CAF50';
-                startButton.innerText = "进入游戏";
+                startButton.innerText = "START WAR";
+            }, undefined, function (error) {
+                console.error("模型加载错误: ", error);
             });
         });
+        // ===================================
 
         const lobbyDisplayGroup = new THREE.Group();
         lobbyDisplayGroup.position.set(0, -2, -5);
         camera.add(lobbyDisplayGroup);
         lobbyDisplayGroup.visible = false;
 
-        gltfLoader.load('dancing_banana.glb?v=2', function (gltf) { 
-            let lobbyBanana = gltf.scene; 
-            lobbyBanana.scale.set(2, 2, 2); 
-            lobbyBanana.position.set(0, 0, 0); 
-            if (gltf.animations && gltf.animations.length > 0) { 
-                let mixer = new THREE.AnimationMixer(lobbyBanana); 
-                mixer.clipAction(gltf.animations[0]).play(); 
-                mixers.push(mixer); 
-            } 
-            lobbyDisplayGroup.add(lobbyBanana); 
+        gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
+            let lobbyBanana = gltf.scene;
+            lobbyBanana.scale.set(2, 2, 2);
+            lobbyBanana.position.set(0, 0, 0);
+            if (gltf.animations && gltf.animations.length > 0) {
+                let mixer = new THREE.AnimationMixer(lobbyBanana);
+                mixer.clipAction(gltf.animations[0]).play();
+                mixers.push(mixer);
+            }
+            lobbyDisplayGroup.add(lobbyBanana);
         });
 
-        gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) { 
-            let lobbyGun = gltf.scene; 
-            lobbyGun.scale.set(0.8, 0.8, 0.8); 
-            lobbyGun.position.set(0.35, -0.1, -1.7); 
-            lobbyGun.rotation.y = 0; 
-            lobbyDisplayGroup.add(lobbyGun); 
+        gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
+            let lobbyGun = gltf.scene;
+            lobbyGun.scale.set(0.8, 0.8, 0.8);
+            lobbyGun.position.set(0.35, -0.1, -1.7);
+            lobbyGun.rotation.y = 0;
+            lobbyDisplayGroup.add(lobbyGun);
         });
 
-        let myBody = null; 
-        let isTPS = false;  
-        gltfLoader.load('dancing_banana.glb?v=2', function (gltf) { 
-            myBody = gltf.scene; 
-            myBody.scale.set(2.5, 2.5, 2.5); 
-            myBody.position.set(0, -1.25, 0); 
-            myBody.rotation.y = Math.PI; 
-            if (gltf.animations && gltf.animations.length > 0) { 
-                let mixer = new THREE.AnimationMixer(myBody); 
-                mixer.clipAction(gltf.animations[0]).play(); 
-                mixers.push(mixer); 
-            } 
-            myBody.visible = isTPS; 
-            playerContainer.add(myBody); 
+        let myBody = null;
+        let isTPS = false; 
+        gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
+            myBody = gltf.scene;
+            myBody.scale.set(2.5, 2.5, 2.5);
+            myBody.position.set(0, -1.25, 0);
+            myBody.rotation.y = Math.PI;
+            if (gltf.animations && gltf.animations.length > 0) {
+                let mixer = new THREE.AnimationMixer(myBody);
+                mixer.clipAction(gltf.animations[0]).play();
+                mixers.push(mixer);
+            }
+            myBody.visible = isTPS;
+            playerContainer.add(myBody);
         });
 
-        const gunGroup = new THREE.Group(); 
-        camera.add(gunGroup); 
-        let loadedGunModel = null; 
-        let defaultGunZ = -0.55; 
+        const gunGroup = new THREE.Group();
+        camera.add(gunGroup);
+        let loadedGunModel = null;
+        let defaultGunZ = -0.55;
         let defaultGunY = -0.35;
-        gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) { 
-            loadedGunModel = gltf.scene; 
-            loadedGunModel.scale.set(1.5, 1.5, 1.5); 
-            loadedGunModel.position.set(0.35, defaultGunY, defaultGunZ); 
-            loadedGunModel.rotation.y = Math.PI + 0.08; 
-            gunGroup.add(loadedGunModel); 
+        gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
+            loadedGunModel = gltf.scene;
+            loadedGunModel.scale.set(1.5, 1.5, 1.5);
+            loadedGunModel.position.set(0.35, defaultGunY, defaultGunZ);
+            loadedGunModel.rotation.y = Math.PI + 0.08;
+            gunGroup.add(loadedGunModel);
         });
 
-        function showLobby() { 
-            authScreen.style.display = 'none'; 
-            lobbyScreen.style.display = 'flex'; 
-            lobbyDisplayGroup.visible = true; 
-            if (loadedGunModel) loadedGunModel.visible = false; 
+        function showLobby() {
+            authScreen.style.display = 'none';
+            lobbyScreen.style.display = 'flex';
+            lobbyDisplayGroup.visible = true;
+            if (loadedGunModel) loadedGunModel.visible = false;
             playerContainer.position.set(0, 5, 10);
-            camera.position.set(0, 0, 0); 
-            camera.lookAt(0, -2, 0); 
-        }  
+            camera.position.set(0, 0, 0);
+            camera.lookAt(0, -2, 0);
+        }
 
-        startButton.addEventListener('click', () => { 
-            if (!gameStarted) return; 
-            startScreen.style.opacity = '0'; 
-            setTimeout(() => { 
-                startScreen.style.display = 'none'; 
-                if (auth.currentUser) { showLobby(); } 
-                else { authScreen.style.display = 'flex'; } 
-            }, 500); 
+        startButton.addEventListener('click', () => {
+            if (!gameStarted) return;
+            startScreen.style.opacity = '0';
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+                if (auth.currentUser) { showLobby(); } else { authScreen.style.display = 'flex'; }
+            }, 500);
         });
 
-        btnFindMatch.addEventListener('click', () => { 
-            lobbyScreen.style.opacity = '0'; 
-            setTimeout(() => { 
-                lobbyScreen.style.display = 'none'; 
-                teamSelectScreen.style.display = 'flex'; 
-            }, 500); 
+        btnFindMatch.addEventListener('click', () => {
+            lobbyScreen.style.opacity = '0';
+            setTimeout(() => {
+                lobbyScreen.style.display = 'none';
+                teamSelectScreen.style.display = 'flex';
+            }, 500);
         });
 
-        // ===== 阵营选择与比赛逻辑 =====
         function joinMatch(team) {
+            matchActive = true;
+            // 修复 AFK bug：进入地图后重置活跃时间
+            lastActionTime = Date.now(); 
+            lobbyDisplayGroup.visible = false;
+            if (!isTPS && loadedGunModel) loadedGunModel.visible = true;
             myTeam = team;
             teamSelectScreen.style.display = 'none';
             uiContainer.style.display = 'block';
-            lobbyDisplayGroup.visible = false;
-            
-            if (loadedGunModel) loadedGunModel.visible = true;
-            matchActive = true;
-            
-            // 修复挂机 Bug：正式进入游戏后，才重置活跃时间！
-            lastActionTime = Date.now();
-            
-            // 重生点逻辑
+
             if(team === 'T') {
-                playerContainer.position.set(11, 2, 4); // 恐怖分子出生点
+                playerContainer.position.set(11, 2, 4);
                 playerContainer.rotation.y = Math.PI;
             } else {
-                playerContainer.position.set(-28, 2, -56); // 反恐精英出生点
+                playerContainer.position.set(-28, 2, -56);
                 playerContainer.rotation.y = 0;
             }
             camera.position.set(0, 0, 0);
             camera.rotation.set(0, 0, 0);
-            
-            // Firebase 连接
+
             const myRef = ref(database, `players/${myUid}`);
             set(myRef, {
                 x: playerContainer.position.x, y: playerContainer.position.y, z: playerContainer.position.z,
                 rotY: playerContainer.rotation.y, team: myTeam, health: 100
             });
-            onDisconnect(myRef).remove();
         }
 
         document.getElementById('btn-t').addEventListener('click', () => joinMatch('T'));
         document.getElementById('btn-ct').addEventListener('click', () => joinMatch('CT'));
         document.getElementById('btn-auto').addEventListener('click', () => {
-            joinMatch(Math.random() > 0.5 ? 'T' : 'CT');
+            if (Math.random() > 0.5) joinMatch('T'); else joinMatch('CT');
         });
 
-        // ===== 账号系统与 AFK 逻辑 =====
-        function resetAFK() { 
-            if (isKicked || !matchActive) return; 
-            lastActionTime = Date.now(); 
-            if (afkWarning.style.display === 'block') { afkWarning.style.display = 'none'; } 
-        }  
+        function resetAFK() {
+            if (isKicked || !matchActive) return;
+            lastActionTime = Date.now();
+            if (afkWarning.style.display === 'block') { afkWarning.style.display = 'none'; }
+        }
 
-        const emailInput = document.getElementById('auth-email'); 
-        const passwordInput = document.getElementById('auth-password'); 
+        const emailInput = document.getElementById('auth-email');
+        const passwordInput = document.getElementById('auth-password');
         const authError = document.getElementById('auth-error');
-        
-        function showAuthError(message) { 
-            authError.innerText = message; 
-            authError.style.display = 'block'; 
-        }  
 
-        document.getElementById('btn-login-auth').addEventListener('click', () => { 
-            const email = emailInput.value.trim(); const pass = passwordInput.value; 
-            if(!email || !pass) return showAuthError("请输入邮箱和密码！"); 
-            signInWithEmailAndPassword(auth, email, pass).then(() => { showLobby(); }).catch((error) => { showAuthError("登录失败: " + error.message); }); 
+        function showAuthError(message) {
+            authError.innerText = message;
+            authError.style.display = 'block';
+        }
+
+        document.getElementById('btn-login-auth').addEventListener('click', () => {
+            const email = emailInput.value.trim(); const pass = passwordInput.value;
+            if(!email || !pass) return showAuthError("请输入邮箱和密码！");
+            signInWithEmailAndPassword(auth, email, pass).then(() => { showLobby(); }).catch((error) => { showAuthError("登录失败: " + error.message); });
         });
 
-        document.getElementById('btn-register-auth').addEventListener('click', () => { 
-            const email = emailInput.value.trim(); const pass = passwordInput.value; 
-            if(!email || !pass) return showAuthError("请输入邮箱和密码！");  
-            createUserWithEmailAndPassword(auth, email, pass).then(() => { showLobby(); }).catch((error) => { showAuthError("注册失败: " + error.message); }); 
+        document.getElementById('btn-register-auth').addEventListener('click', () => {
+            const email = emailInput.value.trim(); const pass = passwordInput.value;
+            if(!email || !pass) return showAuthError("请输入邮箱和密码！");
+            createUserWithEmailAndPassword(auth, email, pass).then(() => { showLobby(); }).catch((error) => { showAuthError("注册失败: " + error.message); });
         });
 
-        document.getElementById('btn-guest-auth').addEventListener('click', () => { 
-            signInAnonymously(auth).then(() => { showLobby(); }).catch((error) => { showAuthError("游客登录失败: " + error.message); }); 
+        document.getElementById('btn-guest-auth').addEventListener('click', () => {
+            signInAnonymously(auth).then(() => { showLobby(); }).catch((error) => { showAuthError("游客登录失败: " + error.message); });
         });
 
-        document.getElementById('btn-signout').addEventListener('click', () => { 
-            signOut(auth).then(() => { location.reload(); }); 
+        document.getElementById('btn-signout').addEventListener('click', () => {
+            signOut(auth).then(() => { location.reload(); }).catch((error) => { console.error("登出失败:", error); });
         });
 
-        onAuthStateChanged(auth, (user) => { 
-            if (user) { 
-                myUid = user.uid; 
-                let displayUsername = "Guest_" + user.uid.substring(0, 5); 
-                if (user.email) { displayUsername = user.email.split('@')[0]; } 
-                document.getElementById('lobby-username').innerText = `玩家: ${displayUsername}`;  
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                myUid = user.uid;
+                let displayUsername = "Guest_" + user.uid.substring(0, 5);
+                if (user.email) { displayUsername = user.email.split('@')[0]; }
+                document.getElementById('lobby-username').innerText = `username: ${displayUsername}`;
+
+                const userProfileRef = ref(database, `users/${myUid}`);
+                get(userProfileRef).then((snapshot) => {
+                    if (!snapshot.exists()) {
+                        set(userProfileRef, { level: 1, xp: 0 });
+                        document.getElementById('lobby-level').innerText = `Level: 1`;
+                        document.getElementById('lobby-xp').innerText = `XP: 0 / 100`;
+                    } else {
+                        const data = snapshot.val();
+                        let lvl = data.level || 1; let xp = data.xp || 0;
+                        let nextLvlXp = lvl * 100;
+                        document.getElementById('lobby-level').innerText = `Level: ${lvl}`;
+                        document.getElementById('lobby-xp').innerText = `XP: ${xp} / ${nextLvlXp}`;
+                    }
+                }).catch(error => { console.error("读取玩家等级失败: ", error); });
                 
-                const userProfileRef = ref(database, `users/${myUid}`); 
-                get(userProfileRef).then((snapshot) => { 
-                    if (!snapshot.exists()) { 
-                        set(userProfileRef, { level: 1, xp: 0 }); 
-                        document.getElementById('lobby-level').innerText = `等级: 1`; 
-                        document.getElementById('lobby-xp').innerText = `经验: 0 / 100`; 
-                    } else { 
-                        const data = snapshot.val(); 
-                        let lvl = data.level || 1; let xp = data.xp || 0; 
-                        document.getElementById('lobby-level').innerText = `等级: ${lvl}`; 
-                        document.getElementById('lobby-xp').innerText = `经验: ${xp} / ${lvl * 100}`; 
-                    } 
+                const myRef = ref(database, `players/${myUid}`);
+                onDisconnect(myRef).remove();
+                
+                const playersRef = ref(database, 'players');
+                onValue(playersRef, (snapshot) => {
+                    if (!matchActive) return;
+                    const data = snapshot.val() || {};
+                    let onlineCount = Object.keys(data).length;
+                    document.getElementById('online-count').innerText = `在线玩家: ${onlineCount}`;
+
+                    for (let uid in data) {
+                        if (uid === myUid) {
+                            if (data[uid].health !== undefined && data[uid].health <= 0) {
+                                playerContainer.position.set(0, 10, 0);
+                                update(ref(database, `players/${myUid}`), { health: 100 });
+                            }
+                            continue;
+                        }
+                        if (!remotePlayers[uid]) {
+                            remotePlayers[uid] = "loading";
+                            gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
+                                let networkBanana = gltf.scene;
+                                networkBanana.scale.set(2.5, 2.5, 2.5);
+                                let px = data[uid].x || 0; let py = data[uid].y !== undefined ? data[uid].y - 1.25 : 0;
+                                let pz = data[uid].z || 0; let pr = data[uid].rotY || 0;
+                                networkBanana.position.set(px, py, pz); networkBanana.rotation.y = pr + Math.PI;
+                                networkBanana.traverse((child) => {
+                                    if (child.isMesh) {
+                                        child.userData.uid = uid;
+                                        if (data[uid].team === 'T') child.material.color.set(0xff0000);
+                                        else if (data[uid].team === 'CT') child.material.color.set(0x0000ff);
+                                    }
+                                });
+                                if (gltf.animations && gltf.animations.length > 0) {
+                                    let mixer = new THREE.AnimationMixer(networkBanana);
+                                    mixer.clipAction(gltf.animations[0]).play(); mixers.push(mixer);
+                                }
+                                scene.add(networkBanana);
+                                remotePlayers[uid] = { model: networkBanana, targetPos: new THREE.Vector3(px, py, pz), targetRotY: pr + Math.PI, health: data[uid].health || 100, team: data[uid].team };
+                            }, undefined, function(error) {
+                                console.warn("找不到香蕉人模型，使用方块代替", uid);
+                                const boxGeo = new THREE.BoxGeometry(1, 2, 1);
+                                const boxMat = new THREE.MeshBasicMaterial({ color: data[uid].team === 'T' ? 0xff0000 : 0x0000ff });
+                                const fallbackBox = new THREE.Mesh(boxGeo, boxMat);
+                                fallbackBox.userData.uid = uid;
+                                fallbackBox.position.set(data[uid].x, data[uid].y, data[uid].z);
+                                scene.add(fallbackBox);
+                                remotePlayers[uid] = { model: fallbackBox, targetPos: new THREE.Vector3(data[uid].x, data[uid].y, data[uid].z), targetRotY: data[uid].rotY + Math.PI, health: data[uid].health || 100, team: data[uid].team };
+                            });
+                        } else if (remotePlayers[uid] && remotePlayers[uid] !== "loading") {
+                            let rp = remotePlayers[uid];
+                            let px = data[uid].x || 0; let py = data[uid].y !== undefined ? data[uid].y - 1.25 : 0;
+                            let pz = data[uid].z || 0; let pr = data[uid].rotY || 0;
+                            rp.targetPos.set(px, py, pz); rp.targetRotY = pr + Math.PI;
+                            rp.health = data[uid].health !== undefined ? data[uid].health : 100;
+                            if (rp.team !== data[uid].team) {
+                                rp.team = data[uid].team;
+                                if(rp.model && rp.model.traverse) {
+                                    rp.model.traverse((child) => {
+                                        if (child.isMesh) {
+                                            if (rp.team === 'T') child.material.color.set(0xff0000);
+                                            else if (rp.team === 'CT') child.material.color.set(0x0000ff);
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    for (let uid in remotePlayers) {
+                        if (!data[uid]) {
+                            if (remotePlayers[uid] !== "loading" && remotePlayers[uid].model) { scene.remove(remotePlayers[uid].model); }
+                            delete remotePlayers[uid];
+                        }
+                    }
                 });
             }
         });
 
-        // ===== 联机玩家同步 =====
-        const playersRef = ref(database, 'players');
-        onValue(playersRef, (snapshot) => {
-            if (!matchActive) return;
-            const data = snapshot.val() || {};
-            let onlineCount = Object.keys(data).length;
-            document.getElementById('online-count').innerText = `在线玩家: ${onlineCount}`;
-
-            for (let uid in data) {
-                if (uid === myUid) {
-                    if (data[uid].health !== undefined && data[uid].health <= 0) {
-                        playerContainer.position.set(0, 10, 0); // 被击杀，简单的移动到高空
-                        update(ref(database, `players/${myUid}`), { health: 100 });
-                    }
-                    continue;
-                }
-                
-                if (!remotePlayers[uid]) {
-                    remotePlayers[uid] = "loading";
-                    gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
-                        let networkBanana = gltf.scene;
-                        networkBanana.scale.set(2.5, 2.5, 2.5);
-                        let px = data[uid].x || 0; let py = data[uid].y !== undefined ? data[uid].y - 1.25 : 0; let pz = data[uid].z || 0; let pr = data[uid].rotY || 0;
-                        networkBanana.position.set(px, py, pz); networkBanana.rotation.y = pr + Math.PI;
-                        
-                        networkBanana.traverse((child) => { 
-                            if (child.isMesh) { 
-                                child.userData.uid = uid; 
-                                if (data[uid].team === 'T') child.material.color.set(0xff0000); 
-                                else if (data[uid].team === 'CT') child.material.color.set(0x0000ff); 
-                            } 
-                        });
-                        
-                        if (gltf.animations && gltf.animations.length > 0) { 
-                            let mixer = new THREE.AnimationMixer(networkBanana); mixer.clipAction(gltf.animations[0]).play(); mixers.push(mixer); 
-                        } 
-                        scene.add(networkBanana);
-                        remotePlayers[uid] = { model: networkBanana, targetPos: new THREE.Vector3(px, py, pz), targetRotY: pr + Math.PI, health: data[uid].health || 100, team: data[uid].team };
-                    });
-                } else if (remotePlayers[uid] !== "loading") {
-                    let rp = remotePlayers[uid];
-                    let px = data[uid].x || 0; let py = data[uid].y !== undefined ? data[uid].y - 1.25 : 0; let pz = data[uid].z || 0; let pr = data[uid].rotY || 0;
-                    rp.targetPos.set(px, py, pz); rp.targetRotY = pr + Math.PI;
-                }
-            }
-            
-            for (let uid in remotePlayers) {
-                if (!data[uid]) {
-                    if (remotePlayers[uid] !== "loading" && remotePlayers[uid].model) {
-                        scene.remove(remotePlayers[uid].model);
-                    }
-                    delete remotePlayers[uid];
-                }
-            }
-        });
-
-        // ===== 视角控制与移动 =====
         document.getElementById('btn-view').addEventListener('click', () => {
             isTPS = !isTPS;
             if (myBody) myBody.visible = isTPS;
             if (loadedGunModel) loadedGunModel.visible = !isTPS;
-            
-            if (isTPS) {
-                camera.position.set(0, 1.5, 4);
-                camera.rotation.x = -0.2;
-            } else {
-                camera.position.set(0, 0, 0);
-                camera.rotation.x = 0;
-            }
+            if (isTPS) { camera.position.set(0, 1.5, 4); camera.rotation.x = -0.2; } else { camera.position.set(0, 0, 0); camera.rotation.x = 0; }
         });
 
         function reloadWeapon() {
-            if (isReloading || ammoInMag === maxAmmoInMag || ammoReserve === 0) return; 
+            if (isReloading || ammoInMag === maxAmmoInMag || ammoReserve === 0) return;
             isReloading = true; updateAmmoUI();
-            if (loadedGunModel) loadedGunModel.position.y = defaultGunY - 0.6; 
-            setTimeout(() => { 
-                let neededAmmo = maxAmmoInMag - ammoInMag; 
-                let reloadAmount = Math.min(neededAmmo, ammoReserve); 
-                ammoInMag += reloadAmount; ammoReserve -= reloadAmount; 
-                isReloading = false; 
-                if (loadedGunModel) loadedGunModel.position.y = defaultGunY; 
-                updateAmmoUI(); 
+            if (loadedGunModel) loadedGunModel.position.y = defaultGunY - 0.6;
+            setTimeout(() => {
+                let neededAmmo = maxAmmoInMag - ammoInMag;
+                let reloadAmount = Math.min(neededAmmo, ammoReserve);
+                ammoInMag += reloadAmount; ammoReserve -= reloadAmount;
+                isReloading = false;
+                if (loadedGunModel) loadedGunModel.position.y = defaultGunY;
+                updateAmmoUI();
             }, 1500);
-        }  
+        }
 
-        document.getElementById('btn-reload').addEventListener('touchstart', reloadWeapon); 
-        document.getElementById('btn-reload').addEventListener('mousedown', reloadWeapon);  
+        document.getElementById('btn-reload').addEventListener('touchstart', reloadWeapon);
+        document.getElementById('btn-reload').addEventListener('mousedown', reloadWeapon);
 
-        const joyBase = document.getElementById('joystick-base'); 
-        const joyStick = document.getElementById('joystick-stick'); 
+        const joyBase = document.getElementById('joystick-base');
+        const joyStick = document.getElementById('joystick-stick');
         const coordsDisplay = document.getElementById('coords-display');
-        const joyMaxRadius = 50;  
-        let yVelocity = 0; 
-        let isGrounded = false; 
+        const joyMaxRadius = 50;
+        
+        let yVelocity = 0;
+        let isGrounded = false;
+        const gravity = -0.012; // 完美恢复的重力常量
         const jumpStrength = 0.15;
-        let moveInput = { x: 0, y: 0 }; 
+        
+        let moveInput = { x: 0, y: 0 };
         let touches = { left: null, right: null };
-        let isShooting = false;  
+        let isShooting = false;
 
         document.getElementById('btn-jump').addEventListener('touchstart', (e) => { e.preventDefault(); resetAFK(); if (isGrounded) { yVelocity = jumpStrength; isGrounded = false; }});
         document.getElementById('btn-jump').addEventListener('mousedown', (e) => { e.preventDefault(); resetAFK(); if (isGrounded) { yVelocity = jumpStrength; isGrounded = false; }});
 
-        document.addEventListener('touchstart', (e) => { 
-            if(e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || !matchActive) return; 
-            for (let t of e.changedTouches) { 
-                if (t.clientX < window.innerWidth / 2) { 
-                    touches.left = { id: t.identifier, startX: t.clientX, startY: t.clientY }; 
-                    joyBase.style.display = 'block'; joyBase.style.left = t.clientX + 'px'; joyBase.style.top = t.clientY + 'px'; 
-                    joyStick.style.transform = `translate(-50%, -50%)`; 
-                } else { 
-                    touches.right = { id: t.identifier, lastX: t.clientX, lastY: t.clientY, isTap: true }; 
-                } 
-            } 
+        document.addEventListener('touchstart', (e) => {
+            if(e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || !matchActive) return;
+            for (let t of e.changedTouches) {
+                if (t.clientX < window.innerWidth / 2) {
+                    touches.left = { id: t.identifier, startX: t.clientX, startY: t.clientY };
+                    joyBase.style.display = 'block'; joyBase.style.left = t.clientX + 'px'; joyBase.style.top = t.clientY + 'px';
+                    joyStick.style.transform = `translate(-50%, -50%)`;
+                } else { touches.right = { id: t.identifier, lastX: t.clientX, lastY: t.clientY, isTap: true }; }
+            }
         });
 
-        document.addEventListener('touchmove', (e) => { 
-            if(!matchActive) return; resetAFK(); 
-            for (let t of e.changedTouches) { 
-                if (touches.left && t.identifier === touches.left.id) { 
-                    let deltaX = t.clientX - touches.left.startX; let deltaY = t.clientY - touches.left.startY; 
-                    let dist = Math.sqrt(deltaX*deltaX + deltaY*deltaY); 
-                    if (dist > joyMaxRadius) { deltaX = (deltaX/dist)*joyMaxRadius; deltaY = (deltaY/dist)*joyMaxRadius; } 
-                    joyStick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`; 
-                    moveInput.x = deltaX / joyMaxRadius; moveInput.y = deltaY / joyMaxRadius; 
-                } 
-                if (touches.right && t.identifier === touches.right.id) { 
-                    touches.right.isTap = false; 
-                    let deltaX = t.clientX - touches.right.lastX; 
-                    playerContainer.rotation.y -= deltaX * 0.005; 
-                    touches.right.lastX = t.clientX; 
-                } 
-            } 
+        document.addEventListener('touchmove', (e) => {
+            if(!matchActive) return; resetAFK();
+            for (let t of e.changedTouches) {
+                if (touches.left && t.identifier === touches.left.id) {
+                    let deltaX = t.clientX - touches.left.startX; let deltaY = t.clientY - touches.left.startY;
+                    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    if (distance > joyMaxRadius) { deltaX = (deltaX / distance) * joyMaxRadius; deltaY = (deltaY / distance) * joyMaxRadius; }
+                    joyStick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
+                    moveInput.x = deltaX / joyMaxRadius; moveInput.y = deltaY / joyMaxRadius;
+                }
+                if (touches.right && t.identifier === touches.right.id) {
+                    touches.right.isTap = false;
+                    let deltaX = t.clientX - touches.right.lastX;
+                    playerContainer.rotation.y -= deltaX * 0.005;
+                    touches.right.lastX = t.clientX;
+                }
+            }
         });
 
-        document.addEventListener('touchend', (e) => { 
-            for (let t of e.changedTouches) { 
-                if (touches.left && t.identifier === touches.left.id) { 
-                    touches.left = null; moveInput = { x: 0, y: 0 }; joyBase.style.display = 'none'; 
-                } 
-                if (touches.right && t.identifier === touches.right.id) { 
-                    if (touches.right.isTap) shoot(); touches.right = null; 
-                } 
-            } 
+        document.addEventListener('touchend', (e) => {
+            for (let t of e.changedTouches) {
+                if (touches.left && t.identifier === touches.left.id) { touches.left = null; moveInput = { x: 0, y: 0 }; joyBase.style.display = 'none'; }
+                if (touches.right && t.identifier === touches.right.id) { if (touches.right.isTap) shoot(); touches.right = null; }
+            }
         });
 
-        document.addEventListener('mousedown', (e) => { 
-            if(e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.closest('.team-column') || !matchActive) return; 
-            if (e.button === 0) { shoot(); } 
+        document.addEventListener('mousedown', (e) => {
+            if(e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.closest('.team-column') || !matchActive) return;
+            if (e.button === 0) { shoot(); }
         });
 
-        const flashUI = document.getElementById('muzzle-flash'); 
-        const hitMarker = document.getElementById('hit-marker');  
+        const flashUI = document.getElementById('muzzle-flash');
+        const hitMarker = document.getElementById('hit-marker');
         const shootRaycaster = new THREE.Raycaster();
 
-        function shoot() { 
+        function shoot() {
             resetAFK();
-            if (isShooting || (!isTPS && !loadedGunModel) || isReloading) return; 
-            if (ammoInMag <= 0) { reloadWeapon(); return; }  
+            if (isShooting || (!isTPS && !loadedGunModel) || isReloading) return;
+            if (ammoInMag <= 0) { reloadWeapon(); return; }
             
-            isShooting = true; ammoInMag--; updateAmmoUI(); 
-            if (!isTPS && loadedGunModel) loadedGunModel.position.z = defaultGunZ + 0.1; 
+            isShooting = true; ammoInMag--; updateAmmoUI();
+            if (!isTPS && loadedGunModel) loadedGunModel.position.z = defaultGunZ + 0.1;
             flashUI.style.opacity = '1';
             
-            const shootOrigin = new THREE.Vector3(); camera.getWorldPosition(shootOrigin); 
-            const shootDir = new THREE.Vector3(); camera.getWorldDirection(shootDir); 
-            shootRaycaster.set(shootOrigin, shootDir);  
+            const shootOrigin = new THREE.Vector3(); camera.getWorldPosition(shootOrigin);
+            const shootDir = new THREE.Vector3(); camera.getWorldDirection(shootDir);
+            shootRaycaster.set(shootOrigin, shootDir);
             
             let networkTargets = [];
-            for (let uid in remotePlayers) { 
-                if (remotePlayers[uid] !== "loading" && remotePlayers[uid].model) { 
-                    networkTargets.push(remotePlayers[uid].model); 
-                } 
-            }  
+            for (let uid in remotePlayers) {
+                if (remotePlayers[uid] !== "loading" && remotePlayers[uid].model) { networkTargets.push(remotePlayers[uid].model); }
+            }
             
-            const intersects = shootRaycaster.intersectObjects(networkTargets, true); 
-            if (intersects.length > 0) { 
+            const intersects = shootRaycaster.intersectObjects(networkTargets, true);
+            if (intersects.length > 0) {
                 let hitUid = intersects[0].object.userData.uid;
-                if (hitUid && remotePlayers[hitUid]) { 
-                    if (myTeam && remotePlayers[hitUid].team === myTeam) { 
-                        // 队友，什么都不做 
-                    } else { 
+                if (hitUid && remotePlayers[hitUid]) {
+                    if (myTeam && remotePlayers[hitUid].team === myTeam) {
+                        // 队友，什么都不做
+                    } else {
                         hitMarker.style.opacity = '1';
-                        setTimeout(() => { hitMarker.style.opacity = '0'; }, 200);  
+                        setTimeout(() => { hitMarker.style.opacity = '0'; }, 200);
                         let currentTargetHP = remotePlayers[hitUid].health;
-                        if (currentTargetHP > 0) { 
-                            let newHP = currentTargetHP - 25; 
+                        if (currentTargetHP > 0) {
+                            let newHP = currentTargetHP - 25;
                             if (newHP < 0) newHP = 0;
-                            update(ref(database, `players/${hitUid}`), { health: newHP }); 
+                            update(ref(database, `players/${hitUid}`), { health: newHP });
                         }
                     }
                 }
             }
-
-            setTimeout(() => { 
-                isShooting = false; 
-                flashUI.style.opacity = '0'; 
-                if (!isTPS && loadedGunModel) loadedGunModel.position.z = defaultGunZ; 
+            
+            setTimeout(() => {
+                flashUI.style.opacity = '0'; isShooting = false;
+                if (!isTPS && loadedGunModel) loadedGunModel.position.z = defaultGunZ;
             }, 100);
         }
 
-        // ===== 背包系统逻辑集成 =====
+        // ====== 融合：背包/武器系统逻辑 ======
         const backpackScreen = document.getElementById('backpack-screen');
         const btnLeaveBp = document.getElementById('btn-leave-bp');
         const bpGunList = document.getElementById('bp-gun-list');
@@ -911,8 +928,8 @@
             backpackDisplayGroup.visible = false;
             lobbyDisplayGroup.visible = true;
         });
+        // ===================================
 
-        // ===== 核心渲染循环 =====
         const downRaycaster = new THREE.Raycaster();
         let lastSyncTime = 0;
 
@@ -920,72 +937,83 @@
             requestAnimationFrame(animate);
             let delta = clock.getDelta();
             for (let mixer of mixers) { mixer.update(delta); }
-
-            // 让背包里的武器旋转
+            
+            // 背包武器旋转展示
             if (backpackDisplayGroup && backpackDisplayGroup.visible) {
                 backpackPivot.rotation.y += 0.005; 
             }
 
-            // 只有当玩家成功加入地图后，才计算挂机时间
             if (matchActive) {
-                let inactiveTime = Date.now() - lastActionTime;
-                if (inactiveTime > 30000 && !isKicked) { 
-                    isKicked = true; 
-                    if (myUid) { remove(ref(database, `players/${myUid}`)); } 
-                    afkWarning.style.display = 'none'; uiContainer.style.display = 'none'; kickScreen.style.display = 'flex';
-                } else if (inactiveTime >= 20000) { 
-                    afkWarning.style.display = 'block'; 
-                    let timeLeft = Math.ceil((30000 - inactiveTime) / 1000);
-                    afkCountdown.innerText = timeLeft; 
-                }  
-
                 if (moveInput.x !== 0 || moveInput.y !== 0) {
                     const speed = 0.15;
                     playerContainer.translateX(moveInput.x * speed);
                     playerContainer.translateZ(moveInput.y * speed);
                 }
-
+                
+                // ====== 完美恢复的原始碰撞/重力逻辑 ======
                 if (mapMesh) {
-                    yVelocity -= 0.005; // 简易重力
-                    playerContainer.position.y += yVelocity;
-
+                    yVelocity += gravity;
+                    let nextY = playerContainer.position.y + yVelocity;
+                    let originalPos = playerContainer.position.clone();
+                    
                     const rayOrigin = playerContainer.position.clone();
-                    rayOrigin.y += 0.5; 
+                    rayOrigin.y += 0.5;
                     downRaycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
                     const intersects = downRaycaster.intersectObject(mapMesh, true);
                     
                     if (intersects.length > 0) {
                         const groundHeight = intersects[0].point.y;
-                        const targetY = groundHeight + 1.25; 
+                        const targetY = groundHeight + 1.25;
                         if (targetY <= playerContainer.position.y + 1.0) {
-                            if (playerContainer.position.y <= targetY) {
-                                playerContainer.position.y += (targetY - playerContainer.position.y) * 0.4; 
+                            if (nextY <= targetY) {
+                                playerContainer.position.y = targetY;
                                 isGrounded = true;
-                                if (yVelocity < 0) yVelocity = 0; 
-                            } else { isGrounded = false; }
-                        } else { isGrounded = false; }
-                    } else { isGrounded = false; }
+                                yVelocity = 0;
+                            } else {
+                                playerContainer.position.y = nextY;
+                                isGrounded = false;
+                            }
+                        } else {
+                            playerContainer.position.y = nextY;
+                            isGrounded = false;
+                        }
+                    } else {
+                        playerContainer.position.y = nextY;
+                        isGrounded = false;
+                    }
                 }
-
-                if (myUid && Date.now() - lastSyncTime > 66) { 
-                    const myRef = ref(database, `players/${myUid}`);
-                    update(myRef, { x: playerContainer.position.x, y: playerContainer.position.y, z: playerContainer.position.z, rotY: playerContainer.rotation.y }); 
-                    lastSyncTime = Date.now();
-                }  
+                // =====================================
                 
                 coordsDisplay.innerText = `X: ${playerContainer.position.x.toFixed(1)} | Z: ${playerContainer.position.z.toFixed(1)}`;
+                
+                let inactiveTime = Date.now() - lastActionTime;
+                if (inactiveTime > 30000 && !isKicked) {
+                    isKicked = true;
+                    if (myUid) { remove(ref(database, `players/${myUid}`)); }
+                    afkWarning.style.display = 'none'; uiContainer.style.display = 'none'; kickScreen.style.display = 'flex';
+                } else if (inactiveTime >= 20000) {
+                    afkWarning.style.display = 'block';
+                    let timeLeft = Math.ceil((30000 - inactiveTime) / 1000);
+                    afkCountdown.innerText = timeLeft;
+                }
+
+                if (myUid && Date.now() - lastSyncTime > 66) {
+                    const myRef = ref(database, `players/${myUid}`);
+                    update(myRef, { x: playerContainer.position.x, y: playerContainer.position.y, z: playerContainer.position.z, rotY: playerContainer.rotation.y });
+                    lastSyncTime = Date.now();
+                }
             }
 
-            for (let uid in remotePlayers) { 
+            for (let uid in remotePlayers) {
                 let rp = remotePlayers[uid];
-                if (rp !== "loading" && rp.model) { 
-                    rp.model.position.lerp(rp.targetPos, 0.2); 
-                    let diff = rp.targetRotY - rp.model.rotation.y; 
+                if (rp !== "loading" && rp.model) {
+                    rp.model.position.lerp(rp.targetPos, 0.2);
+                    let diff = rp.targetRotY - rp.model.rotation.y;
                     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
                     rp.model.rotation.y += diff * 0.2;
                 }
             }
-            
+
             renderer.render(scene, camera);
         }
 
