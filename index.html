@@ -639,7 +639,8 @@
             const myRef = ref(database, `players/${myUid}`);
             set(myRef, {
                 x: playerContainer.position.x, y: playerContainer.position.y, z: playerContainer.position.z,
-                rotY: playerContainer.rotation.y, team: myTeam, health: 100
+                rotY: playerContainer.rotation.y, team: myTeam, health: 100,
+                status: 'playing', lastActive: Date.now() // 标记状态为游戏中
             });
         }
 
@@ -705,65 +706,94 @@
                 const myRef = ref(database, `players/${myUid}`);
                 onDisconnect(myRef).remove();
                 
+                // ===============================================
+                // 【核心新增】：防幽灵节点，精准在线人数统计
+                // ===============================================
                 const playersRef = ref(database, 'players');
                 onValue(playersRef, (snapshot) => {
                     if (!matchActive) return;
                     const data = snapshot.val() || {};
-                    let onlineCount = Object.keys(data).length;
+                    let onlineCount = 0;
+                    let now = Date.now();
+
+                    // 1. 过滤出真正活着、且在30秒内有过行动的真实玩家
+                    for (let uid in data) {
+                        let p = data[uid];
+                        if (p.status === 'playing' && p.lastActive && (now - p.lastActive < 30000)) {
+                            onlineCount++;
+                        }
+                    }
                     document.getElementById('online-count').innerText = `在线玩家: ${onlineCount}`;
 
+                    // 2. 渲染玩家模型，剔除幽灵节点
                     for (let uid in data) {
+                        let p = data[uid];
+                        let isValid = p.status === 'playing' && p.lastActive && (now - p.lastActive < 30000);
+
                         if (uid === myUid) {
-                            if (data[uid].health !== undefined && data[uid].health <= 0) {
+                            if (p.health !== undefined && p.health <= 0) {
                                 playerContainer.position.set(0, 10, 0);
-                                update(ref(database, `players/${myUid}`), { health: 100 });
+                                update(ref(database, `players/${myUid}`), { health: 100, lastActive: Date.now() });
                             }
                             continue;
                         }
-                        if (!remotePlayers[uid]) {
-                            remotePlayers[uid] = "loading";
-                            gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
-                                let networkBanana = gltf.scene;
-                                networkBanana.scale.set(2.5, 2.5, 2.5);
-                                let px = data[uid].x || 0; let py = data[uid].y !== undefined ? data[uid].y - 1.25 : 0;
-                                let pz = data[uid].z || 0; let pr = data[uid].rotY || 0;
-                                networkBanana.position.set(px, py, pz); networkBanana.rotation.y = pr + Math.PI;
-                                networkBanana.traverse((child) => {
-                                    if (child.isMesh) {
-                                        child.userData.uid = uid;
-                                        if (data[uid].team === 'T') child.material.color.set(0xff0000);
-                                        else if (data[uid].team === 'CT') child.material.color.set(0x0000ff);
-                                    }
-                                });
-                                if (gltf.animations && gltf.animations.length > 0) {
-                                    let mixer = new THREE.AnimationMixer(networkBanana);
-                                    mixer.clipAction(gltf.animations[0]).play(); mixers.push(mixer);
-                                }
-                                scene.add(networkBanana);
-                                remotePlayers[uid] = { model: networkBanana, targetPos: new THREE.Vector3(px, py, pz), targetRotY: pr + Math.PI, health: data[uid].health || 100, team: data[uid].team };
-                            });
-                        } else if (remotePlayers[uid] && remotePlayers[uid] !== "loading") {
-                            let rp = remotePlayers[uid];
-                            let px = data[uid].x || 0; let py = data[uid].y !== undefined ? data[uid].y - 1.25 : 0;
-                            let pz = data[uid].z || 0; let pr = data[uid].rotY || 0;
-                            rp.targetPos.set(px, py, pz); rp.targetRotY = pr + Math.PI;
-                            rp.health = data[uid].health !== undefined ? data[uid].health : 100;
-                            if (rp.team !== data[uid].team) {
-                                rp.team = data[uid].team;
-                                if(rp.model && rp.model.traverse) {
-                                    rp.model.traverse((child) => {
+                        
+                        if (isValid) {
+                            if (!remotePlayers[uid]) {
+                                remotePlayers[uid] = "loading";
+                                gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
+                                    if (remotePlayers[uid] === undefined) return; // 如果在加载中途玩家断线了，直接取消
+                                    let networkBanana = gltf.scene;
+                                    networkBanana.scale.set(2.5, 2.5, 2.5);
+                                    let px = data[uid].x || 0; let py = data[uid].y !== undefined ? data[uid].y - 1.25 : 0;
+                                    let pz = data[uid].z || 0; let pr = data[uid].rotY || 0;
+                                    networkBanana.position.set(px, py, pz); networkBanana.rotation.y = pr + Math.PI;
+                                    networkBanana.traverse((child) => {
                                         if (child.isMesh) {
-                                            if (rp.team === 'T') child.material.color.set(0xff0000);
-                                            else if (rp.team === 'CT') child.material.color.set(0x0000ff);
+                                            child.userData.uid = uid;
+                                            if (data[uid].team === 'T') child.material.color.set(0xff0000);
+                                            else if (data[uid].team === 'CT') child.material.color.set(0x0000ff);
                                         }
                                     });
+                                    if (gltf.animations && gltf.animations.length > 0) {
+                                        let mixer = new THREE.AnimationMixer(networkBanana);
+                                        mixer.clipAction(gltf.animations[0]).play(); mixers.push(mixer);
+                                    }
+                                    scene.add(networkBanana);
+                                    remotePlayers[uid] = { model: networkBanana, targetPos: new THREE.Vector3(px, py, pz), targetRotY: pr + Math.PI, health: data[uid].health || 100, team: data[uid].team };
+                                });
+                            } else if (remotePlayers[uid] !== "loading") {
+                                let rp = remotePlayers[uid];
+                                rp.targetPos.set(p.x || 0, p.y !== undefined ? p.y - 1.25 : 0, p.z || 0);
+                                rp.targetRotY = (p.rotY || 0) + Math.PI;
+                                rp.health = p.health !== undefined ? p.health : 100;
+                                if (rp.team !== p.team) {
+                                    rp.team = p.team;
+                                    if(rp.model && rp.model.traverse) {
+                                        rp.model.traverse((child) => {
+                                            if (child.isMesh) {
+                                                if (rp.team === 'T') child.material.color.set(0xff0000);
+                                                else if (rp.team === 'CT') child.material.color.set(0x0000ff);
+                                            }
+                                        });
+                                    }
                                 }
                             }
+                        } else {
+                            // 遇到幽灵节点：直接从你的屏幕里抹除它的模型！
+                            if (remotePlayers[uid] && remotePlayers[uid] !== "loading") {
+                                if (remotePlayers[uid].model) scene.remove(remotePlayers[uid].model);
+                            }
+                            delete remotePlayers[uid];
                         }
                     }
+                    
+                    // 3. 清理那些在数据库中已经被移除的玩家
                     for (let uid in remotePlayers) {
                         if (!data[uid]) {
-                            if (remotePlayers[uid] !== "loading" && remotePlayers[uid].model) { scene.remove(remotePlayers[uid].model); }
+                            if (remotePlayers[uid] !== "loading" && remotePlayers[uid].model) { 
+                                scene.remove(remotePlayers[uid].model); 
+                            }
                             delete remotePlayers[uid];
                         }
                     }
@@ -920,10 +950,7 @@
                 flashUI.style.opacity = '0'; isShooting = false;
                 if (!isTPS && loadedGunModel) loadedGunModel.position.z = defZ; 
 
-                // ===============================================
-                // 【核心新增】：自动换弹/上膛机制
-                // 当弹匣子弹打光 (0 发) 且还有备用子弹时，自动拉栓上膛
-                // ===============================================
+                // AWP 自动上膛逻辑
                 if (ammoInMag === 0 && ammoReserve > 0) {
                     reloadWeapon();
                 }
@@ -961,10 +988,6 @@
             previewGuns['awp'] = bpGun;
         });
 
-        // ==========================================
-        // 【核心新增】：重制了武器数据，加入了 mag (弹匣容量) 和 reserve (备弹)
-        // AWP 现在弹匣只有 1 发，备弹 9 发 (1/9)
-        // ==========================================
         const gunDatabase = [
             { id: 'usp', name: 'USP 手枪', unlocked: true, stats: { damage: 25, ammo: 42, mag: 7, reserve: 42, reload: 60 }, desc: '标准半自动手枪。性能可靠，后坐力极小。' },
             { id: 'glock', name: '格洛克 18', unlocked: false, stats: { damage: 18, ammo: 80, mag: 20, reserve: 100, reload: 85 }, desc: '射速快，弹匣容量大。在近距离交战中效果极佳。' },
@@ -1032,7 +1055,6 @@
                 inGameGuns[equippedGun].visible = !isTPS;
                 loadedGunModel = inGameGuns[equippedGun];
                 
-                // 【核心新增】：装备武器时，直接读取数据库中新设定的弹匣容量和备弹量
                 const gunStats = gunDatabase.find(g => g.id === equippedGun).stats;
                 maxAmmoInMag = gunStats.mag; 
                 ammoInMag = maxAmmoInMag;
@@ -1126,7 +1148,10 @@
                 let inactiveTime = Date.now() - lastActionTime;
                 if (inactiveTime > 30000 && !isKicked) {
                     isKicked = true;
-                    if (myUid) { remove(ref(database, `players/${myUid}`)); }
+                    if (myUid) { 
+                        update(ref(database, `players/${myUid}`), { status: 'kicked' });
+                        remove(ref(database, `players/${myUid}`)); 
+                    }
                     afkWarning.style.display = 'none'; uiContainer.style.display = 'none'; kickScreen.style.display = 'flex';
                 } else if (inactiveTime >= 20000) {
                     afkWarning.style.display = 'block';
@@ -1134,9 +1159,19 @@
                     afkCountdown.innerText = timeLeft;
                 }
 
+                // ===============================================
+                // 【核心新增】：心跳发送系统，随时报告自己活着
+                // ===============================================
                 if (myUid && Date.now() - lastSyncTime > 66) {
                     const myRef = ref(database, `players/${myUid}`);
-                    update(myRef, { x: playerContainer.position.x, y: playerContainer.position.y, z: playerContainer.position.z, rotY: playerContainer.rotation.y });
+                    update(myRef, { 
+                        x: playerContainer.position.x, 
+                        y: playerContainer.position.y, 
+                        z: playerContainer.position.z, 
+                        rotY: playerContainer.rotation.y,
+                        lastActive: Date.now(), // 将时间戳上报给服务器
+                        status: 'playing'       // 明确上报自己正在地图中
+                    });
                     lastSyncTime = Date.now();
                 }
             }
