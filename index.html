@@ -142,7 +142,7 @@
         }
         .team-column:hover .team-choose-btn { background: white; color: black; border-color: white; }
 
-        /* --- 新增：背包/武器系统 CSS --- */
+        /* 新增：背包/武器系统 CSS */
         #backpack-screen {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0, 0, 0, 0.9); display: none; justify-content: space-between; align-items: stretch;
@@ -347,7 +347,7 @@
     </div>
 
     <div id="ui-container">
-        <div id="ui">多人在线版 (完整系统)</div>
+        <div id="ui">多人在线版</div>
         <div id="online-count">在线人数: 连接中...</div>
         <div id="coords-display">X: 0.00 | Z: 0.00</div>
         <div id="health-display">HP: 100</div>
@@ -445,7 +445,6 @@
         let isReloading = false;
         function updateAmmoUI() { document.getElementById('ammo-display').innerText = `${ammoInMag} / ${ammoReserve}`; }
 
-        // ====== 完美恢复的地图加载器逻辑 ======
         let mapMesh;
         const objLoader = new OBJLoader();
         const mtlLoader = new MTLLoader();
@@ -459,6 +458,12 @@
             objLoader.setMaterials(materials);
             objLoader.setPath('');
             objLoader.load('de_dust2.obj?v=3', function (object) {
+                
+                // RESTORED SCALE AND ROTATION FIX 
+                object.scale.set(0.02, 0.02, 0.02);
+                object.rotation.x = -Math.PI / 2;
+                object.position.set(0, 0, 0);
+                
                 mapMesh = object;
                 scene.add(object);
                 loadingText.innerText = "资源加载完成！";
@@ -469,7 +474,6 @@
                 console.error("模型加载错误: ", error);
             });
         });
-        // ===================================
 
         const lobbyDisplayGroup = new THREE.Group();
         lobbyDisplayGroup.position.set(0, -2, -5);
@@ -554,7 +558,6 @@
 
         function joinMatch(team) {
             matchActive = true;
-            // 修复 AFK bug：进入地图后重置活跃时间
             lastActionTime = Date.now(); 
             lobbyDisplayGroup.visible = false;
             if (!isTPS && loadedGunModel) loadedGunModel.visible = true;
@@ -681,15 +684,6 @@
                                 }
                                 scene.add(networkBanana);
                                 remotePlayers[uid] = { model: networkBanana, targetPos: new THREE.Vector3(px, py, pz), targetRotY: pr + Math.PI, health: data[uid].health || 100, team: data[uid].team };
-                            }, undefined, function(error) {
-                                console.warn("找不到香蕉人模型，使用方块代替", uid);
-                                const boxGeo = new THREE.BoxGeometry(1, 2, 1);
-                                const boxMat = new THREE.MeshBasicMaterial({ color: data[uid].team === 'T' ? 0xff0000 : 0x0000ff });
-                                const fallbackBox = new THREE.Mesh(boxGeo, boxMat);
-                                fallbackBox.userData.uid = uid;
-                                fallbackBox.position.set(data[uid].x, data[uid].y, data[uid].z);
-                                scene.add(fallbackBox);
-                                remotePlayers[uid] = { model: fallbackBox, targetPos: new THREE.Vector3(data[uid].x, data[uid].y, data[uid].z), targetRotY: data[uid].rotY + Math.PI, health: data[uid].health || 100, team: data[uid].team };
                             });
                         } else if (remotePlayers[uid] && remotePlayers[uid] !== "loading") {
                             let rp = remotePlayers[uid];
@@ -751,7 +745,7 @@
         
         let yVelocity = 0;
         let isGrounded = false;
-        const gravity = -0.012; // 完美恢复的重力常量
+        const gravity = -0.012; 
         const jumpStrength = 0.15;
         
         let moveInput = { x: 0, y: 0 };
@@ -830,7 +824,7 @@
                 let hitUid = intersects[0].object.userData.uid;
                 if (hitUid && remotePlayers[hitUid]) {
                     if (myTeam && remotePlayers[hitUid].team === myTeam) {
-                        // 队友，什么都不做
+                        // Teammate, do nothing
                     } else {
                         hitMarker.style.opacity = '1';
                         setTimeout(() => { hitMarker.style.opacity = '0'; }, 200);
@@ -850,7 +844,6 @@
             }, 100);
         }
 
-        // ====== 融合：背包/武器系统逻辑 ======
         const backpackScreen = document.getElementById('backpack-screen');
         const btnLeaveBp = document.getElementById('btn-leave-bp');
         const bpGunList = document.getElementById('bp-gun-list');
@@ -928,7 +921,6 @@
             backpackDisplayGroup.visible = false;
             lobbyDisplayGroup.visible = true;
         });
-        // ===================================
 
         const downRaycaster = new THREE.Raycaster();
         let lastSyncTime = 0;
@@ -938,7 +930,6 @@
             let delta = clock.getDelta();
             for (let mixer of mixers) { mixer.update(delta); }
             
-            // 背包武器旋转展示
             if (backpackDisplayGroup && backpackDisplayGroup.visible) {
                 backpackPivot.rotation.y += 0.005; 
             }
@@ -950,39 +941,28 @@
                     playerContainer.translateZ(moveInput.y * speed);
                 }
                 
-                // ====== 完美恢复的原始碰撞/重力逻辑 ======
+                // EXACT COLLISION LOGIC FROM ORIGINAL FILE RESTORED
                 if (mapMesh) {
                     yVelocity += gravity;
-                    let nextY = playerContainer.position.y + yVelocity;
-                    let originalPos = playerContainer.position.clone();
-                    
+                    playerContainer.position.y += yVelocity;
+
                     const rayOrigin = playerContainer.position.clone();
-                    rayOrigin.y += 0.5;
+                    rayOrigin.y += 0.5; 
                     downRaycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
                     const intersects = downRaycaster.intersectObject(mapMesh, true);
                     
                     if (intersects.length > 0) {
                         const groundHeight = intersects[0].point.y;
-                        const targetY = groundHeight + 1.25;
+                        const targetY = groundHeight + 1.25; 
                         if (targetY <= playerContainer.position.y + 1.0) {
-                            if (nextY <= targetY) {
-                                playerContainer.position.y = targetY;
+                            if (playerContainer.position.y <= targetY) {
+                                playerContainer.position.y += (targetY - playerContainer.position.y) * 0.4; 
                                 isGrounded = true;
-                                yVelocity = 0;
-                            } else {
-                                playerContainer.position.y = nextY;
-                                isGrounded = false;
-                            }
-                        } else {
-                            playerContainer.position.y = nextY;
-                            isGrounded = false;
-                        }
-                    } else {
-                        playerContainer.position.y = nextY;
-                        isGrounded = false;
-                    }
+                                if (yVelocity < 0) yVelocity = 0; 
+                            } else { isGrounded = false; }
+                        } else { isGrounded = false; }
+                    } else { isGrounded = false; }
                 }
-                // =====================================
                 
                 coordsDisplay.innerText = `X: ${playerContainer.position.x.toFixed(1)} | Z: ${playerContainer.position.z.toFixed(1)}`;
                 
