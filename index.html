@@ -103,7 +103,7 @@
         }
         .lobby-side-btn:hover { transform: translateX(-10px); }
 
-        /* ================= 新增：背包/武器系统 CSS ================= */
+        /* 背包/武器系统 CSS */
         #backpack-screen {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0, 0, 0, 0.9); display: none; justify-content: space-between; align-items: stretch;
@@ -223,8 +223,8 @@
     <script type="importmap">
     {
         "imports": {
-            "three": "https://unpkg.com/three@0.162.0/build/three.module.js",
-            "three/addons/": "https://unpkg.com/three@0.162.0/examples/jsm/"
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
         }
     }
     </script>
@@ -545,6 +545,9 @@
             if (loadedGunModel) loadedGunModel.visible = true;
             matchActive = true;
             
+            // 修复挂机 Bug：正式进入游戏后，才重置活跃时间！
+            lastActionTime = Date.now();
+            
             // 重生点逻辑
             if(team === 'T') {
                 playerContainer.position.set(11, 2, 4); // 恐怖分子出生点
@@ -830,7 +833,7 @@
             }, 100);
         }
 
-        // ================= 新增：背包系统逻辑集成 =================
+        // ===== 背包系统逻辑集成 =====
         const backpackScreen = document.getElementById('backpack-screen');
         const btnLeaveBp = document.getElementById('btn-leave-bp');
         const bpGunList = document.getElementById('bp-gun-list');
@@ -908,9 +911,8 @@
             backpackDisplayGroup.visible = false;
             lobbyDisplayGroup.visible = true;
         });
-        // ================= 背包系统逻辑集成结束 =================
 
-
+        // ===== 核心渲染循环 =====
         const downRaycaster = new THREE.Raycaster();
         let lastSyncTime = 0;
 
@@ -919,11 +921,12 @@
             let delta = clock.getDelta();
             for (let mixer of mixers) { mixer.update(delta); }
 
-            // 新增：让背包里的武器旋转
+            // 让背包里的武器旋转
             if (backpackDisplayGroup && backpackDisplayGroup.visible) {
                 backpackPivot.rotation.y += 0.005; 
             }
 
+            // 只有当玩家成功加入地图后，才计算挂机时间
             if (matchActive) {
                 let inactiveTime = Date.now() - lastActionTime;
                 if (inactiveTime > 30000 && !isKicked) { 
