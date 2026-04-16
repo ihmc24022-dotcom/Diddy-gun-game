@@ -142,7 +142,7 @@
         }
         .team-column:hover .team-choose-btn { background: white; color: black; border-color: white; }
 
-        /* 新增：背包/武器系统 CSS (原始的深色背景) */
+        /* 新增：背包/武器系统 CSS */
         #backpack-screen {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0, 0, 0, 0.9); display: none; justify-content: space-between; align-items: stretch;
@@ -840,6 +840,10 @@
                 if (!isTPS && loadedGunModel) loadedGunModel.position.z = defaultGunZ;
             }, 100);
         }
+
+        const backpackScreen = document.getElementById('backpack-screen');
+        const btnLeaveBp = document.getElementById('btn-leave-bp');
+        const bpGunList = document.getElementById('bp-gun-list');
 
         // 【关键修复 1】: 将 backpackDisplayGroup 添加到 camera，而不是 scene，这样模型就会永远在摄像机前面显示。
         const backpackDisplayGroup = new THREE.Group();
