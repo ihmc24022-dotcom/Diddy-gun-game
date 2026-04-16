@@ -392,17 +392,10 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getDatabase, ref, set, update, onValue, onDisconnect, remove, get } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        // ==========================================
-        // 核心更新：使用你提供的全新 Firebase 配置
-        // （已自动补全 Realtime Database 所需的 databaseURL）
-        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyCRAfAAprJGArPzfHHYPSTkjNOEeplyv7E",
             authDomain: "skibidi-f2309.firebaseapp.com",
-            
-            // 这是你专属的亚洲区数据库网址 👇
-            databaseURL: "https://skibidi-f2309-default-rtdb.asia-southeast1.firebasedatabase.app", 
-            
+            databaseURL: "https://skibidi-f2309-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "skibidi-f2309",
             storageBucket: "skibidi-f2309.firebasestorage.app",
             messagingSenderId: "859511726441",
@@ -422,8 +415,7 @@
         let lastActionTime = Date.now();
         let isKicked = false;
 
-        // 版本控制系统 (防卡死、防缓存)
-        const CURRENT_VERSION = 3; // 升级到了版本 3
+        const CURRENT_VERSION = 3; 
         const versionRef = ref(database, 'server_info/version');
 
         get(versionRef).then((snapshot) => {
@@ -927,6 +919,14 @@
             setTimeout(() => {
                 flashUI.style.opacity = '0'; isShooting = false;
                 if (!isTPS && loadedGunModel) loadedGunModel.position.z = defZ; 
+
+                // ===============================================
+                // 【核心新增】：自动换弹/上膛机制
+                // 当弹匣子弹打光 (0 发) 且还有备用子弹时，自动拉栓上膛
+                // ===============================================
+                if (ammoInMag === 0 && ammoReserve > 0) {
+                    reloadWeapon();
+                }
             }, 100);
         }
 
@@ -961,11 +961,15 @@
             previewGuns['awp'] = bpGun;
         });
 
+        // ==========================================
+        // 【核心新增】：重制了武器数据，加入了 mag (弹匣容量) 和 reserve (备弹)
+        // AWP 现在弹匣只有 1 发，备弹 9 发 (1/9)
+        // ==========================================
         const gunDatabase = [
-            { id: 'usp', name: 'USP 手枪', unlocked: true, stats: { damage: 25, ammo: 42, reload: 60 }, desc: '标准半自动手枪。性能可靠，后坐力极小。' },
-            { id: 'glock', name: '格洛克 18', unlocked: false, stats: { damage: 18, ammo: 80, reload: 85 }, desc: '射速快，弹匣容量大。在近距离交战中效果极佳。' },
-            { id: 'ak47', name: 'AK-47 步枪', unlocked: false, stats: { damage: 85, ammo: 60, reload: 40 }, desc: '伤害极高但伴随着巨大的后坐力。需要达到 10 级解锁。' },
-            { id: 'awp', name: 'AWP 狙击枪', unlocked: true, stats: { damage: 100, ammo: 10, reload: 20 }, desc: '一击必杀。高风险高回报的终极武器。' }
+            { id: 'usp', name: 'USP 手枪', unlocked: true, stats: { damage: 25, ammo: 42, mag: 7, reserve: 42, reload: 60 }, desc: '标准半自动手枪。性能可靠，后坐力极小。' },
+            { id: 'glock', name: '格洛克 18', unlocked: false, stats: { damage: 18, ammo: 80, mag: 20, reserve: 100, reload: 85 }, desc: '射速快，弹匣容量大。在近距离交战中效果极佳。' },
+            { id: 'ak47', name: 'AK-47 步枪', unlocked: false, stats: { damage: 85, ammo: 60, mag: 30, reserve: 90, reload: 40 }, desc: '伤害极高但伴随着巨大的后坐力。需要达到 10 级解锁。' },
+            { id: 'awp', name: 'AWP 狙击枪', unlocked: true, stats: { damage: 100, ammo: 10, mag: 1, reserve: 9, reload: 20 }, desc: '一击必杀。打完一发后会自动上膛 (1/9 弹药)。' }
         ];
 
         let currentSelectedGun = 'usp';
@@ -1028,10 +1032,11 @@
                 inGameGuns[equippedGun].visible = !isTPS;
                 loadedGunModel = inGameGuns[equippedGun];
                 
+                // 【核心新增】：装备武器时，直接读取数据库中新设定的弹匣容量和备弹量
                 const gunStats = gunDatabase.find(g => g.id === equippedGun).stats;
-                maxAmmoInMag = gunStats.ammo > 30 ? 30 : gunStats.ammo; 
+                maxAmmoInMag = gunStats.mag; 
                 ammoInMag = maxAmmoInMag;
-                ammoReserve = gunStats.ammo * 3; 
+                ammoReserve = gunStats.reserve; 
                 updateAmmoUI();
             }
         });
