@@ -715,7 +715,7 @@
 
                     for (let uid in data) {
                         let p = data[uid];
-                        // 30 秒 (30000 毫秒) 判定活跃在线玩家
+                        // 30 秒 (30000 毫秒) 判定
                         if (p.status === 'playing' && p.lastActive && (now - p.lastActive < 30000)) {
                             onlineCount++;
                         }
@@ -724,7 +724,7 @@
 
                     for (let uid in data) {
                         let p = data[uid];
-                        // 30 秒 (30000 毫秒) 判定
+                        // 30 秒判定
                         let isValid = p.status === 'playing' && p.lastActive && (now - p.lastActive < 30000);
 
                         if (uid === myUid) {
@@ -760,38 +760,40 @@
                                     let px = data[uid].x || 0; let py = data[uid].y !== undefined ? data[uid].y - 1.25 : 0;
                                     let pz = data[uid].z || 0; let pr = data[uid].rotY || 0;
                                     networkBanana.position.set(px, py, pz); networkBanana.rotation.y = pr + Math.PI;
+                                    
+                                    // 🌟 修复：只对香蕉人的网格进行队伍变色，不去污染武器模型
                                     networkBanana.traverse((child) => {
                                         if (child.isMesh) {
-                                            child.userData.uid = uid;
+                                            child.userData.isBananaBody = true; 
                                             if (data[uid].team === 'T') child.material.color.set(0xff0000);
                                             else if (data[uid].team === 'CT') child.material.color.set(0x0000ff);
                                         }
                                     });
 
-                                    // --- 第三人称武器显示 ---
+                                    // 🌟 核心修复：为每个玩家独立加载武器模型
                                     let remoteWeaponGroup = new THREE.Group();
                                     remoteWeaponGroup.name = "WeaponGroup";
-                                    
-                                    if (inGameGuns['usp']) {
-                                        let rUsp = inGameGuns['usp'].clone();
+                                    networkBanana.add(remoteWeaponGroup);
+
+                                    gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function(wGltf) {
+                                        let rUsp = wGltf.scene;
                                         rUsp.scale.set(0.6, 0.6, 0.6); 
                                         rUsp.position.set(0.2, 0.1, 0.4); 
                                         rUsp.rotation.y = Math.PI;
                                         rUsp.name = 'usp';
-                                        rUsp.visible = (data[uid].equippedGun === 'usp' || !data[uid].equippedGun);
+                                        rUsp.visible = false; // 隐藏，交给主更新逻辑控制
                                         remoteWeaponGroup.add(rUsp);
-                                    }
-                                    if (inGameGuns['awp']) {
-                                        let rAwp = inGameGuns['awp'].clone();
+                                    });
+
+                                    gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function(wGltf) {
+                                        let rAwp = wGltf.scene;
                                         rAwp.scale.set(0.5, 0.5, 0.5);
                                         rAwp.position.set(0.2, 0.1, 0.4);
                                         rAwp.rotation.y = Math.PI;
                                         rAwp.name = 'awp';
-                                        rAwp.visible = (data[uid].equippedGun === 'awp');
+                                        rAwp.visible = false; // 隐藏，交给主更新逻辑控制
                                         remoteWeaponGroup.add(rAwp);
-                                    }
-                                    networkBanana.add(remoteWeaponGroup);
-                                    // -----------------------
+                                    });
 
                                     if (gltf.animations && gltf.animations.length > 0) {
                                         let mixer = new THREE.AnimationMixer(networkBanana);
@@ -812,11 +814,14 @@
                                 rp.targetPos.set(p.x || 0, p.y !== undefined ? p.y - 1.25 : 0, p.z || 0);
                                 rp.targetRotY = (p.rotY || 0) + Math.PI;
                                 rp.health = p.health !== undefined ? p.health : 100;
+                                
+                                // 同步队伍变色
                                 if (rp.team !== p.team) {
                                     rp.team = p.team;
-                                    if(rp.model && rp.model.traverse) {
+                                    if(rp.model) {
                                         rp.model.traverse((child) => {
-                                            if (child.isMesh && (!child.parent || !child.parent.name.includes("Weapon"))) {
+                                            // 只渲染香蕉人的身体，不要渲染武器！
+                                            if (child.isMesh && child.userData.isBananaBody) {
                                                 if (rp.team === 'T') child.material.color.set(0xff0000);
                                                 else if (rp.team === 'CT') child.material.color.set(0x0000ff);
                                             }
@@ -824,17 +829,15 @@
                                     }
                                 }
                                 
-                                // --- 第三人称武器切换同步 ---
+                                // 🌟 核心武器同步逻辑：强制每帧验证武器的可见性
                                 let pGun = p.equippedGun || 'usp';
-                                if (rp.equippedGun !== pGun) {
-                                    rp.equippedGun = pGun;
-                                    if(rp.model) {
-                                        let wGroup = rp.model.getObjectByName("WeaponGroup");
-                                        if (wGroup) {
-                                            wGroup.children.forEach(child => {
-                                                child.visible = (child.name === pGun);
-                                            });
-                                        }
+                                rp.equippedGun = pGun;
+                                if(rp.model) {
+                                    let wGroup = rp.model.getObjectByName("WeaponGroup");
+                                    if (wGroup) {
+                                        wGroup.children.forEach(child => {
+                                            child.visible = (child.name === pGun);
+                                        });
                                     }
                                 }
                             }
@@ -1152,62 +1155,56 @@
             }
 
             if (matchActive) {
-                // ==========================================
-                // 🌟 核心修复: 三点射线防穿模检测
-                // ==========================================
                 if (moveInput.x !== 0 || moveInput.y !== 0) {
                     const speed = 0.15;
-                    let moveX = moveInput.x * speed;
-                    let moveZ = moveInput.y * speed;
+                    let moveDir = new THREE.Vector3(moveInput.x, 0, moveInput.y).normalize();
+                    moveDir.applyQuaternion(playerContainer.quaternion);
+                    let worldMoveVector = moveDir.multiplyScalar(speed);
                     
                     if (mapMesh) {
-                        const checkHeights = [-1.0, 0.0, 1.0]; // 检测脚部、腰部、头部
+                        const checkHeights = [-1.0, 0.0, 1.0]; 
                         let canMoveX = true;
                         let canMoveZ = true;
+                        const colRadius = 0.6; 
 
                         for (let h of checkHeights) {
                             const rayOrigin = playerContainer.position.clone();
                             rayOrigin.y += h; 
                             
-                            // 检测 X 轴
-                            if (moveInput.x !== 0 && canMoveX) {
-                                const localDirX = new THREE.Vector3(moveInput.x, 0, 0).normalize();
-                                const worldDirX = localDirX.applyQuaternion(playerContainer.quaternion);
-                                const rayX = new THREE.Raycaster(rayOrigin, worldDirX);
+                            if (worldMoveVector.x !== 0 && canMoveX) {
+                                const dirX = new THREE.Vector3(Math.sign(worldMoveVector.x), 0, 0);
+                                const rayX = new THREE.Raycaster(rayOrigin, dirX);
                                 const intersectsX = rayX.intersectObject(mapMesh, true);
-                                if (intersectsX.length > 0 && intersectsX[0].distance < 1.2) {
+                                if (intersectsX.length > 0 && intersectsX[0].distance < colRadius) {
                                     canMoveX = false; 
                                 }
                             }
                             
-                            // 检测 Z 轴
-                            if (moveInput.y !== 0 && canMoveZ) {
-                                const localDirZ = new THREE.Vector3(0, 0, moveInput.y).normalize();
-                                const worldDirZ = localDirZ.applyQuaternion(playerContainer.quaternion);
-                                const rayZ = new THREE.Raycaster(rayOrigin, worldDirZ);
+                            if (worldMoveVector.z !== 0 && canMoveZ) {
+                                const dirZ = new THREE.Vector3(0, 0, Math.sign(worldMoveVector.z));
+                                const rayZ = new THREE.Raycaster(rayOrigin, dirZ);
                                 const intersectsZ = rayZ.intersectObject(mapMesh, true);
-                                if (intersectsZ.length > 0 && intersectsZ[0].distance < 1.2) {
+                                if (intersectsZ.length > 0 && intersectsZ[0].distance < colRadius) {
                                     canMoveZ = false; 
                                 }
                             }
                         }
                         
-                        if (!canMoveX) moveX = 0;
-                        if (!canMoveZ) moveZ = 0;
+                        if (!canMoveX) worldMoveVector.x = 0;
+                        if (!canMoveZ) worldMoveVector.z = 0;
                     }
 
-                    if (moveX !== 0) playerContainer.translateX(moveX);
-                    if (moveZ !== 0) playerContainer.translateZ(moveZ);
+                    playerContainer.position.x += worldMoveVector.x;
+                    playerContainer.position.z += worldMoveVector.z;
                 }
                 
                 if (mapMesh) {
                     yVelocity += gravity;
                     playerContainer.position.y += yVelocity;
 
-                    // 🕳️ 防掉落虚空保护 (Kill Z)
                     if (playerContainer.position.y < -5) {
-                        update(ref(database, `players/${myUid}`), { health: 0 }); // 触发死亡重生机制
-                        playerContainer.position.y = 10; // 暂时重置高度防止被频繁触发
+                        update(ref(database, `players/${myUid}`), { health: 0 }); 
+                        playerContainer.position.y = 10; 
                         yVelocity = 0;
                     }
 
@@ -1231,7 +1228,6 @@
                 
                 coordsDisplay.innerText = `X: ${playerContainer.position.x.toFixed(1)} | Z: ${playerContainer.position.z.toFixed(1)}`;
                 
-                // ⏱️ 30 秒防挂机踢出，20 秒警告
                 let inactiveTime = Date.now() - lastActionTime;
                 if (inactiveTime > 30000 && !isKicked) {
                     isKicked = true;
@@ -1255,7 +1251,7 @@
                         rotY: playerContainer.rotation.y,
                         lastActive: Date.now(), 
                         status: 'playing',
-                        equippedGun: equippedGun // 🔫 同步当前手持武器
+                        equippedGun: equippedGun 
                     });
                     lastSyncTime = Date.now();
                 }
