@@ -766,10 +766,30 @@
                                         }
                                     });
 
-                                    // 只创建空的 WeaponGroup，等待模型加载完毕后在 animate 循环中自动填充
+                                    // --- 为每个玩家独家定制武器空组 ---
                                     let remoteWeaponGroup = new THREE.Group();
                                     remoteWeaponGroup.name = "WeaponGroup";
                                     networkBanana.add(remoteWeaponGroup);
+
+                                    // ⚠️ 核心修复：独立加载武器，彻底抛弃会引发透明 Bug 的 Clone!
+                                    gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function(wGltf) {
+                                        let rUsp = wGltf.scene;
+                                        rUsp.scale.set(0.6, 0.6, 0.6); 
+                                        rUsp.position.set(0.3, 0.1, 0.4); 
+                                        rUsp.rotation.y = Math.PI;
+                                        rUsp.name = 'usp';
+                                        remoteWeaponGroup.add(rUsp);
+                                    });
+
+                                    gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function(wGltf) {
+                                        let rAwp = wGltf.scene;
+                                        rAwp.scale.set(0.5, 0.5, 0.5);
+                                        rAwp.position.set(0.3, 0.1, 0.4);
+                                        rAwp.rotation.y = Math.PI;
+                                        rAwp.name = 'awp';
+                                        remoteWeaponGroup.add(rAwp);
+                                    });
+                                    // -----------------------
 
                                     if (gltf.animations && gltf.animations.length > 0) {
                                         let mixer = new THREE.AnimationMixer(networkBanana);
@@ -803,9 +823,8 @@
                                     }
                                 }
                                 
-                                // 仅仅记录对方切了什么枪，具体切换显示交给 animate 去做
-                                let pGun = p.equippedGun || 'usp';
-                                rp.equippedGun = pGun;
+                                // 同步武器选择状态（真正的渲染交由 animate 控制）
+                                rp.equippedGun = p.equippedGun || 'usp';
                             }
                         } else {
                             if (remotePlayers[uid] && remotePlayers[uid] !== "loading") {
@@ -1231,29 +1250,11 @@
                     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
                     rp.model.rotation.y += diff * 0.2;
 
-                    // 🌟 终极核心修复：异步补发武器机制
+                    // 🌟 核心：每帧实时同步对应玩家拿着的武器
                     let wGroup = rp.model.getObjectByName("WeaponGroup");
-                    if (wGroup && wGroup.children.length === 0 && inGameGuns['usp'] && inGameGuns['awp']) {
-                        let rUsp = inGameGuns['usp'].clone();
-                        rUsp.scale.set(0.6, 0.6, 0.6); 
-                        rUsp.position.set(0.2, 0.1, 0.4); 
-                        rUsp.rotation.y = Math.PI;
-                        rUsp.name = 'usp';
-                        rUsp.visible = false;
-                        wGroup.add(rUsp);
-
-                        let rAwp = inGameGuns['awp'].clone();
-                        rAwp.scale.set(0.5, 0.5, 0.5);
-                        rAwp.position.set(0.2, 0.1, 0.4);
-                        rAwp.rotation.y = Math.PI;
-                        rAwp.name = 'awp';
-                        rAwp.visible = false;
-                        wGroup.add(rAwp);
-                    }
-
-                    // 实时同步武器显隐状态
                     if (wGroup && wGroup.children.length > 0) {
                         wGroup.children.forEach(child => {
+                            // 只有与该玩家 Firebase 里 equippedGun 字段同名的模型才会显示
                             child.visible = (child.name === rp.equippedGun);
                         });
                     }
