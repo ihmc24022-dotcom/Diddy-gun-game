@@ -415,7 +415,7 @@
         let lastActionTime = Date.now();
         let isKicked = false;
 
-        const CURRENT_VERSION = 5; // 更新版本号以推送滑墙系统修复
+        const CURRENT_VERSION = 5; 
         const versionRef = ref(database, 'server_info/version');
 
         get(versionRef).then((snapshot) => {
@@ -715,7 +715,7 @@
 
                     for (let uid in data) {
                         let p = data[uid];
-                        // 恢复 30000 毫秒判定
+                        // 30 秒 (30000 毫秒) 判定活跃在线玩家
                         if (p.status === 'playing' && p.lastActive && (now - p.lastActive < 30000)) {
                             onlineCount++;
                         }
@@ -724,7 +724,7 @@
 
                     for (let uid in data) {
                         let p = data[uid];
-                        // 恢复 30000 毫秒判定
+                        // 30 秒 (30000 毫秒) 判定
                         let isValid = p.status === 'playing' && p.lastActive && (now - p.lastActive < 30000);
 
                         if (uid === myUid) {
@@ -768,14 +768,14 @@
                                         }
                                     });
 
-                                    // --- 核心武器显示补丁 ---
+                                    // --- 第三人称武器显示 ---
                                     let remoteWeaponGroup = new THREE.Group();
                                     remoteWeaponGroup.name = "WeaponGroup";
                                     
                                     if (inGameGuns['usp']) {
                                         let rUsp = inGameGuns['usp'].clone();
-                                        rUsp.scale.set(0.6, 0.6, 0.6); // 适配香蕉人的体型缩放
-                                        rUsp.position.set(0.2, 0.1, 0.4); // 调整到香蕉人手里的合适位置
+                                        rUsp.scale.set(0.6, 0.6, 0.6); 
+                                        rUsp.position.set(0.2, 0.1, 0.4); 
                                         rUsp.rotation.y = Math.PI;
                                         rUsp.name = 'usp';
                                         rUsp.visible = (data[uid].equippedGun === 'usp' || !data[uid].equippedGun);
@@ -824,7 +824,7 @@
                                     }
                                 }
                                 
-                                // --- 核心武器同步补丁：如果对方切枪了，实时更新他的武器模型 ---
+                                // --- 第三人称武器切换同步 ---
                                 let pGun = p.equippedGun || 'usp';
                                 if (rp.equippedGun !== pGun) {
                                     rp.equippedGun = pGun;
@@ -1152,34 +1152,48 @@
             }
 
             if (matchActive) {
+                // ==========================================
+                // 🌟 核心修复: 三点射线防穿模检测
+                // ==========================================
                 if (moveInput.x !== 0 || moveInput.y !== 0) {
                     const speed = 0.15;
                     let moveX = moveInput.x * speed;
                     let moveZ = moveInput.y * speed;
                     
                     if (mapMesh) {
-                        const rayOrigin = playerContainer.position.clone();
-                        rayOrigin.y += 1.0; 
-                        
-                        if (moveInput.x !== 0) {
-                            const localDirX = new THREE.Vector3(moveInput.x, 0, 0).normalize();
-                            const worldDirX = localDirX.applyQuaternion(playerContainer.quaternion);
-                            const rayX = new THREE.Raycaster(rayOrigin, worldDirX);
-                            const intersectsX = rayX.intersectObject(mapMesh, true);
-                            if (intersectsX.length > 0 && intersectsX[0].distance < 1.2) {
-                                moveX = 0; 
+                        const checkHeights = [-1.0, 0.0, 1.0]; // 检测脚部、腰部、头部
+                        let canMoveX = true;
+                        let canMoveZ = true;
+
+                        for (let h of checkHeights) {
+                            const rayOrigin = playerContainer.position.clone();
+                            rayOrigin.y += h; 
+                            
+                            // 检测 X 轴
+                            if (moveInput.x !== 0 && canMoveX) {
+                                const localDirX = new THREE.Vector3(moveInput.x, 0, 0).normalize();
+                                const worldDirX = localDirX.applyQuaternion(playerContainer.quaternion);
+                                const rayX = new THREE.Raycaster(rayOrigin, worldDirX);
+                                const intersectsX = rayX.intersectObject(mapMesh, true);
+                                if (intersectsX.length > 0 && intersectsX[0].distance < 1.2) {
+                                    canMoveX = false; 
+                                }
+                            }
+                            
+                            // 检测 Z 轴
+                            if (moveInput.y !== 0 && canMoveZ) {
+                                const localDirZ = new THREE.Vector3(0, 0, moveInput.y).normalize();
+                                const worldDirZ = localDirZ.applyQuaternion(playerContainer.quaternion);
+                                const rayZ = new THREE.Raycaster(rayOrigin, worldDirZ);
+                                const intersectsZ = rayZ.intersectObject(mapMesh, true);
+                                if (intersectsZ.length > 0 && intersectsZ[0].distance < 1.2) {
+                                    canMoveZ = false; 
+                                }
                             }
                         }
                         
-                        if (moveInput.y !== 0) {
-                            const localDirZ = new THREE.Vector3(0, 0, moveInput.y).normalize();
-                            const worldDirZ = localDirZ.applyQuaternion(playerContainer.quaternion);
-                            const rayZ = new THREE.Raycaster(rayOrigin, worldDirZ);
-                            const intersectsZ = rayZ.intersectObject(mapMesh, true);
-                            if (intersectsZ.length > 0 && intersectsZ[0].distance < 1.2) {
-                                moveZ = 0; 
-                            }
-                        }
+                        if (!canMoveX) moveX = 0;
+                        if (!canMoveZ) moveZ = 0;
                     }
 
                     if (moveX !== 0) playerContainer.translateX(moveX);
@@ -1190,7 +1204,7 @@
                     yVelocity += gravity;
                     playerContainer.position.y += yVelocity;
 
-                    // 🕳️ 新增防掉落机制 (Kill Z)
+                    // 🕳️ 防掉落虚空保护 (Kill Z)
                     if (playerContainer.position.y < -5) {
                         update(ref(database, `players/${myUid}`), { health: 0 }); // 触发死亡重生机制
                         playerContainer.position.y = 10; // 暂时重置高度防止被频繁触发
@@ -1217,7 +1231,7 @@
                 
                 coordsDisplay.innerText = `X: ${playerContainer.position.x.toFixed(1)} | Z: ${playerContainer.position.z.toFixed(1)}`;
                 
-                // 恢复为 30 秒 (30000 ms) 挂机踢出，20 秒给出警告
+                // ⏱️ 30 秒防挂机踢出，20 秒警告
                 let inactiveTime = Date.now() - lastActionTime;
                 if (inactiveTime > 30000 && !isKicked) {
                     isKicked = true;
