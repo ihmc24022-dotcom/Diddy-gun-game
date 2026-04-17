@@ -415,7 +415,7 @@
         let lastActionTime = Date.now();
         let isKicked = false;
 
-        const CURRENT_VERSION = 4; // 更新版本号以推送复活点修复
+        const CURRENT_VERSION = 5; // 更新版本号以推送滑墙系统修复
         const versionRef = ref(database, 'server_info/version');
 
         get(versionRef).then((snapshot) => {
@@ -725,12 +725,8 @@
                         let p = data[uid];
                         let isValid = p.status === 'playing' && p.lastActive && (now - p.lastActive < 30000);
 
-                        // ==========================================
-                        // 【核心修复】：根据队伍进行阵营复活
-                        // ==========================================
                         if (uid === myUid) {
                             if (p.health !== undefined && p.health <= 0) {
-                                // 玩家死亡，按照队伍传送回基地
                                 if (myTeam === 'T') {
                                     playerContainer.position.set(11, 2, 4);
                                     playerContainer.rotation.y = Math.PI;
@@ -738,7 +734,7 @@
                                     playerContainer.position.set(-28, 2, -56);
                                     playerContainer.rotation.y = 0;
                                 }
-                                camera.rotation.set(0, 0, 0); // 视角回正
+                                camera.rotation.set(0, 0, 0); 
                                 
                                 update(ref(database, `players/${myUid}`), { 
                                     health: 100, 
@@ -1107,29 +1103,41 @@
             }
 
             if (matchActive) {
+                // ===============================================
+                // 【核心新增】：拆分 X 和 Z 轴碰撞，实现完美“滑墙”
+                // ===============================================
                 if (moveInput.x !== 0 || moveInput.y !== 0) {
                     const speed = 0.15;
-                    let canMove = true;
+                    let moveX = moveInput.x * speed;
+                    let moveZ = moveInput.y * speed;
                     
                     if (mapMesh) {
-                        const localMoveDir = new THREE.Vector3(moveInput.x, 0, moveInput.y).normalize();
-                        const worldMoveDir = localMoveDir.applyQuaternion(playerContainer.quaternion);
-                        
                         const rayOrigin = playerContainer.position.clone();
                         rayOrigin.y += 1.0; 
                         
-                        const collisionRaycaster = new THREE.Raycaster(rayOrigin, worldMoveDir);
-                        const intersects = collisionRaycaster.intersectObject(mapMesh, true);
+                        if (moveInput.x !== 0) {
+                            const localDirX = new THREE.Vector3(moveInput.x, 0, 0).normalize();
+                            const worldDirX = localDirX.applyQuaternion(playerContainer.quaternion);
+                            const rayX = new THREE.Raycaster(rayOrigin, worldDirX);
+                            const intersectsX = rayX.intersectObject(mapMesh, true);
+                            if (intersectsX.length > 0 && intersectsX[0].distance < 1.2) {
+                                moveX = 0; 
+                            }
+                        }
                         
-                        if (intersects.length > 0 && intersects[0].distance < 1.5) {
-                            canMove = false;
+                        if (moveInput.y !== 0) {
+                            const localDirZ = new THREE.Vector3(0, 0, moveInput.y).normalize();
+                            const worldDirZ = localDirZ.applyQuaternion(playerContainer.quaternion);
+                            const rayZ = new THREE.Raycaster(rayOrigin, worldDirZ);
+                            const intersectsZ = rayZ.intersectObject(mapMesh, true);
+                            if (intersectsZ.length > 0 && intersectsZ[0].distance < 1.2) {
+                                moveZ = 0; 
+                            }
                         }
                     }
 
-                    if (canMove) {
-                        playerContainer.translateX(moveInput.x * speed);
-                        playerContainer.translateZ(moveInput.y * speed);
-                    }
+                    if (moveX !== 0) playerContainer.translateX(moveX);
+                    if (moveZ !== 0) playerContainer.translateZ(moveZ);
                 }
                 
                 if (mapMesh) {
