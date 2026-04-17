@@ -715,7 +715,8 @@
 
                     for (let uid in data) {
                         let p = data[uid];
-                        if (p.status === 'playing' && p.lastActive && (now - p.lastActive < 300000)) {
+                        // 恢复 30000 毫秒判定
+                        if (p.status === 'playing' && p.lastActive && (now - p.lastActive < 30000)) {
                             onlineCount++;
                         }
                     }
@@ -723,7 +724,8 @@
 
                     for (let uid in data) {
                         let p = data[uid];
-                        let isValid = p.status === 'playing' && p.lastActive && (now - p.lastActive < 300000);
+                        // 恢复 30000 毫秒判定
+                        let isValid = p.status === 'playing' && p.lastActive && (now - p.lastActive < 30000);
 
                         if (uid === myUid) {
                             if (p.health !== undefined && p.health <= 0) {
@@ -1215,17 +1217,18 @@
                 
                 coordsDisplay.innerText = `X: ${playerContainer.position.x.toFixed(1)} | Z: ${playerContainer.position.z.toFixed(1)}`;
                 
+                // 恢复为 30 秒 (30000 ms) 挂机踢出，20 秒给出警告
                 let inactiveTime = Date.now() - lastActionTime;
-                if (inactiveTime > 300000 && !isKicked) {
+                if (inactiveTime > 30000 && !isKicked) {
                     isKicked = true;
                     if (myUid) { 
                         update(ref(database, `players/${myUid}`), { status: 'kicked' });
                         remove(ref(database, `players/${myUid}`)); 
                     }
                     afkWarning.style.display = 'none'; uiContainer.style.display = 'none'; kickScreen.style.display = 'flex';
-                } else if (inactiveTime >= 290000) {
+                } else if (inactiveTime >= 20000) {
                     afkWarning.style.display = 'block';
-                    let timeLeft = Math.ceil((300000 - inactiveTime) / 1000);
+                    let timeLeft = Math.ceil((30000 - inactiveTime) / 1000);
                     afkCountdown.innerText = timeLeft;
                 }
 
