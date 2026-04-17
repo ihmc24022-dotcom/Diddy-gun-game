@@ -415,7 +415,7 @@
         let lastActionTime = Date.now();
         let isKicked = false;
 
-        const CURRENT_VERSION = 3; 
+        const CURRENT_VERSION = 4; // 更新版本号以推送复活点修复
         const versionRef = ref(database, 'server_info/version');
 
         get(versionRef).then((snapshot) => {
@@ -725,10 +725,29 @@
                         let p = data[uid];
                         let isValid = p.status === 'playing' && p.lastActive && (now - p.lastActive < 30000);
 
+                        // ==========================================
+                        // 【核心修复】：根据队伍进行阵营复活
+                        // ==========================================
                         if (uid === myUid) {
                             if (p.health !== undefined && p.health <= 0) {
-                                playerContainer.position.set(0, 10, 0);
-                                update(ref(database, `players/${myUid}`), { health: 100, lastActive: Date.now() });
+                                // 玩家死亡，按照队伍传送回基地
+                                if (myTeam === 'T') {
+                                    playerContainer.position.set(11, 2, 4);
+                                    playerContainer.rotation.y = Math.PI;
+                                } else {
+                                    playerContainer.position.set(-28, 2, -56);
+                                    playerContainer.rotation.y = 0;
+                                }
+                                camera.rotation.set(0, 0, 0); // 视角回正
+                                
+                                update(ref(database, `players/${myUid}`), { 
+                                    health: 100, 
+                                    lastActive: Date.now(),
+                                    x: playerContainer.position.x,
+                                    y: playerContainer.position.y,
+                                    z: playerContainer.position.z,
+                                    rotY: playerContainer.rotation.y
+                                });
                             }
                             continue;
                         }
@@ -980,9 +999,6 @@
             previewGuns['awp'] = bpGun;
         });
 
-        // ==========================================
-        // 修改点：修改狙击枪名字为 "charlie's sniper"，描述为 "Charlie Charlie cookie"
-        // ==========================================
         const gunDatabase = [
             { id: 'usp', name: 'USP 手枪', unlocked: true, stats: { damage: 25, ammo: 42, mag: 7, reserve: 42, reload: 60 }, desc: '标准半自动手枪。性能可靠，后坐力极小。' },
             { id: 'glock', name: '格洛克 18', unlocked: false, stats: { damage: 18, ammo: 80, mag: 20, reserve: 100, reload: 85 }, desc: '射速快，弹匣容量大。在近距离交战中效果极佳。' },
