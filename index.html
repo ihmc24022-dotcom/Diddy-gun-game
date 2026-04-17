@@ -640,7 +640,7 @@
             set(myRef, {
                 x: playerContainer.position.x, y: playerContainer.position.y, z: playerContainer.position.z,
                 rotY: playerContainer.rotation.y, team: myTeam, health: 100,
-                status: 'playing', lastActive: Date.now() 
+                status: 'playing', lastActive: Date.now(), equippedGun: equippedGun 
             });
         }
 
@@ -715,7 +715,6 @@
 
                     for (let uid in data) {
                         let p = data[uid];
-                        // 30 秒 (30000 毫秒) 判定
                         if (p.status === 'playing' && p.lastActive && (now - p.lastActive < 30000)) {
                             onlineCount++;
                         }
@@ -724,7 +723,6 @@
 
                     for (let uid in data) {
                         let p = data[uid];
-                        // 30 秒判定
                         let isValid = p.status === 'playing' && p.lastActive && (now - p.lastActive < 30000);
 
                         if (uid === myUid) {
@@ -760,8 +758,6 @@
                                     let px = data[uid].x || 0; let py = data[uid].y !== undefined ? data[uid].y - 1.25 : 0;
                                     let pz = data[uid].z || 0; let pr = data[uid].rotY || 0;
                                     networkBanana.position.set(px, py, pz); networkBanana.rotation.y = pr + Math.PI;
-                                    
-                                    // 🌟 修复：只对香蕉人的网格进行队伍变色，不去污染武器模型
                                     networkBanana.traverse((child) => {
                                         if (child.isMesh) {
                                             child.userData.isBananaBody = true; 
@@ -770,30 +766,10 @@
                                         }
                                     });
 
-                                    // 🌟 核心修复：为每个玩家独立加载武器模型
+                                    // 只创建空的 WeaponGroup，等待模型加载完毕后在 animate 循环中自动填充
                                     let remoteWeaponGroup = new THREE.Group();
                                     remoteWeaponGroup.name = "WeaponGroup";
                                     networkBanana.add(remoteWeaponGroup);
-
-                                    gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function(wGltf) {
-                                        let rUsp = wGltf.scene;
-                                        rUsp.scale.set(0.6, 0.6, 0.6); 
-                                        rUsp.position.set(0.2, 0.1, 0.4); 
-                                        rUsp.rotation.y = Math.PI;
-                                        rUsp.name = 'usp';
-                                        rUsp.visible = false; // 隐藏，交给主更新逻辑控制
-                                        remoteWeaponGroup.add(rUsp);
-                                    });
-
-                                    gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function(wGltf) {
-                                        let rAwp = wGltf.scene;
-                                        rAwp.scale.set(0.5, 0.5, 0.5);
-                                        rAwp.position.set(0.2, 0.1, 0.4);
-                                        rAwp.rotation.y = Math.PI;
-                                        rAwp.name = 'awp';
-                                        rAwp.visible = false; // 隐藏，交给主更新逻辑控制
-                                        remoteWeaponGroup.add(rAwp);
-                                    });
 
                                     if (gltf.animations && gltf.animations.length > 0) {
                                         let mixer = new THREE.AnimationMixer(networkBanana);
@@ -815,12 +791,10 @@
                                 rp.targetRotY = (p.rotY || 0) + Math.PI;
                                 rp.health = p.health !== undefined ? p.health : 100;
                                 
-                                // 同步队伍变色
                                 if (rp.team !== p.team) {
                                     rp.team = p.team;
                                     if(rp.model) {
                                         rp.model.traverse((child) => {
-                                            // 只渲染香蕉人的身体，不要渲染武器！
                                             if (child.isMesh && child.userData.isBananaBody) {
                                                 if (rp.team === 'T') child.material.color.set(0xff0000);
                                                 else if (rp.team === 'CT') child.material.color.set(0x0000ff);
@@ -829,17 +803,9 @@
                                     }
                                 }
                                 
-                                // 🌟 核心武器同步逻辑：强制每帧验证武器的可见性
+                                // 仅仅记录对方切了什么枪，具体切换显示交给 animate 去做
                                 let pGun = p.equippedGun || 'usp';
                                 rp.equippedGun = pGun;
-                                if(rp.model) {
-                                    let wGroup = rp.model.getObjectByName("WeaponGroup");
-                                    if (wGroup) {
-                                        wGroup.children.forEach(child => {
-                                            child.visible = (child.name === pGun);
-                                        });
-                                    }
-                                }
                             }
                         } else {
                             if (remotePlayers[uid] && remotePlayers[uid] !== "loading") {
@@ -1264,6 +1230,33 @@
                     let diff = rp.targetRotY - rp.model.rotation.y;
                     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
                     rp.model.rotation.y += diff * 0.2;
+
+                    // 🌟 终极核心修复：异步补发武器机制
+                    let wGroup = rp.model.getObjectByName("WeaponGroup");
+                    if (wGroup && wGroup.children.length === 0 && inGameGuns['usp'] && inGameGuns['awp']) {
+                        let rUsp = inGameGuns['usp'].clone();
+                        rUsp.scale.set(0.6, 0.6, 0.6); 
+                        rUsp.position.set(0.2, 0.1, 0.4); 
+                        rUsp.rotation.y = Math.PI;
+                        rUsp.name = 'usp';
+                        rUsp.visible = false;
+                        wGroup.add(rUsp);
+
+                        let rAwp = inGameGuns['awp'].clone();
+                        rAwp.scale.set(0.5, 0.5, 0.5);
+                        rAwp.position.set(0.2, 0.1, 0.4);
+                        rAwp.rotation.y = Math.PI;
+                        rAwp.name = 'awp';
+                        rAwp.visible = false;
+                        wGroup.add(rAwp);
+                    }
+
+                    // 实时同步武器显隐状态
+                    if (wGroup && wGroup.children.length > 0) {
+                        wGroup.children.forEach(child => {
+                            child.visible = (child.name === rp.equippedGun);
+                        });
+                    }
                 }
             }
 
