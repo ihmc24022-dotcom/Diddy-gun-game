@@ -715,7 +715,7 @@
 
                     for (let uid in data) {
                         let p = data[uid];
-                        if (p.status === 'playing' && p.lastActive && (now - p.lastActive < 30000)) {
+                        if (p.status === 'playing' && p.lastActive && (now - p.lastActive < 300000)) {
                             onlineCount++;
                         }
                     }
@@ -723,7 +723,7 @@
 
                     for (let uid in data) {
                         let p = data[uid];
-                        let isValid = p.status === 'playing' && p.lastActive && (now - p.lastActive < 30000);
+                        let isValid = p.status === 'playing' && p.lastActive && (now - p.lastActive < 300000);
 
                         if (uid === myUid) {
                             if (p.health !== undefined && p.health <= 0) {
@@ -765,12 +765,45 @@
                                             else if (data[uid].team === 'CT') child.material.color.set(0x0000ff);
                                         }
                                     });
+
+                                    // --- 核心武器显示补丁 ---
+                                    let remoteWeaponGroup = new THREE.Group();
+                                    remoteWeaponGroup.name = "WeaponGroup";
+                                    
+                                    if (inGameGuns['usp']) {
+                                        let rUsp = inGameGuns['usp'].clone();
+                                        rUsp.scale.set(0.6, 0.6, 0.6); // 适配香蕉人的体型缩放
+                                        rUsp.position.set(0.2, 0.1, 0.4); // 调整到香蕉人手里的合适位置
+                                        rUsp.rotation.y = Math.PI;
+                                        rUsp.name = 'usp';
+                                        rUsp.visible = (data[uid].equippedGun === 'usp' || !data[uid].equippedGun);
+                                        remoteWeaponGroup.add(rUsp);
+                                    }
+                                    if (inGameGuns['awp']) {
+                                        let rAwp = inGameGuns['awp'].clone();
+                                        rAwp.scale.set(0.5, 0.5, 0.5);
+                                        rAwp.position.set(0.2, 0.1, 0.4);
+                                        rAwp.rotation.y = Math.PI;
+                                        rAwp.name = 'awp';
+                                        rAwp.visible = (data[uid].equippedGun === 'awp');
+                                        remoteWeaponGroup.add(rAwp);
+                                    }
+                                    networkBanana.add(remoteWeaponGroup);
+                                    // -----------------------
+
                                     if (gltf.animations && gltf.animations.length > 0) {
                                         let mixer = new THREE.AnimationMixer(networkBanana);
                                         mixer.clipAction(gltf.animations[0]).play(); mixers.push(mixer);
                                     }
                                     scene.add(networkBanana);
-                                    remotePlayers[uid] = { model: networkBanana, targetPos: new THREE.Vector3(px, py, pz), targetRotY: pr + Math.PI, health: data[uid].health || 100, team: data[uid].team };
+                                    remotePlayers[uid] = { 
+                                        model: networkBanana, 
+                                        targetPos: new THREE.Vector3(px, py, pz), 
+                                        targetRotY: pr + Math.PI, 
+                                        health: data[uid].health || 100, 
+                                        team: data[uid].team,
+                                        equippedGun: data[uid].equippedGun || 'usp'
+                                    };
                                 });
                             } else if (remotePlayers[uid] !== "loading") {
                                 let rp = remotePlayers[uid];
@@ -781,11 +814,25 @@
                                     rp.team = p.team;
                                     if(rp.model && rp.model.traverse) {
                                         rp.model.traverse((child) => {
-                                            if (child.isMesh) {
+                                            if (child.isMesh && (!child.parent || !child.parent.name.includes("Weapon"))) {
                                                 if (rp.team === 'T') child.material.color.set(0xff0000);
                                                 else if (rp.team === 'CT') child.material.color.set(0x0000ff);
                                             }
                                         });
+                                    }
+                                }
+                                
+                                // --- 核心武器同步补丁：如果对方切枪了，实时更新他的武器模型 ---
+                                let pGun = p.equippedGun || 'usp';
+                                if (rp.equippedGun !== pGun) {
+                                    rp.equippedGun = pGun;
+                                    if(rp.model) {
+                                        let wGroup = rp.model.getObjectByName("WeaponGroup");
+                                        if (wGroup) {
+                                            wGroup.children.forEach(child => {
+                                                child.visible = (child.name === pGun);
+                                            });
+                                        }
                                     }
                                 }
                             }
@@ -1103,9 +1150,6 @@
             }
 
             if (matchActive) {
-                // ===============================================
-                // 【核心新增】：拆分 X 和 Z 轴碰撞，实现完美“滑墙”
-                // ===============================================
                 if (moveInput.x !== 0 || moveInput.y !== 0) {
                     const speed = 0.15;
                     let moveX = moveInput.x * speed;
@@ -1144,6 +1188,13 @@
                     yVelocity += gravity;
                     playerContainer.position.y += yVelocity;
 
+                    // 🕳️ 新增防掉落机制 (Kill Z)
+                    if (playerContainer.position.y < -5) {
+                        update(ref(database, `players/${myUid}`), { health: 0 }); // 触发死亡重生机制
+                        playerContainer.position.y = 10; // 暂时重置高度防止被频繁触发
+                        yVelocity = 0;
+                    }
+
                     const rayOrigin = playerContainer.position.clone();
                     rayOrigin.y += 0.5; 
                     downRaycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
@@ -1165,16 +1216,16 @@
                 coordsDisplay.innerText = `X: ${playerContainer.position.x.toFixed(1)} | Z: ${playerContainer.position.z.toFixed(1)}`;
                 
                 let inactiveTime = Date.now() - lastActionTime;
-                if (inactiveTime > 30000 && !isKicked) {
+                if (inactiveTime > 300000 && !isKicked) {
                     isKicked = true;
                     if (myUid) { 
                         update(ref(database, `players/${myUid}`), { status: 'kicked' });
                         remove(ref(database, `players/${myUid}`)); 
                     }
                     afkWarning.style.display = 'none'; uiContainer.style.display = 'none'; kickScreen.style.display = 'flex';
-                } else if (inactiveTime >= 20000) {
+                } else if (inactiveTime >= 290000) {
                     afkWarning.style.display = 'block';
-                    let timeLeft = Math.ceil((30000 - inactiveTime) / 1000);
+                    let timeLeft = Math.ceil((300000 - inactiveTime) / 1000);
                     afkCountdown.innerText = timeLeft;
                 }
 
@@ -1186,7 +1237,8 @@
                         z: playerContainer.position.z, 
                         rotY: playerContainer.rotation.y,
                         lastActive: Date.now(), 
-                        status: 'playing'       
+                        status: 'playing',
+                        equippedGun: equippedGun // 🔫 同步当前手持武器
                     });
                     lastSyncTime = Date.now();
                 }
