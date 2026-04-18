@@ -415,7 +415,7 @@
         let lastActionTime = Date.now();
         let isKicked = false;
 
-        const CURRENT_VERSION = 6; 
+        const CURRENT_VERSION = 7; 
         const versionRef = ref(database, 'server_info/version');
 
         get(versionRef).then((snapshot) => {
@@ -466,24 +466,29 @@
         const clock = new THREE.Clock();
         let mixers = [];
 
+        // 🌟 核心升级：强壮的“暴力动画适配引擎”
+        // 无论动画叫什么名字、有几个，绝对保证模型能动起来！
         function bindAnimations(gltf, targetObj) {
             if (!gltf.animations || gltf.animations.length === 0) return;
             const mixer = new THREE.AnimationMixer(targetObj);
             const actions = {};
 
-            function findAnim(keywords, fallback) {
+            function findAnim(keywords, fallbackIndex) {
+                // 1. 尝试关键词匹配
                 for (let i = 0; i < gltf.animations.length; i++) {
                     let name = gltf.animations[i].name.toLowerCase();
                     if (keywords.some(kw => name.includes(kw))) return mixer.clipAction(gltf.animations[i]);
                 }
-                return mixer.clipAction(gltf.animations[fallback < gltf.animations.length ? fallback : 0]);
+                // 2. 如果没找到，强制使用模运算兜底分配动画！
+                let safeIndex = fallbackIndex % gltf.animations.length;
+                return mixer.clipAction(gltf.animations[safeIndex]);
             }
 
             actions.idle = findAnim(['idle', 'stand'], 0);
             actions.run = findAnim(['run', 'walk', 'move', 'forward'], 1);
             actions.jump = findAnim(['jump', 'air', 'fall'], 2);
 
-            actions.idle.play();
+            if (actions.idle) actions.idle.play();
             targetObj.userData.mixer = mixer;
             targetObj.userData.actions = actions;
             targetObj.userData.currentAnim = 'idle';
@@ -569,12 +574,9 @@
 
         const gunGroup = new THREE.Group();
         camera.add(gunGroup);
-        
-        let inGameGuns = {}; 
-        let loadedGunModel = null; 
 
         // ==========================================
-        // 🌟 核心升级：第一人称 (FPS) 手臂动画引擎
+        // 🌟 核心升级：强壮的第一人称 (FPS) 手臂动画引擎
         // ==========================================
         let fpsHands = null;
         let fpsMixer = null;
@@ -588,7 +590,6 @@
             let next = fpsActions[animName];
             
             if (next) {
-                // 开火和换弹是一次性动作
                 if (animName === 'shoot' || animName === 'reload') {
                     next.reset();
                     next.setLoop(THREE.LoopOnce, 1);
@@ -598,26 +599,27 @@
                 }
                 
                 next.play();
-                if (prev) prev.crossFadeTo(next, duration, true);
+                // 只有 prev 和 next 不同的情况下才进行过渡
+                if (prev && prev !== next) prev.crossFadeTo(next, duration, true);
             }
             currentFpsAnim = animName;
         }
 
         gltfLoader.load('animated_fps_hands_rifle_animation_pack.glb', function (gltf) {
             fpsHands = gltf.scene;
-            // 调整到第一人称绝佳的视野位置
             fpsHands.scale.set(0.015, 0.015, 0.015); 
             fpsHands.position.set(0.1, -0.5, -0.4); 
             fpsHands.rotation.y = Math.PI - 0.1;
             
             fpsMixer = new THREE.AnimationMixer(fpsHands);
             
-            function findFpsAnim(keywords, fallback) {
+            function findFpsAnim(keywords, fallbackIndex) {
+                if (gltf.animations.length === 0) return null;
                 for (let i = 0; i < gltf.animations.length; i++) {
                     let name = gltf.animations[i].name.toLowerCase();
                     if (keywords.some(kw => name.includes(kw))) return fpsMixer.clipAction(gltf.animations[i]);
                 }
-                return gltf.animations.length > fallback ? fpsMixer.clipAction(gltf.animations[fallback]) : null;
+                return fpsMixer.clipAction(gltf.animations[fallbackIndex % gltf.animations.length]);
             }
 
             fpsActions.idle = findFpsAnim(['idle', 'stand'], 0);
@@ -628,7 +630,6 @@
             if (fpsActions.idle) fpsActions.idle.play();
             currentFpsAnim = 'idle';
 
-            // 射击或换弹结束后，自动平滑切回待机或跑动
             fpsMixer.addEventListener('finished', (e) => {
                 if (e.action === fpsActions.shoot || e.action === fpsActions.reload) {
                     let targetState = (moveInput.x !== 0 || moveInput.y !== 0) ? 'run' : 'idle';
@@ -639,14 +640,6 @@
             fpsHands.visible = !isTPS;
             camera.add(fpsHands);
         });
-
-        // 隐藏旧版的悬浮空枪，避免穿模（因为新臂模自带枪或更好的持握体验）
-        // 如果你需要显示额外武器可以解开，这里默认使用新的手臂包
-        /*
-        gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
-            // ... (旧的加载代码)
-        });
-        */
 
         function showLobby() {
             authScreen.style.display = 'none';
@@ -899,9 +892,11 @@
                                 if (rp.charModel && rp.charModel.userData.actions && rp.charModel.userData.currentAnim !== targetAnim) {
                                     let prev = rp.charModel.userData.actions[rp.charModel.userData.currentAnim];
                                     let next = rp.charModel.userData.actions[targetAnim];
-                                    if (next && prev) {
+                                    if (next && prev && next !== prev) {
                                         next.reset().play();
                                         prev.crossFadeTo(next, 0.2, true);
+                                    } else if (next) {
+                                        next.play();
                                     }
                                     rp.charModel.userData.currentAnim = targetAnim;
                                 }
@@ -929,7 +924,6 @@
         document.getElementById('btn-view').addEventListener('click', () => {
             isTPS = !isTPS;
             if (myBody) myBody.visible = isTPS;
-            // 切换时控制第一人称手臂显示
             if (fpsHands) fpsHands.visible = !isTPS; 
             
             if (isTPS) { 
@@ -945,7 +939,6 @@
             if (isReloading || ammoInMag === maxAmmoInMag || ammoReserve === 0) return;
             isReloading = true; updateAmmoUI();
             
-            // 播放第一人称换弹动画
             playFpsAnim('reload', 0.2); 
             
             setTimeout(() => {
@@ -1037,7 +1030,6 @@
             
             isShooting = true; ammoInMag--; updateAmmoUI();
             
-            // 播放第一人称射击后坐力动画
             playFpsAnim('shoot', 0.05);
 
             flashUI.style.opacity = '1';
@@ -1091,6 +1083,8 @@
 
         backpackDisplayGroup.visible = false;
         camera.add(backpackDisplayGroup); 
+
+        let previewGuns = {};
 
         const gunDatabase = [
             { id: 'usp', name: 'USP 手枪', unlocked: true, stats: { damage: 25, ammo: 42, mag: 7, reserve: 42, reload: 60 }, desc: '标准半自动手枪。性能可靠，后坐力极小。' },
@@ -1185,9 +1179,7 @@
             requestAnimationFrame(animate);
             let delta = clock.getDelta();
             
-            // 更新所有的独立动画混合器
             for (let mixer of mixers) { mixer.update(delta); }
-            // 🌟 独立更新第一人称手臂混合器
             if (fpsMixer) fpsMixer.update(delta);
             
             if (backpackDisplayGroup && backpackDisplayGroup.visible) {
@@ -1195,7 +1187,6 @@
             }
 
             if (matchActive) {
-                // 第一人称动画逻辑：不在射击或换弹时，依据移动按键切换跑动/待机
                 if (!isShooting && !isReloading && !isTPS) {
                     if (moveInput.x !== 0 || moveInput.y !== 0) {
                         playFpsAnim('run', 0.2);
@@ -1215,9 +1206,11 @@
                 if (myBody && myBody.userData.actions && myBody.userData.currentAnim !== localAnimState) {
                     let prev = myBody.userData.actions[myBody.userData.currentAnim];
                     let next = myBody.userData.actions[localAnimState];
-                    if (prev && next) {
+                    if (prev && next && prev !== next) {
                         next.reset().play();
                         prev.crossFadeTo(next, 0.2, true);
+                    } else if (next) {
+                        next.play();
                     }
                     myBody.userData.currentAnim = localAnimState;
                 }
@@ -1319,7 +1312,7 @@
                         lastActive: Date.now(), 
                         status: 'playing',
                         equippedGun: equippedGun,
-                        anim: localAnimState
+                        anim: localAnimState 
                     });
                     lastSyncTime = Date.now();
                 }
