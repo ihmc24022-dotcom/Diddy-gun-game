@@ -521,16 +521,17 @@
         camera.add(lobbyDisplayGroup);
         lobbyDisplayGroup.visible = false;
 
-        gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
-            let lobbyBanana = gltf.scene;
-            lobbyBanana.scale.set(2, 2, 2);
-            lobbyBanana.position.set(0, 0, 0);
+        // 🌟 大厅模型替换为 Phoenix Terrorist
+        gltfLoader.load('tm_phoenix_v2-_csgo_terrorist_characters.glb', function (gltf) {
+            let lobbyChar = gltf.scene;
+            lobbyChar.scale.set(0.022, 0.022, 0.022);
+            lobbyChar.position.set(0, -1.5, 0);
             if (gltf.animations && gltf.animations.length > 0) {
-                let mixer = new THREE.AnimationMixer(lobbyBanana);
+                let mixer = new THREE.AnimationMixer(lobbyChar);
                 mixer.clipAction(gltf.animations[0]).play();
                 mixers.push(mixer);
             }
-            lobbyDisplayGroup.add(lobbyBanana);
+            lobbyDisplayGroup.add(lobbyChar);
         });
 
         gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
@@ -543,9 +544,11 @@
 
         let myBody = null;
         let isTPS = false; 
-        gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
+        
+        // 🌟 自己身体模型替换为 Phoenix Terrorist
+        gltfLoader.load('tm_phoenix_v2-_csgo_terrorist_characters.glb', function (gltf) {
             myBody = gltf.scene;
-            myBody.scale.set(2.5, 2.5, 2.5);
+            myBody.scale.set(0.022, 0.022, 0.022);
             myBody.position.set(0, -1.25, 0);
             myBody.rotation.y = Math.PI;
             if (gltf.animations && gltf.animations.length > 0) {
@@ -640,7 +643,7 @@
             set(myRef, {
                 x: playerContainer.position.x, y: playerContainer.position.y, z: playerContainer.position.z,
                 rotY: playerContainer.rotation.y, team: myTeam, health: 100,
-                status: 'playing', lastActive: Date.now() 
+                status: 'playing', lastActive: Date.now(), equippedGun: equippedGun 
             });
         }
 
@@ -751,32 +754,71 @@
                         if (isValid) {
                             if (!remotePlayers[uid]) {
                                 remotePlayers[uid] = "loading";
-                                gltfLoader.load('dancing_banana.glb?v=2', function (gltf) {
+                                
+                                // 🌟 使用强大的 Wrapper Group 机制完美加载复杂骨骼模型
+                                gltfLoader.load('tm_phoenix_v2-_csgo_terrorist_characters.glb', function (gltf) {
                                     if (remotePlayers[uid] === undefined) return; 
-                                    let networkBanana = gltf.scene;
-                                    networkBanana.scale.set(2.5, 2.5, 2.5);
-                                    let px = data[uid].x || 0; let py = data[uid].y !== undefined ? data[uid].y - 1.25 : 0;
-                                    let pz = data[uid].z || 0; let pr = data[uid].rotY || 0;
-                                    networkBanana.position.set(px, py, pz); networkBanana.rotation.y = pr + Math.PI;
-                                    networkBanana.traverse((child) => {
+                                    
+                                    let networkPlayer = new THREE.Group();
+                                    
+                                    let networkChar = gltf.scene;
+                                    networkChar.scale.set(0.022, 0.022, 0.022);
+                                    
+                                    networkChar.traverse((child) => {
                                         if (child.isMesh) {
-                                            child.userData.isBananaBody = true; 
-                                            if (data[uid].team === 'T') child.material.color.set(0xff0000);
-                                            else if (data[uid].team === 'CT') child.material.color.set(0x0000ff);
+                                            child.userData.isPlayerBody = true; 
+                                            // 轻微染色区分敌我，不破坏原材质高清贴图
+                                            if (data[uid].team === 'T') child.material.color.setHex(0xffcccc); 
+                                            else if (data[uid].team === 'CT') child.material.color.setHex(0xccccff);
                                         }
                                     });
 
+                                    networkPlayer.add(networkChar);
+
                                     let remoteWeaponGroup = new THREE.Group();
                                     remoteWeaponGroup.name = "WeaponGroup";
-                                    networkBanana.add(remoteWeaponGroup);
+                                    networkPlayer.add(remoteWeaponGroup);
+
+                                    // 🌟 核心：武器直接重新异步加载，彻底杜绝 SkinnedMesh Clone 造成的隐形和贴地 Bug
+                                    gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function(wGltf) {
+                                        let rUsp = wGltf.scene;
+                                        rUsp.scale.set(1.5, 1.5, 1.5); 
+                                        // 高度设置在 1.5 刚好落在模型手里，不再落地上
+                                        rUsp.position.set(0.5, 1.5, 1.0); 
+                                        rUsp.rotation.y = Math.PI;
+                                        rUsp.name = 'usp';
+                                        rUsp.visible = false;
+                                        remoteWeaponGroup.add(rUsp);
+                                    });
+
+                                    gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function(wGltf) {
+                                        let rAwp = wGltf.scene;
+                                        rAwp.scale.set(1.25, 1.25, 1.25);
+                                        rAwp.position.set(0.5, 1.5, 1.0);
+                                        rAwp.rotation.y = Math.PI;
+                                        rAwp.name = 'awp';
+                                        rAwp.visible = false;
+                                        remoteWeaponGroup.add(rAwp);
+                                    });
+
+                                    let px = data[uid].x || 0; 
+                                    let py = data[uid].y !== undefined ? data[uid].y - 1.25 : 0;
+                                    let pz = data[uid].z || 0; 
+                                    let pr = data[uid].rotY || 0;
+                                    
+                                    networkPlayer.position.set(px, py, pz); 
+                                    networkPlayer.rotation.y = pr + Math.PI;
 
                                     if (gltf.animations && gltf.animations.length > 0) {
-                                        let mixer = new THREE.AnimationMixer(networkBanana);
-                                        mixer.clipAction(gltf.animations[0]).play(); mixers.push(mixer);
+                                        let mixer = new THREE.AnimationMixer(networkChar);
+                                        mixer.clipAction(gltf.animations[0]).play(); 
+                                        mixers.push(mixer);
                                     }
-                                    scene.add(networkBanana);
+                                    
+                                    scene.add(networkPlayer);
+                                    
                                     remotePlayers[uid] = { 
-                                        model: networkBanana, 
+                                        model: networkPlayer, 
                                         targetPos: new THREE.Vector3(px, py, pz), 
                                         targetRotY: pr + Math.PI, 
                                         health: data[uid].health || 100, 
@@ -794,9 +836,9 @@
                                     rp.team = p.team;
                                     if(rp.model) {
                                         rp.model.traverse((child) => {
-                                            if (child.isMesh && child.userData.isBananaBody) {
-                                                if (rp.team === 'T') child.material.color.set(0xff0000);
-                                                else if (rp.team === 'CT') child.material.color.set(0x0000ff);
+                                            if (child.isMesh && child.userData.isPlayerBody) {
+                                                if (rp.team === 'T') child.material.color.setHex(0xffcccc);
+                                                else if (rp.team === 'CT') child.material.color.setHex(0xccccff);
                                             }
                                         });
                                     }
@@ -1228,27 +1270,8 @@
                     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
                     rp.model.rotation.y += diff * 0.2;
 
-                    // 🌟 自动异步补发武器机制
+                    // 实时同步武器显隐状态
                     let wGroup = rp.model.getObjectByName("WeaponGroup");
-                    if (wGroup && wGroup.children.length === 0 && inGameGuns['usp'] && inGameGuns['awp']) {
-                        let rUsp = inGameGuns['usp'].clone();
-                        rUsp.scale.set(0.6, 0.6, 0.6); 
-                        // 将 Y 高度设置为 0.6，正好在香蕉人胸口/手的位置
-                        rUsp.position.set(0.2, 0.6, 0.4); 
-                        rUsp.rotation.y = Math.PI;
-                        rUsp.name = 'usp';
-                        rUsp.visible = false;
-                        wGroup.add(rUsp);
-
-                        let rAwp = inGameGuns['awp'].clone();
-                        rAwp.scale.set(0.5, 0.5, 0.5);
-                        rAwp.position.set(0.2, 0.6, 0.4);
-                        rAwp.rotation.y = Math.PI;
-                        rAwp.name = 'awp';
-                        rAwp.visible = false;
-                        wGroup.add(rAwp);
-                    }
-
                     if (wGroup && wGroup.children.length > 0) {
                         wGroup.children.forEach(child => {
                             child.visible = (child.name === rp.equippedGun);
