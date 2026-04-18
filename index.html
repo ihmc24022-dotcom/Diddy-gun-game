@@ -415,7 +415,7 @@
         let lastActionTime = Date.now();
         let isKicked = false;
 
-        const CURRENT_VERSION = 5; 
+        const CURRENT_VERSION = 6; 
         const versionRef = ref(database, 'server_info/version');
 
         get(versionRef).then((snapshot) => {
@@ -465,6 +465,32 @@
 
         const clock = new THREE.Clock();
         let mixers = [];
+
+        // 🌟 核心：动画状态机绑定函数
+        function bindAnimations(gltf, targetObj) {
+            if (!gltf.animations || gltf.animations.length === 0) return;
+            const mixer = new THREE.AnimationMixer(targetObj);
+            const actions = {};
+
+            // 智能检索匹配模型内自带的动画
+            function findAnim(keywords, fallback) {
+                for (let i = 0; i < gltf.animations.length; i++) {
+                    let name = gltf.animations[i].name.toLowerCase();
+                    if (keywords.some(kw => name.includes(kw))) return mixer.clipAction(gltf.animations[i]);
+                }
+                return mixer.clipAction(gltf.animations[fallback < gltf.animations.length ? fallback : 0]);
+            }
+
+            actions.idle = findAnim(['idle', 'stand'], 0);
+            actions.run = findAnim(['run', 'walk', 'move', 'forward'], 1);
+            actions.jump = findAnim(['jump', 'air', 'fall'], 2);
+
+            actions.idle.play();
+            targetObj.userData.mixer = mixer;
+            targetObj.userData.actions = actions;
+            targetObj.userData.currentAnim = 'idle';
+            mixers.push(mixer);
+        }
 
         const playerContainer = new THREE.Group();
         playerContainer.position.set(0, 1.25, 0);
@@ -521,16 +547,11 @@
         camera.add(lobbyDisplayGroup);
         lobbyDisplayGroup.visible = false;
 
-        // 🌟 大厅模型替换为 Phoenix Terrorist
         gltfLoader.load('tm_phoenix_v2-_csgo_terrorist_characters.glb', function (gltf) {
             let lobbyChar = gltf.scene;
             lobbyChar.scale.set(0.022, 0.022, 0.022);
             lobbyChar.position.set(0, -1.5, 0);
-            if (gltf.animations && gltf.animations.length > 0) {
-                let mixer = new THREE.AnimationMixer(lobbyChar);
-                mixer.clipAction(gltf.animations[0]).play();
-                mixers.push(mixer);
-            }
+            bindAnimations(gltf, lobbyChar);
             lobbyDisplayGroup.add(lobbyChar);
         });
 
@@ -544,18 +565,14 @@
 
         let myBody = null;
         let isTPS = false; 
-        
-        // 🌟 自己身体模型替换为 Phoenix Terrorist
+        let localAnimState = 'idle'; // 本地动画状态记录
+
         gltfLoader.load('tm_phoenix_v2-_csgo_terrorist_characters.glb', function (gltf) {
             myBody = gltf.scene;
             myBody.scale.set(0.022, 0.022, 0.022);
             myBody.position.set(0, -1.25, 0);
             myBody.rotation.y = Math.PI;
-            if (gltf.animations && gltf.animations.length > 0) {
-                let mixer = new THREE.AnimationMixer(myBody);
-                mixer.clipAction(gltf.animations[0]).play();
-                mixers.push(mixer);
-            }
+            bindAnimations(gltf, myBody);
             myBody.visible = isTPS;
             playerContainer.add(myBody);
         });
@@ -643,7 +660,7 @@
             set(myRef, {
                 x: playerContainer.position.x, y: playerContainer.position.y, z: playerContainer.position.z,
                 rotY: playerContainer.rotation.y, team: myTeam, health: 100,
-                status: 'playing', lastActive: Date.now(), equippedGun: equippedGun 
+                status: 'playing', lastActive: Date.now(), equippedGun: equippedGun, anim: localAnimState
             });
         }
 
@@ -755,19 +772,18 @@
                             if (!remotePlayers[uid]) {
                                 remotePlayers[uid] = "loading";
                                 
-                                // 🌟 使用强大的 Wrapper Group 机制完美加载复杂骨骼模型
                                 gltfLoader.load('tm_phoenix_v2-_csgo_terrorist_characters.glb', function (gltf) {
                                     if (remotePlayers[uid] === undefined) return; 
                                     
                                     let networkPlayer = new THREE.Group();
-                                    
                                     let networkChar = gltf.scene;
                                     networkChar.scale.set(0.022, 0.022, 0.022);
                                     
+                                    bindAnimations(gltf, networkChar);
+
                                     networkChar.traverse((child) => {
                                         if (child.isMesh) {
                                             child.userData.isPlayerBody = true; 
-                                            // 轻微染色区分敌我，不破坏原材质高清贴图
                                             if (data[uid].team === 'T') child.material.color.setHex(0xffcccc); 
                                             else if (data[uid].team === 'CT') child.material.color.setHex(0xccccff);
                                         }
@@ -779,11 +795,9 @@
                                     remoteWeaponGroup.name = "WeaponGroup";
                                     networkPlayer.add(remoteWeaponGroup);
 
-                                    // 🌟 核心：武器直接重新异步加载，彻底杜绝 SkinnedMesh Clone 造成的隐形和贴地 Bug
                                     gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function(wGltf) {
                                         let rUsp = wGltf.scene;
                                         rUsp.scale.set(1.5, 1.5, 1.5); 
-                                        // 高度设置在 1.5 刚好落在模型手里，不再落地上
                                         rUsp.position.set(0.5, 1.5, 1.0); 
                                         rUsp.rotation.y = Math.PI;
                                         rUsp.name = 'usp';
@@ -808,22 +822,18 @@
                                     
                                     networkPlayer.position.set(px, py, pz); 
                                     networkPlayer.rotation.y = pr + Math.PI;
-
-                                    if (gltf.animations && gltf.animations.length > 0) {
-                                        let mixer = new THREE.AnimationMixer(networkChar);
-                                        mixer.clipAction(gltf.animations[0]).play(); 
-                                        mixers.push(mixer);
-                                    }
                                     
                                     scene.add(networkPlayer);
                                     
                                     remotePlayers[uid] = { 
                                         model: networkPlayer, 
+                                        charModel: networkChar, 
                                         targetPos: new THREE.Vector3(px, py, pz), 
                                         targetRotY: pr + Math.PI, 
                                         health: data[uid].health || 100, 
                                         team: data[uid].team,
-                                        equippedGun: data[uid].equippedGun || 'usp'
+                                        equippedGun: data[uid].equippedGun || 'usp',
+                                        anim: data[uid].anim || 'idle'
                                     };
                                 });
                             } else if (remotePlayers[uid] !== "loading") {
@@ -845,6 +855,18 @@
                                 }
                                 
                                 rp.equippedGun = p.equippedGun || 'usp';
+
+                                // 🌟 接收网络角色的动画状态并应用过渡
+                                let targetAnim = p.anim || 'idle';
+                                if (rp.charModel && rp.charModel.userData.actions && rp.charModel.userData.currentAnim !== targetAnim) {
+                                    let prev = rp.charModel.userData.actions[rp.charModel.userData.currentAnim];
+                                    let next = rp.charModel.userData.actions[targetAnim];
+                                    if (next && prev) {
+                                        next.reset().play();
+                                        prev.crossFadeTo(next, 0.2, true);
+                                    }
+                                    rp.charModel.userData.currentAnim = targetAnim;
+                                }
                             }
                         } else {
                             if (remotePlayers[uid] && remotePlayers[uid] !== "loading") {
@@ -1160,6 +1182,26 @@
             }
 
             if (matchActive) {
+                // 🌟 更新本地动画状态
+                if (!isGrounded) {
+                    localAnimState = 'jump';
+                } else if (moveInput.x !== 0 || moveInput.y !== 0) {
+                    localAnimState = 'run';
+                } else {
+                    localAnimState = 'idle';
+                }
+
+                // 🌟 如果状态改变，执行平滑交叉淡入淡出动画
+                if (myBody && myBody.userData.actions && myBody.userData.currentAnim !== localAnimState) {
+                    let prev = myBody.userData.actions[myBody.userData.currentAnim];
+                    let next = myBody.userData.actions[localAnimState];
+                    if (prev && next) {
+                        next.reset().play();
+                        prev.crossFadeTo(next, 0.2, true);
+                    }
+                    myBody.userData.currentAnim = localAnimState;
+                }
+
                 if (moveInput.x !== 0 || moveInput.y !== 0) {
                     const speed = 0.15;
                     let moveDir = new THREE.Vector3(moveInput.x, 0, moveInput.y).normalize();
@@ -1256,7 +1298,8 @@
                         rotY: playerContainer.rotation.y,
                         lastActive: Date.now(), 
                         status: 'playing',
-                        equippedGun: equippedGun 
+                        equippedGun: equippedGun,
+                        anim: localAnimState // 🌟 通过网络将当前姿态同步给其他人
                     });
                     lastSyncTime = Date.now();
                 }
@@ -1270,7 +1313,6 @@
                     diff = Math.atan2(Math.sin(diff), Math.cos(diff));
                     rp.model.rotation.y += diff * 0.2;
 
-                    // 实时同步武器显隐状态
                     let wGroup = rp.model.getObjectByName("WeaponGroup");
                     if (wGroup && wGroup.children.length > 0) {
                         wGroup.children.forEach(child => {
