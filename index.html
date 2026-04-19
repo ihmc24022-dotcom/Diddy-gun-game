@@ -571,15 +571,15 @@
         // 🌟 大厅角色：修正尺寸 + 贴图
         fbxLoader.load('FabConvert.com_tm_phoenix_v2-_csgo_terrorist_characters.fbx', function (object) {
             let lobbyChar = object;
-            // 修正比例：原来是 0.012，现在改为 1.0 (如果还是觉得小可以改成 1.2 或 1.5)
-            lobbyChar.scale.set(1.0, 1.0, 1.0); 
+            // ✅ 将 Scale 调整为 0.08
+            lobbyChar.scale.set(0.08, 0.08, 0.08); 
             lobbyChar.position.set(0, -1.5, 0);
             
             lobbyChar.traverse((child) => { applyTexturesToModel(child); });
 
             const mixer = new THREE.AnimationMixer(lobbyChar);
-            // 加载待机动作给大厅角色
-            fbxLoader.load('Stop Walking With Rifle.fbx', (anim) => {
+            // ✅ 使用专属拿枪动画作为待机动作
+            fbxLoader.load('Gunplay.fbx', (anim) => {
                 mixer.clipAction(anim.animations[0]).play();
             });
             mixers.push(mixer);
@@ -595,8 +595,8 @@
         // ==========================================
         fbxLoader.load('FabConvert.com_tm_phoenix_v2-_csgo_terrorist_characters.fbx', function (object) {
             myBody = object;
-            // 修正比例
-            myBody.scale.set(1.0, 1.0, 1.0);
+            // ✅ 将 Scale 调整为 0.08
+            myBody.scale.set(0.08, 0.08, 0.08);
             myBody.position.set(0, -1.25, 0);
             myBody.rotation.y = Math.PI;
 
@@ -606,8 +606,8 @@
             myBody.userData.currentAnim = 'idle';
             mixers.push(mixer);
 
-            // 加载 7 个新动画
-            loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'idle', 'Stop Walking With Rifle.fbx');
+            // ✅ 使用专属拿枪动画作为待机动作
+            loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'idle', 'Gunplay.fbx');
             loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'crouch', 'Crouch Walking (1).fbx');
             loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'back', 'Walking Backwards (1).fbx');
             loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'turn180', 'Walking Turn 180.fbx');
@@ -926,8 +926,8 @@
                                     
                                     let networkPlayer = new THREE.Group();
                                     let networkChar = object;
-                                    // 修正比例
-                                    networkChar.scale.set(1.0, 1.0, 1.0);
+                                    // ✅ 将 Scale 调整为 0.08
+                                    networkChar.scale.set(0.08, 0.08, 0.08);
                                     
                                     const mixer = new THREE.AnimationMixer(networkChar);
                                     networkChar.userData.mixer = mixer;
@@ -935,7 +935,8 @@
                                     networkChar.userData.currentAnim = 'idle';
                                     mixers.push(mixer);
 
-                                    loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'idle', 'Stop Walking With Rifle.fbx');
+                                    // ✅ 使用专属拿枪动画作为待机动作
+                                    loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'idle', 'Gunplay.fbx');
                                     loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'crouch', 'Crouch Walking (1).fbx');
                                     loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'back', 'Walking Backwards (1).fbx');
                                     loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'turn180', 'Walking Turn 180.fbx');
@@ -1352,7 +1353,7 @@
                 } else if (moveInput.x !== 0 || moveInput.y < -0.1) {
                     localAnimState = 'crouch'; // 往前/左右 暂时代替跑步
                 } else {
-                    localAnimState = 'idle'; // 待机
+                    localAnimState = 'idle'; // 待机 (对应刚上传的 Gunplay.fbx)
                 }
 
                 if (myBody) {
