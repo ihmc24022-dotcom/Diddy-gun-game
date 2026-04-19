@@ -447,7 +447,7 @@
         const normArms = textureLoader.load('bare_arm_133_normal.png');
         const normGloves = textureLoader.load('t_base_fullfinger_glove_normal.png');
 
-        // 🌟 2. 核心穿衣函数
+        // 🌟 2. 核心穿衣函数（彻底移除了可能导致头部被剔除的 alphaTest）
         function applyTexturesToModel(child) {
             if (child.isMesh && child.material) {
                 child.material = child.material.clone();
@@ -470,10 +470,10 @@
                     child.material.normalMap = normGloves;
                 }
 
+                // 🌟 FIX: 移除了 alphaTest，防止带有空白 Alpha 通道的贴图整块隐形
                 child.material.transparent = false; 
                 child.material.depthWrite = true;   
                 child.material.depthTest = true;    
-                child.material.alphaTest = 0.5;     
                 child.material.side = THREE.DoubleSide; 
                 child.material.color.setHex(0xffffff);
                 child.material.needsUpdate = true;
@@ -574,7 +574,10 @@
             lobbyChar.scale.set(0.048, 0.048, 0.048); 
             lobbyChar.position.set(0, -1.5, 0);
             
-            lobbyChar.traverse((child) => { applyTexturesToModel(child); });
+            lobbyChar.traverse((child) => { 
+                if (child.isMesh) child.frustumCulled = false;
+                applyTexturesToModel(child); 
+            });
 
             const mixer = new THREE.AnimationMixer(lobbyChar);
             fbxLoader.load('Gunplay.fbx', (anim) => {
@@ -635,8 +638,8 @@
 
             gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function(wGltf) {
                 let rUsp = wGltf.scene;
-                // 🌟 修复隐形武器：放大 30 倍来抵消人物模型 0.048 的缩小
-                rUsp.scale.set(30, 30, 30); 
+                // 稍微调小一点，防止手枪显得太大 (调至 25)
+                rUsp.scale.set(25, 25, 25); 
                 rUsp.position.set(0, 0, 0); 
                 rUsp.name = 'usp';
                 rUsp.visible = false;
@@ -645,8 +648,8 @@
 
             gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function(wGltf) {
                 let rAwp = wGltf.scene;
-                // 🌟 修复隐形武器：放大 25 倍
-                rAwp.scale.set(25, 25, 25);
+                // 调整 AWP 大小 (调至 20)
+                rAwp.scale.set(20, 20, 20);
                 rAwp.position.set(0, 0, 0); 
                 rAwp.name = 'awp';
                 rAwp.visible = false;
@@ -971,8 +974,7 @@
 
                                     gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function(wGltf) {
                                         let rUsp = wGltf.scene;
-                                        // 🌟 修复联机玩家隐形武器
-                                        rUsp.scale.set(30, 30, 30); 
+                                        rUsp.scale.set(25, 25, 25); 
                                         rUsp.position.set(0, 0, 0); 
                                         rUsp.name = 'usp';
                                         rUsp.visible = false;
@@ -981,8 +983,7 @@
 
                                     gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function(wGltf) {
                                         let rAwp = wGltf.scene;
-                                        // 🌟 修复联机玩家隐形武器
-                                        rAwp.scale.set(25, 25, 25);
+                                        rAwp.scale.set(20, 20, 20);
                                         rAwp.position.set(0, 0, 0); 
                                         rAwp.name = 'awp';
                                         rAwp.visible = false;
@@ -1328,22 +1329,21 @@
             for (let mixer of mixers) { 
                 mixer.update(delta); 
                 
+                // --- 🌟 核心修复：强制所有的骨骼动画在原地播放 (去除 Root Motion) ---
                 if (mixer.getRoot()) {
                     mixer.getRoot().traverse(child => {
                         if (child.isBone) {
                             const bName = child.name.toLowerCase();
-                            // 🌟 保持原地运动，防止瞬移
+                            // 保持原地运动，防止瞬移
                             if (bName.includes('hips') || bName.includes('root') || bName.includes('pelvis')) {
                                 child.position.x = 0;
                                 child.position.z = 0;
                             }
-                            // 🌟 颈椎康复代码：强制修正断颈和转头，让头部保持平视
-                            if (bName.includes('neck') || bName.includes('head')) {
-                                child.rotation.x = 0; 
-                            }
+                            // 👇 已移除会导致头部被折叠的强制旋转代码
                         }
                     });
                 }
+                // -------------------------------------------------------------
             }
             if (fpsMixer) fpsMixer.update(delta);
             
