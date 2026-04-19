@@ -571,7 +571,7 @@
         // 🌟 大厅角色：修正尺寸 + 贴图
         fbxLoader.load('FabConvert.com_tm_phoenix_v2-_csgo_terrorist_characters.fbx', function (object) {
             let lobbyChar = object;
-            // ✅ 将 Scale 调整为 0.048 (0.08 的 3/5。如果你的意思是绝对值 0.6，请直接改成 0.6)
+            // ✅ 将 Scale 调整为 0.048
             lobbyChar.scale.set(0.048, 0.048, 0.048); 
             lobbyChar.position.set(0, -1.5, 0);
             
@@ -595,7 +595,7 @@
         // ==========================================
         fbxLoader.load('FabConvert.com_tm_phoenix_v2-_csgo_terrorist_characters.fbx', function (object) {
             myBody = object;
-            // ✅ 将 Scale 调整为 0.048 (0.08 的 3/5)
+            // ✅ 将 Scale 调整为 0.048
             myBody.scale.set(0.048, 0.048, 0.048);
             myBody.position.set(0, -1.25, 0);
             myBody.rotation.y = Math.PI;
@@ -1327,7 +1327,24 @@
             requestAnimationFrame(animate);
             let delta = clock.getDelta();
             
-            for (let mixer of mixers) { mixer.update(delta); }
+            for (let mixer of mixers) { 
+                mixer.update(delta); 
+                
+                // 🌟 核心修复：强制所有动画原地化 (In-Place)
+                // 自动搜索并抹除骨盆(Hips/Root)骨骼的 XYZ 位移，彻底解决瞬移飘移问题
+                if (mixer.getRoot()) {
+                    mixer.getRoot().traverse(child => {
+                        if (child.isBone) {
+                            const bName = child.name.toLowerCase();
+                            if (bName.includes('hips') || bName.includes('root') || bName.includes('pelvis')) {
+                                child.position.x = 0;
+                                child.position.z = 0;
+                                // 备注: 保留 child.position.y 不强制归零，防止人物半个身子卡在地底
+                            }
+                        }
+                    });
+                }
+            }
             if (fpsMixer) fpsMixer.update(delta);
             
             if (backpackDisplayGroup && backpackDisplayGroup.visible) {
