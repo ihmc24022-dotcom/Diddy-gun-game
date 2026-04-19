@@ -571,8 +571,8 @@
         // 🌟 大厅角色：修正尺寸 + 贴图
         fbxLoader.load('FabConvert.com_tm_phoenix_v2-_csgo_terrorist_characters.fbx', function (object) {
             let lobbyChar = object;
-            // ✅ 将 Scale 调整为 0.08
-            lobbyChar.scale.set(0.08, 0.08, 0.08); 
+            // ✅ 将 Scale 调整为 0.048 (0.08 的 3/5。如果你的意思是绝对值 0.6，请直接改成 0.6)
+            lobbyChar.scale.set(0.048, 0.048, 0.048); 
             lobbyChar.position.set(0, -1.5, 0);
             
             lobbyChar.traverse((child) => { applyTexturesToModel(child); });
@@ -595,8 +595,8 @@
         // ==========================================
         fbxLoader.load('FabConvert.com_tm_phoenix_v2-_csgo_terrorist_characters.fbx', function (object) {
             myBody = object;
-            // ✅ 将 Scale 调整为 0.08
-            myBody.scale.set(0.08, 0.08, 0.08);
+            // ✅ 将 Scale 调整为 0.048 (0.08 的 3/5)
+            myBody.scale.set(0.048, 0.048, 0.048);
             myBody.position.set(0, -1.25, 0);
             myBody.rotation.y = Math.PI;
 
@@ -926,8 +926,8 @@
                                     
                                     let networkPlayer = new THREE.Group();
                                     let networkChar = object;
-                                    // ✅ 将 Scale 调整为 0.08
-                                    networkChar.scale.set(0.08, 0.08, 0.08);
+                                    // ✅ 将 Scale 调整为 0.048
+                                    networkChar.scale.set(0.048, 0.048, 0.048);
                                     
                                     const mixer = new THREE.AnimationMixer(networkChar);
                                     networkChar.userData.mixer = mixer;
