@@ -447,7 +447,7 @@
         const normArms = textureLoader.load('bare_arm_133_normal.png');
         const normGloves = textureLoader.load('t_base_fullfinger_glove_normal.png');
 
-        // 🌟 2. 核心穿衣函数（根据材质/网格名称自动贴图）
+        // 🌟 2. 核心穿衣函数（包含修复头部消失的 Bug）
         function applyTexturesToModel(child) {
             if (child.isMesh && child.material) {
                 // 克隆材质以防多个部位共享同一个导致贴图混乱
@@ -457,7 +457,8 @@
                 const meshName = (child.name || "").toLowerCase();
                 const targetName = matName + " " + meshName;
 
-                if (targetName.includes('balaclava') || targetName.includes('head')) {
+                // 判断部位
+                if (targetName.includes('balaclava') || targetName.includes('head') || targetName.includes('mask')) {
                     child.material.map = texBalaclava;
                     child.material.normalMap = normBalaclava;
                 } else if (targetName.includes('body') || targetName.includes('torso') || targetName.includes('upper')) {
@@ -471,6 +472,12 @@
                     child.material.map = texGloves;
                     child.material.normalMap = normGloves;
                 }
+
+                // --- 🌟 修复头部消失的核心代码 ---
+                child.material.transparent = false; // 强制关闭透明度，防止 PNG 导致隐形
+                child.material.depthWrite = true;   // 强制正常写入深度缓冲
+                child.material.alphaTest = 0.5;     // 如果边缘有镂空，用 alphaTest 替代 transparent
+                // ---------------------------------
 
                 // 强制将基础颜色设为纯白，防止模型本身发黑/发灰影响贴图
                 child.material.color.setHex(0xffffff);
