@@ -447,36 +447,52 @@
         const normArms = textureLoader.load('bare_arm_133_normal.png');
         const normGloves = textureLoader.load('t_base_fullfinger_glove_normal.png');
 
-        // 🌟 2. 核心穿衣函数（彻底移除了可能导致头部被剔除的 alphaTest）
+        // 🌟 2. 核心穿衣函数（适配盲猜 Mesh 编号机制，解决银色模型问题）
         function applyTexturesToModel(child) {
             if (child.isMesh && child.material) {
-                child.material = child.material.clone();
-                const matName = (child.material.name || "").toLowerCase();
-                const meshName = (child.name || "").toLowerCase();
-                const targetName = matName + " " + meshName;
+                
+                const processMaterial = (mat, meshName) => {
+                    // 控制台会打印出每个部位的真实名字，方便我们以后调试
+                    console.log("正在贴图的部件:", meshName);
 
-                if (targetName.includes('balaclava') || targetName.includes('head') || targetName.includes('mask')) {
-                    child.material.map = texBalaclava;
-                    child.material.normalMap = normBalaclava;
-                } else if (targetName.includes('body') || targetName.includes('torso') || targetName.includes('upper')) {
-                    child.material.map = texBody;
-                } else if (targetName.includes('leg') || targetName.includes('pant') || targetName.includes('lower')) {
-                    child.material.map = texLegs;
-                } else if (targetName.includes('arm')) {
-                    child.material.map = texArms;
-                    child.material.normalMap = normArms;
-                } else if (targetName.includes('glove') || targetName.includes('hand')) {
-                    child.material.map = texGloves;
-                    child.material.normalMap = normGloves;
+                    // 👇 核心匹配逻辑：兼容原始带有特定名字的骨骼，同时也兼容被转换器强行重命名为 "mesh-X" 的骨骼
+                    if (meshName === 'mesh' || meshName.includes('body') || meshName.includes('torso')) {
+                        mat.map = texBody;
+                    } else if (meshName === 'mesh-1' || meshName.includes('balaclava') || meshName.includes('head') || meshName.includes('mask')) {
+                        mat.map = texBalaclava;
+                        mat.normalMap = normBalaclava;
+                    } else if (meshName === 'mesh-2' || meshName.includes('arm')) {
+                        mat.map = texArms;
+                        mat.normalMap = normArms;
+                    } else if (meshName === 'mesh-3' || meshName.includes('leg') || meshName.includes('pant')) {
+                        mat.map = texLegs;
+                    } else if (meshName === 'mesh-4' || meshName.includes('glove') || meshName.includes('hand')) {
+                        mat.map = texGloves;
+                        mat.normalMap = normGloves;
+                    } else {
+                        // 兜底机制：如果全都不匹配，默认给它穿衣服
+                        mat.map = texBody;
+                    }
+
+                    // 修复头部消失的核心参数：去掉了导致问题的 alphaTest
+                    mat.transparent = false; 
+                    mat.depthWrite = true;   
+                    mat.depthTest = true;    
+                    mat.side = THREE.DoubleSide; 
+                    mat.color.setHex(0xffffff);
+                    mat.needsUpdate = true;
+                    
+                    return mat;
+                };
+
+                const currentMeshName = (child.name || "").toLowerCase();
+
+                // 兼容处理：应对某些模型将所有材质打包成一个数组的情况
+                if (Array.isArray(child.material)) {
+                    child.material = child.material.map(m => processMaterial(m.clone(), currentMeshName));
+                } else {
+                    child.material = processMaterial(child.material.clone(), currentMeshName);
                 }
-
-                // 🌟 FIX: 移除了 alphaTest，防止带有空白 Alpha 通道的贴图整块隐形
-                child.material.transparent = false; 
-                child.material.depthWrite = true;   
-                child.material.depthTest = true;    
-                child.material.side = THREE.DoubleSide; 
-                child.material.color.setHex(0xffffff);
-                child.material.needsUpdate = true;
             }
         }
 
@@ -638,7 +654,7 @@
 
             gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function(wGltf) {
                 let rUsp = wGltf.scene;
-                // 稍微调小一点，防止手枪显得太大 (调至 25)
+                // 手枪模型按比例放大以匹配人物
                 rUsp.scale.set(25, 25, 25); 
                 rUsp.position.set(0, 0, 0); 
                 rUsp.name = 'usp';
@@ -648,7 +664,6 @@
 
             gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function(wGltf) {
                 let rAwp = wGltf.scene;
-                // 调整 AWP 大小 (调至 20)
                 rAwp.scale.set(20, 20, 20);
                 rAwp.position.set(0, 0, 0); 
                 rAwp.name = 'awp';
@@ -1339,7 +1354,7 @@
                                 child.position.x = 0;
                                 child.position.z = 0;
                             }
-                            // 👇 已移除会导致头部被折叠的强制旋转代码
+                            // 移除强制的颈椎扭转，让模型自然播放动作
                         }
                     });
                 }
