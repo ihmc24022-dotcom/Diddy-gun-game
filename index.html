@@ -346,7 +346,7 @@
         import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
         import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-        import { FBXLoader } from 'three/addons/loaders/FBXLoader.js'; // 🌟 引入全新的 FBX 动画加载器！
+        import { FBXLoader } from 'three/addons/loaders/FBXLoader.js'; 
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
@@ -427,18 +427,23 @@
         let mixers = [];
 
         // 🌟 提取 FBX 动画的超级安全函数
-        function loadFBXAnim(loader, mixer, actionsDict, animName, fileName) {
+        function loadFBXAnim(loader, mixer, actionsDict, animName, fileName, clamp = false) {
             loader.load(fileName, (animObj) => {
                 if(animObj.animations.length > 0) {
-                    actionsDict[animName] = mixer.clipAction(animObj.animations[0]);
-                    if(animName === 'idle') actionsDict[animName].play(); // 加载成功后默认播放待机
+                    const action = mixer.clipAction(animObj.animations[0]);
+                    if (clamp) {
+                        action.setLoop(THREE.LoopOnce, 1);
+                        action.clampWhenFinished = true;
+                    }
+                    actionsDict[animName] = action;
+                    if(animName === 'idle') actionsDict[animName].play(); 
                 }
             }, undefined, (err) => {
-                console.warn("⚠️ 找不到动画文件: " + fileName + "。人物可能会没有动作！");
+                console.warn("⚠️ 找不到动画文件: " + fileName + "。");
             });
         }
 
-        // 🌟 极度稳定的动画切换器
+        // 🌟 极度稳定的动画切换器 (添加了 0.2s 平滑过渡)
         function switchAnim(userData, targetAnim) {
             if (!userData || !userData.actions) return;
             if (userData.currentAnim === targetAnim) return;
@@ -484,7 +489,7 @@
         const objLoader = new OBJLoader();
         const mtlLoader = new MTLLoader();
         const gltfLoader = new GLTFLoader();
-        const fbxLoader = new FBXLoader(); // 初始化 FBX Loader
+        const fbxLoader = new FBXLoader(); 
 
         mtlLoader.setPath('');
         gltfLoader.setPath('');
@@ -503,8 +508,6 @@
                 gameStarted = true;
                 startButton.style.background = '#4CAF50';
                 startButton.innerText = "START WAR";
-            }, undefined, function (error) {
-                console.error("模型加载错误: ", error);
             });
         });
 
@@ -513,17 +516,17 @@
         camera.add(lobbyDisplayGroup);
         lobbyDisplayGroup.visible = false;
 
-        // 🌟 大厅角色使用 FBX
-        fbxLoader.load('Walking.fbx', function (object) {
+        // 🌟 大厅角色使用新转换的 CSGO FBX
+        fbxLoader.load('FabConvert.com_tm_phoenix_v2-_csgo_terrorist_characters.fbx', function (object) {
             let lobbyChar = object;
-            lobbyChar.scale.set(0.012, 0.012, 0.012); // Mixamo 模型通常比较大
+            lobbyChar.scale.set(0.012, 0.012, 0.012); 
             lobbyChar.position.set(0, -1.5, 0);
             
             const mixer = new THREE.AnimationMixer(lobbyChar);
-            if(object.animations.length > 0) {
-                const action = mixer.clipAction(object.animations[0]);
-                action.play();
-            }
+            // 加载待机动作给大厅角色
+            fbxLoader.load('Stop Walking With Rifle.fbx', (anim) => {
+                mixer.clipAction(anim.animations[0]).play();
+            });
             mixers.push(mixer);
             lobbyDisplayGroup.add(lobbyChar);
         });
@@ -533,9 +536,9 @@
         let localAnimState = 'idle'; 
 
         // ==========================================
-        // 🌟 终极修复：本地玩家 FBX 骨骼与多重动画组装
+        // 🌟 本地玩家：加载新的主模型与 7 个新动作
         // ==========================================
-        fbxLoader.load('Walking.fbx', function (object) {
+        fbxLoader.load('FabConvert.com_tm_phoenix_v2-_csgo_terrorist_characters.fbx', function (object) {
             myBody = object;
             myBody.scale.set(0.012, 0.012, 0.012);
             myBody.position.set(0, -1.25, 0);
@@ -547,21 +550,19 @@
             myBody.userData.currentAnim = 'idle';
             mixers.push(mixer);
 
-            // 1. 把本体自带的动作设为跑步
-            if(object.animations.length > 0) {
-                myBody.userData.actions['run'] = mixer.clipAction(object.animations[0]);
-            }
-
-            // 2. 加载其他各种你下载的动作
-            loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'idle', 'Idle.fbx'); // ⚠️ 你必须下载一个 Idle.fbx
-            loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'jump', 'Walking To Dying.fbx'); // 暂时代替跳跃
-            loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'crouch', 'Crouch Walking.fbx'); 
-            loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'back', 'Walking Backwards.fbx'); 
+            // 加载 7 个新动画
+            loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'idle', 'Stop Walking With Rifle.fbx');
+            loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'crouch', 'Crouch Walking (1).fbx');
+            loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'back', 'Walking Backwards (1).fbx');
+            loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'turn180', 'Walking Turn 180.fbx');
+            loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'hit', 'Walking Hit Reaction (1).fbx', true);
+            loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'dying2', 'Walking To Dying (2).fbx', true);
+            loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'dying3', 'Walking To Dying (3).fbx', true);
 
             let localWeaponGroup = new THREE.Group();
             localWeaponGroup.name = "WeaponGroup";
             
-            // 🔎 寻找 Mixamo 手部骨骼 (通常叫 mixamorigRightHand)
+            // 🔎 寻找手部骨骼，Mixamo 的骨骼通常带有 mixamorig 前缀
             let rightHandBone = null;
             myBody.traverse(function(child) {
                 if (child.isBone) {
@@ -572,11 +573,10 @@
                 }
             });
 
-            // 绑定武器组
             if (rightHandBone) {
                 rightHandBone.add(localWeaponGroup);
             } else {
-                myBody.add(localWeaponGroup); // 没找到就绑脚底
+                myBody.add(localWeaponGroup); 
             }
 
             gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function(wGltf) {
@@ -601,7 +601,6 @@
             playerContainer.add(myBody);
         });
 
-        // 第一人称枪械组
         const gunGroup = new THREE.Group();
         camera.add(gunGroup);
         
@@ -616,7 +615,6 @@
             model.userData = { defaultZ: -0.55, defaultY: -0.35 }; 
             gunGroup.add(model);
             inGameGuns['usp'] = model;
-            
             if (equippedGun !== 'usp') model.visible = false;
             else loadedGunModel = model;
         });
@@ -629,14 +627,10 @@
             model.userData = { defaultZ: -0.8, defaultY: -0.4 };
             gunGroup.add(model);
             inGameGuns['awp'] = model;
-            
             if (equippedGun !== 'awp') model.visible = false;
             else loadedGunModel = model;
         });
 
-        // ==========================================
-        // 🌟 修复：第一人称手臂 (放大并放中间)
-        // ==========================================
         let fpsHands = null;
         let fpsMixer = null;
         let fpsActions = {};
@@ -662,13 +656,12 @@
 
         gltfLoader.load('animated_fps_hands_rifle_animation_pack.glb', function (gltf) {
             fpsHands = gltf.scene;
-            fpsHands.scale.set(0.03, 0.03, 0.03); // 调大了
-            fpsHands.position.set(0.1, -0.6, -0.8); // 往前推
+            fpsHands.scale.set(0.03, 0.03, 0.03); 
+            fpsHands.position.set(0.1, -0.6, -0.8); 
             fpsHands.rotation.y = Math.PI - 0.1;
             
             fpsMixer = new THREE.AnimationMixer(fpsHands);
 
-            // GLTF 里的老式寻找动画函数
             function findFpsAnim(keywords, fallbackIdx) {
                 if (!gltf.animations) return null;
                 for (let i = 0; i < gltf.animations.length; i++) {
@@ -816,7 +809,7 @@
                         document.getElementById('lobby-level').innerText = `Level: ${lvl}`;
                         document.getElementById('lobby-xp').innerText = `XP: ${xp} / ${nextLvlXp}`;
                     }
-                }).catch(error => { console.error("读取玩家等级失败: ", error); });
+                });
                 
                 const myRef = ref(database, `players/${myUid}`);
                 onDisconnect(myRef).remove();
@@ -868,9 +861,9 @@
                                 remotePlayers[uid] = "loading";
                                 
                                 // ==========================================
-                                // 🌟 修复：联机玩家加载 FBX 骨骼与多动画
+                                // 🌟 联机玩家加载新模型与动画
                                 // ==========================================
-                                fbxLoader.load('Walking.fbx', function (object) {
+                                fbxLoader.load('FabConvert.com_tm_phoenix_v2-_csgo_terrorist_characters.fbx', function (object) {
                                     if (remotePlayers[uid] === undefined) return; 
                                     
                                     let networkPlayer = new THREE.Group();
@@ -883,20 +876,18 @@
                                     networkChar.userData.currentAnim = 'idle';
                                     mixers.push(mixer);
 
-                                    if(object.animations.length > 0) {
-                                        networkChar.userData.actions['run'] = mixer.clipAction(object.animations[0]);
-                                    }
+                                    loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'idle', 'Stop Walking With Rifle.fbx');
+                                    loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'crouch', 'Crouch Walking (1).fbx');
+                                    loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'back', 'Walking Backwards (1).fbx');
+                                    loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'turn180', 'Walking Turn 180.fbx');
+                                    loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'hit', 'Walking Hit Reaction (1).fbx', true);
+                                    loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'dying2', 'Walking To Dying (2).fbx', true);
+                                    loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'dying3', 'Walking To Dying (3).fbx', true);
 
-                                    loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'idle', 'Idle.fbx');
-                                    loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'jump', 'Walking To Dying.fbx'); 
-                                    loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'crouch', 'Crouch Walking.fbx'); 
-                                    loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'back', 'Walking Backwards.fbx'); 
-
-                                    // 给队友/敌人染色
+                                    // 染色
                                     networkChar.traverse((child) => {
                                         if (child.isMesh) {
                                             child.userData.isPlayerBody = true; 
-                                            // Mixamo材质比较复杂，安全起见我们加上基本的漫反射颜色调整
                                             if (child.material) {
                                                 child.material = child.material.clone();
                                                 if (data[uid].team === 'T') child.material.color.setHex(0xffcccc); 
@@ -986,6 +977,9 @@
                                 rp.equippedGun = p.equippedGun || 'usp';
 
                                 let targetAnim = p.anim || 'idle';
+                                // 远程玩家如果没血了，播放死亡动画
+                                if (rp.health <= 0) targetAnim = 'dying2';
+                                
                                 if (rp.charModel) {
                                     switchAnim(rp.charModel.userData, targetAnim);
                                 }
@@ -1158,6 +1152,11 @@
                             let newHP = currentTargetHP - damage; 
                             if (newHP < 0) newHP = 0;
                             update(ref(database, `players/${hitUid}`), { health: newHP });
+                            
+                            // 播放受击动画 (如果还没死)
+                            if (newHP > 0) {
+                                update(ref(database, `players/${hitUid}`), { anim: 'hit' });
+                            }
                         }
                     }
                 }
@@ -1301,12 +1300,17 @@
                     }
                 }
 
-                if (!isGrounded) {
-                    localAnimState = 'jump';
-                } else if (moveInput.x !== 0 || moveInput.y !== 0) {
-                    localAnimState = 'run';
+                // 🌟 动作状态判断逻辑
+                if (playerContainer.position.y < -4) {
+                    localAnimState = 'dying2'; // 掉出地图死亡
+                } else if (!isGrounded) {
+                    localAnimState = 'turn180'; // 暂时代替跳跃
+                } else if (moveInput.y > 0.1) {
+                    localAnimState = 'back'; // 后退
+                } else if (moveInput.x !== 0 || moveInput.y < -0.1) {
+                    localAnimState = 'crouch'; // 往前/左右 暂时代替跑步
                 } else {
-                    localAnimState = 'idle';
+                    localAnimState = 'idle'; // 待机
                 }
 
                 if (myBody) {
