@@ -415,7 +415,7 @@
         let lastActionTime = Date.now();
         let isKicked = false;
 
-        const CURRENT_VERSION = 7; 
+        const CURRENT_VERSION = 8; 
         const versionRef = ref(database, 'server_info/version');
 
         get(versionRef).then((snapshot) => {
@@ -466,33 +466,64 @@
         const clock = new THREE.Clock();
         let mixers = [];
 
-        // 🌟 核心升级：强壮的“暴力动画适配引擎”
-        // 无论动画叫什么名字、有几个，绝对保证模型能动起来！
+        // 🌟 终极防 T-pose 动画加载核心
+        // 如果找不到匹配名字的动画，强行跳过第 0 号动作（通常是死板的 T-pose）
+        function findAnim(mixer, gltf, keywords, fallbackIndex) {
+            if (!gltf.animations || gltf.animations.length === 0) return null;
+            for (let i = 0; i < gltf.animations.length; i++) {
+                let name = gltf.animations[i].name.toLowerCase();
+                if (keywords.some(kw => name.includes(kw))) {
+                    return mixer.clipAction(gltf.animations[i]);
+                }
+            }
+            
+            let idx = fallbackIndex;
+            if (gltf.animations.length > 1) {
+                if (fallbackIndex === 0) idx = 1; // 待机动作避开第0个T-pose
+                if (fallbackIndex === 1) idx = 2 % gltf.animations.length; 
+                if (fallbackIndex === 2) idx = 3 % gltf.animations.length; 
+            }
+            if (idx >= gltf.animations.length) idx = gltf.animations.length - 1;
+            return mixer.clipAction(gltf.animations[idx]);
+        }
+
         function bindAnimations(gltf, targetObj) {
             if (!gltf.animations || gltf.animations.length === 0) return;
             const mixer = new THREE.AnimationMixer(targetObj);
             const actions = {};
 
-            function findAnim(keywords, fallbackIndex) {
-                // 1. 尝试关键词匹配
-                for (let i = 0; i < gltf.animations.length; i++) {
-                    let name = gltf.animations[i].name.toLowerCase();
-                    if (keywords.some(kw => name.includes(kw))) return mixer.clipAction(gltf.animations[i]);
-                }
-                // 2. 如果没找到，强制使用模运算兜底分配动画！
-                let safeIndex = fallbackIndex % gltf.animations.length;
-                return mixer.clipAction(gltf.animations[safeIndex]);
+            actions.idle = findAnim(mixer, gltf, ['idle', 'stand', 'base'], 0);
+            actions.run = findAnim(mixer, gltf, ['run', 'walk', 'move', 'forward'], 1);
+            actions.jump = findAnim(mixer, gltf, ['jump', 'air', 'fall'], 2);
+
+            if (actions.idle) {
+                actions.idle.setEffectiveWeight(1);
+                actions.idle.play();
             }
-
-            actions.idle = findAnim(['idle', 'stand'], 0);
-            actions.run = findAnim(['run', 'walk', 'move', 'forward'], 1);
-            actions.jump = findAnim(['jump', 'air', 'fall'], 2);
-
-            if (actions.idle) actions.idle.play();
+            
             targetObj.userData.mixer = mixer;
             targetObj.userData.actions = actions;
             targetObj.userData.currentAnim = 'idle';
             mixers.push(mixer);
+        }
+
+        // 🌟 极度稳定的动画切换器，防止切帧卡死
+        function switchAnim(userData, targetAnim) {
+            if (!userData || !userData.actions) return;
+            if (userData.currentAnim === targetAnim) return;
+            
+            let prev = userData.actions[userData.currentAnim];
+            let next = userData.actions[targetAnim];
+            
+            if (next) {
+                next.reset();
+                next.setEffectiveWeight(1);
+                next.play();
+                if (prev) {
+                    prev.crossFadeTo(next, 0.2, true);
+                }
+                userData.currentAnim = targetAnim;
+            }
         }
 
         const playerContainer = new THREE.Group();
@@ -562,22 +593,78 @@
         let isTPS = false; 
         let localAnimState = 'idle'; 
 
+        // ==========================================
+        // 🌟 核心修复 1: 给自己的第 3 人称模型装上武器！
+        // ==========================================
         gltfLoader.load('tm_phoenix_v2-_csgo_terrorist_characters.glb', function (gltf) {
             myBody = gltf.scene;
             myBody.scale.set(0.022, 0.022, 0.022);
             myBody.position.set(0, -1.25, 0);
             myBody.rotation.y = Math.PI;
             bindAnimations(gltf, myBody);
+
+            let localWeaponGroup = new THREE.Group();
+            localWeaponGroup.name = "WeaponGroup";
+            myBody.add(localWeaponGroup);
+
+            gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function(wGltf) {
+                let rUsp = wGltf.scene;
+                rUsp.scale.set(1.5, 1.5, 1.5); 
+                rUsp.position.set(0.5, 1.5, 1.0); 
+                rUsp.rotation.y = Math.PI;
+                rUsp.name = 'usp';
+                rUsp.visible = false;
+                localWeaponGroup.add(rUsp);
+            });
+
+            gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function(wGltf) {
+                let rAwp = wGltf.scene;
+                rAwp.scale.set(1.25, 1.25, 1.25);
+                rAwp.position.set(0.5, 1.5, 1.0);
+                rAwp.rotation.y = Math.PI;
+                rAwp.name = 'awp';
+                rAwp.visible = false;
+                localWeaponGroup.add(rAwp);
+            });
+
             myBody.visible = isTPS;
             playerContainer.add(myBody);
         });
 
+        // 第一人称枪械组
         const gunGroup = new THREE.Group();
         camera.add(gunGroup);
+        
+        let inGameGuns = {}; 
+        let loadedGunModel = null; 
 
-        // ==========================================
-        // 🌟 核心升级：强壮的第一人称 (FPS) 手臂动画引擎
-        // ==========================================
+        gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function (gltf) {
+            let model = gltf.scene;
+            model.scale.set(1.5, 1.5, 1.5);
+            model.position.set(0.35, -0.35, -0.55);
+            model.rotation.y = Math.PI + 0.08;
+            model.userData = { defaultZ: -0.55, defaultY: -0.35 }; 
+            gunGroup.add(model);
+            inGameGuns['usp'] = model;
+            
+            if (equippedGun !== 'usp') model.visible = false;
+            else loadedGunModel = model;
+        });
+
+        gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function (gltf) {
+            let model = gltf.scene;
+            model.scale.set(1.2, 1.2, 1.2); 
+            model.position.set(0.4, -0.4, -0.8); 
+            model.rotation.y = Math.PI + 0.05;
+            model.userData = { defaultZ: -0.8, defaultY: -0.4 };
+            gunGroup.add(model);
+            inGameGuns['awp'] = model;
+            
+            if (equippedGun !== 'awp') model.visible = false;
+            else loadedGunModel = model;
+        });
+
+        // 第一人称真实手臂动画引擎
         let fpsHands = null;
         let fpsMixer = null;
         let fpsActions = {};
@@ -599,7 +686,6 @@
                 }
                 
                 next.play();
-                // 只有 prev 和 next 不同的情况下才进行过渡
                 if (prev && prev !== next) prev.crossFadeTo(next, duration, true);
             }
             currentFpsAnim = animName;
@@ -612,20 +698,11 @@
             fpsHands.rotation.y = Math.PI - 0.1;
             
             fpsMixer = new THREE.AnimationMixer(fpsHands);
-            
-            function findFpsAnim(keywords, fallbackIndex) {
-                if (gltf.animations.length === 0) return null;
-                for (let i = 0; i < gltf.animations.length; i++) {
-                    let name = gltf.animations[i].name.toLowerCase();
-                    if (keywords.some(kw => name.includes(kw))) return fpsMixer.clipAction(gltf.animations[i]);
-                }
-                return fpsMixer.clipAction(gltf.animations[fallbackIndex % gltf.animations.length]);
-            }
 
-            fpsActions.idle = findFpsAnim(['idle', 'stand'], 0);
-            fpsActions.run = findFpsAnim(['run', 'walk', 'move'], 1);
-            fpsActions.shoot = findFpsAnim(['shoot', 'fire', 'recoil'], 2);
-            fpsActions.reload = findFpsAnim(['reload', 'mag'], 3);
+            fpsActions.idle = findAnim(fpsMixer, gltf, ['idle', 'stand'], 0);
+            fpsActions.run = findAnim(fpsMixer, gltf, ['run', 'walk', 'move'], 1);
+            fpsActions.shoot = findAnim(fpsMixer, gltf, ['shoot', 'fire', 'recoil'], 2);
+            fpsActions.reload = findAnim(fpsMixer, gltf, ['reload', 'mag'], 3);
 
             if (fpsActions.idle) fpsActions.idle.play();
             currentFpsAnim = 'idle';
@@ -645,6 +722,7 @@
             authScreen.style.display = 'none';
             lobbyScreen.style.display = 'flex';
             lobbyDisplayGroup.visible = true;
+            if (loadedGunModel) loadedGunModel.visible = false;
             if (fpsHands) fpsHands.visible = false;
             playerContainer.position.set(0, 5, 10);
             camera.position.set(0, 0, 0);
@@ -673,7 +751,12 @@
             matchActive = true;
             lastActionTime = Date.now(); 
             lobbyDisplayGroup.visible = false;
-            if (!isTPS && fpsHands) fpsHands.visible = true;
+            
+            if (!isTPS) {
+                if (loadedGunModel) loadedGunModel.visible = true;
+                if (fpsHands) fpsHands.visible = true;
+            }
+            
             myTeam = team;
             teamSelectScreen.style.display = 'none';
             uiContainer.style.display = 'block';
@@ -889,16 +972,8 @@
                                 rp.equippedGun = p.equippedGun || 'usp';
 
                                 let targetAnim = p.anim || 'idle';
-                                if (rp.charModel && rp.charModel.userData.actions && rp.charModel.userData.currentAnim !== targetAnim) {
-                                    let prev = rp.charModel.userData.actions[rp.charModel.userData.currentAnim];
-                                    let next = rp.charModel.userData.actions[targetAnim];
-                                    if (next && prev && next !== prev) {
-                                        next.reset().play();
-                                        prev.crossFadeTo(next, 0.2, true);
-                                    } else if (next) {
-                                        next.play();
-                                    }
-                                    rp.charModel.userData.currentAnim = targetAnim;
+                                if (rp.charModel) {
+                                    switchAnim(rp.charModel.userData, targetAnim);
                                 }
                             }
                         } else {
@@ -923,7 +998,10 @@
 
         document.getElementById('btn-view').addEventListener('click', () => {
             isTPS = !isTPS;
+            
+            // 🌟 视角切换核心：完美控制 1/3 人称武器与身体的可见性
             if (myBody) myBody.visible = isTPS;
+            if (loadedGunModel) loadedGunModel.visible = !isTPS;
             if (fpsHands) fpsHands.visible = !isTPS; 
             
             if (isTPS) { 
@@ -941,11 +1019,15 @@
             
             playFpsAnim('reload', 0.2); 
             
+            let defY = loadedGunModel ? loadedGunModel.userData.defaultY : -0.35;
+            if (loadedGunModel) loadedGunModel.position.y = defY - 0.6; 
+            
             setTimeout(() => {
                 let neededAmmo = maxAmmoInMag - ammoInMag;
                 let reloadAmount = Math.min(neededAmmo, ammoReserve);
                 ammoInMag += reloadAmount; ammoReserve -= reloadAmount;
                 isReloading = false;
+                if (loadedGunModel) loadedGunModel.position.y = defY; 
                 updateAmmoUI();
             }, 1500);
         }
@@ -1032,6 +1114,9 @@
             
             playFpsAnim('shoot', 0.05);
 
+            let defZ = loadedGunModel ? loadedGunModel.userData.defaultZ : -0.55;
+            if (!isTPS && loadedGunModel) loadedGunModel.position.z = defZ + 0.1; 
+            
             flashUI.style.opacity = '1';
             
             let currentGunData = gunDatabase.find(g => g.id === equippedGun);
@@ -1067,6 +1152,8 @@
             
             setTimeout(() => {
                 flashUI.style.opacity = '0'; isShooting = false;
+                if (!isTPS && loadedGunModel) loadedGunModel.position.z = defZ; 
+
                 if (ammoInMag === 0 && ammoReserve > 0) {
                     reloadWeapon();
                 }
@@ -1145,11 +1232,17 @@
             equippedGun = currentSelectedGun; 
             selectGun(currentSelectedGun);    
             
-            const gunStats = gunDatabase.find(g => g.id === equippedGun).stats;
-            maxAmmoInMag = gunStats.mag; 
-            ammoInMag = maxAmmoInMag;
-            ammoReserve = gunStats.reserve; 
-            updateAmmoUI();
+            Object.values(inGameGuns).forEach(model => model.visible = false);
+            if (inGameGuns[equippedGun]) {
+                inGameGuns[equippedGun].visible = !isTPS;
+                loadedGunModel = inGameGuns[equippedGun];
+                
+                const gunStats = gunDatabase.find(g => g.id === equippedGun).stats;
+                maxAmmoInMag = gunStats.mag; 
+                ammoInMag = maxAmmoInMag;
+                ammoReserve = gunStats.reserve; 
+                updateAmmoUI();
+            }
         });
 
         document.querySelectorAll('.lobby-side-btn').forEach(btn => {
@@ -1203,16 +1296,16 @@
                     localAnimState = 'idle';
                 }
 
-                if (myBody && myBody.userData.actions && myBody.userData.currentAnim !== localAnimState) {
-                    let prev = myBody.userData.actions[myBody.userData.currentAnim];
-                    let next = myBody.userData.actions[localAnimState];
-                    if (prev && next && prev !== next) {
-                        next.reset().play();
-                        prev.crossFadeTo(next, 0.2, true);
-                    } else if (next) {
-                        next.play();
+                if (myBody) {
+                    switchAnim(myBody.userData, localAnimState);
+                    
+                    // 🌟 让本地视角的第3人称模型实时显示手中武器
+                    let wGroup = myBody.getObjectByName("WeaponGroup");
+                    if (wGroup) {
+                        wGroup.children.forEach(child => {
+                            child.visible = (child.name === equippedGun);
+                        });
                     }
-                    myBody.userData.currentAnim = localAnimState;
                 }
 
                 if (moveInput.x !== 0 || moveInput.y !== 0) {
