@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Web CSGO Online - Dust2 War Edition</title>
+    <title>Web CSGO Online - FBX Mixamo Edition</title>
     
     <style>
         body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -279,22 +279,14 @@
                 <div id="lobby-xp">XP: Loading...</div>
             </div>
             <div class="lobby-bottom-btns">
-                <div>
-                    <button id="btn-shop">shop</button>
-                    <div style="color:white; font-family:cursive; margin-top:5px; text-align:center; font-size:20px;">Shop</div>
-                </div>
-                <div>
-                    <button id="btn-signout">sign out</button>
-                    <div style="color:white; font-family:cursive; margin-top:5px; text-align:center; font-size:20px;">Logout</div>
-                </div>
+                <div><button id="btn-shop">shop</button><div style="color:white; font-family:cursive; margin-top:5px; text-align:center; font-size:20px;">Shop</div></div>
+                <div><button id="btn-signout">sign out</button><div style="color:white; font-family:cursive; margin-top:5px; text-align:center; font-size:20px;">Logout</div></div>
             </div>
         </div>
-
         <div class="lobby-center">
             <div class="player-model-placeholder"></div>
             <button id="btn-find-match">FIND MATCH</button>
         </div>
-
         <div class="lobby-right">
             <button class="lobby-side-btn">gun</button>
             <button class="lobby-side-btn">quest</button>
@@ -303,57 +295,24 @@
     </div>
 
     <div id="backpack-screen">
-        <div class="bp-left">
-            <h2>WEAPONS</h2>
-            <div id="bp-gun-list">
-            </div>
-        </div>
-        
-        <div class="bp-center">
-            <button id="btn-leave-bp">LEAVE</button>
-        </div>
-        
+        <div class="bp-left"><h2>WEAPONS</h2><div id="bp-gun-list"></div></div>
+        <div class="bp-center"><button id="btn-leave-bp">LEAVE</button></div>
         <div class="bp-right">
             <h2>STATS</h2>
-            <div class="stat-row">
-                <div class="stat-header"><span>Damage</span> <span id="val-damage" style="color:#ff5555;">0</span></div>
-                <div class="stat-bar-bg"><div id="stat-damage" class="stat-bar-fill" style="background: #ff5555; width: 0%;"></div></div>
-            </div>
-            <div class="stat-row">
-                <div class="stat-header"><span>Ammo</span> <span id="val-ammo" style="color:#4CAF50;">0</span></div>
-                <div class="stat-bar-bg"><div id="stat-ammo" class="stat-bar-fill" style="background: #4CAF50; width: 0%;"></div></div>
-            </div>
-            <div class="stat-row">
-                <div class="stat-header"><span>Reload</span> <span id="val-reload" style="color:#ffce00;">0</span></div>
-                <div class="stat-bar-bg"><div id="stat-reload" class="stat-bar-fill" style="background: #ffce00; width: 0%;"></div></div>
-            </div>
-            
+            <div class="stat-row"><div class="stat-header"><span>Damage</span> <span id="val-damage" style="color:#ff5555;">0</span></div><div class="stat-bar-bg"><div id="stat-damage" class="stat-bar-fill" style="background: #ff5555; width: 0%;"></div></div></div>
+            <div class="stat-row"><div class="stat-header"><span>Ammo</span> <span id="val-ammo" style="color:#4CAF50;">0</span></div><div class="stat-bar-bg"><div id="stat-ammo" class="stat-bar-fill" style="background: #4CAF50; width: 0%;"></div></div></div>
+            <div class="stat-row"><div class="stat-header"><span>Reload</span> <span id="val-reload" style="color:#ffce00;">0</span></div><div class="stat-bar-bg"><div id="stat-reload" class="stat-bar-fill" style="background: #ffce00; width: 0%;"></div></div></div>
             <button id="btn-equip">USE WEAPON</button>
-
-            <div id="bp-desc">
-                Select a weapon to view details.
-            </div>
+            <div id="bp-desc">Select a weapon to view details.</div>
         </div>
     </div>
 
     <div id="team-select-screen">
         <div id="team-select-title">CHOOSE YOUR TEAM</div>
         <div id="team-columns">
-            <div class="team-column" id="btn-auto">
-                <div class="team-column-header">AUTO SELECT</div>
-                <div class="team-logo-placeholder">?</div>
-                <button class="team-choose-btn">CHOOSE</button>
-            </div>
-            <div class="team-column" id="btn-t">
-                <div class="team-column-header">TERRORISTS</div>
-                <div class="team-logo-placeholder">T</div>
-                <button class="team-choose-btn">CHOOSE</button>
-            </div>
-            <div class="team-column" id="btn-ct">
-                <div class="team-column-header">COUNTER-TERRORISTS</div>
-                <div class="team-logo-placeholder">CT</div>
-                <button class="team-choose-btn">CHOOSE</button>
-            </div>
+            <div class="team-column" id="btn-auto"><div class="team-column-header">AUTO SELECT</div><div class="team-logo-placeholder">?</div><button class="team-choose-btn">CHOOSE</button></div>
+            <div class="team-column" id="btn-t"><div class="team-column-header">TERRORISTS</div><div class="team-logo-placeholder">T</div><button class="team-choose-btn">CHOOSE</button></div>
+            <div class="team-column" id="btn-ct"><div class="team-column-header">COUNTER-TERRORISTS</div><div class="team-logo-placeholder">CT</div><button class="team-choose-btn">CHOOSE</button></div>
         </div>
     </div>
 
@@ -387,6 +346,7 @@
         import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
         import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { FBXLoader } from 'three/addons/loaders/FBXLoader.js'; // 🌟 引入全新的 FBX 动画加载器！
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
@@ -428,7 +388,7 @@
         onValue(versionRef, (snapshot) => {
             let serverVersion = snapshot.val() || 0;
             if (serverVersion > CURRENT_VERSION) {
-                alert("⚠️ 发现游戏新版本！(Game Updated!)\n为了防止卡死，即将自动为您加载最新版本...");
+                alert("⚠️ 发现游戏新版本！即将自动为您加载最新版本...");
                 window.location.href = window.location.href.split('?')[0] + '?v=' + Date.now();
             }
         });
@@ -466,47 +426,19 @@
         const clock = new THREE.Clock();
         let mixers = [];
 
-        // 🌟 终极防 T-pose 动画加载核心
-        function findAnim(mixer, gltf, keywords, fallbackIndex) {
-            if (!gltf.animations || gltf.animations.length === 0) return null;
-            for (let i = 0; i < gltf.animations.length; i++) {
-                let name = gltf.animations[i].name.toLowerCase();
-                if (keywords.some(kw => name.includes(kw))) {
-                    return mixer.clipAction(gltf.animations[i]);
+        // 🌟 提取 FBX 动画的超级安全函数
+        function loadFBXAnim(loader, mixer, actionsDict, animName, fileName) {
+            loader.load(fileName, (animObj) => {
+                if(animObj.animations.length > 0) {
+                    actionsDict[animName] = mixer.clipAction(animObj.animations[0]);
+                    if(animName === 'idle') actionsDict[animName].play(); // 加载成功后默认播放待机
                 }
-            }
-            
-            let idx = fallbackIndex;
-            if (gltf.animations.length > 1) {
-                if (fallbackIndex === 0) idx = 1; // 待机动作避开第0个T-pose
-                if (fallbackIndex === 1) idx = 2 % gltf.animations.length; 
-                if (fallbackIndex === 2) idx = 3 % gltf.animations.length; 
-            }
-            if (idx >= gltf.animations.length) idx = gltf.animations.length - 1;
-            return mixer.clipAction(gltf.animations[idx]);
+            }, undefined, (err) => {
+                console.warn("⚠️ 找不到动画文件: " + fileName + "。人物可能会没有动作！");
+            });
         }
 
-        function bindAnimations(gltf, targetObj) {
-            if (!gltf.animations || gltf.animations.length === 0) return;
-            const mixer = new THREE.AnimationMixer(targetObj);
-            const actions = {};
-
-            actions.idle = findAnim(mixer, gltf, ['idle', 'stand', 'base'], 0);
-            actions.run = findAnim(mixer, gltf, ['run', 'walk', 'move', 'forward'], 1);
-            actions.jump = findAnim(mixer, gltf, ['jump', 'air', 'fall'], 2);
-
-            if (actions.idle) {
-                actions.idle.setEffectiveWeight(1);
-                actions.idle.play();
-            }
-            
-            targetObj.userData.mixer = mixer;
-            targetObj.userData.actions = actions;
-            targetObj.userData.currentAnim = 'idle';
-            mixers.push(mixer);
-        }
-
-        // 🌟 极度稳定的动画切换器，防止切帧卡死
+        // 🌟 极度稳定的动画切换器
         function switchAnim(userData, targetAnim) {
             if (!userData || !userData.actions) return;
             if (userData.currentAnim === targetAnim) return;
@@ -552,6 +484,7 @@
         const objLoader = new OBJLoader();
         const mtlLoader = new MTLLoader();
         const gltfLoader = new GLTFLoader();
+        const fbxLoader = new FBXLoader(); // 初始化 FBX Loader
 
         mtlLoader.setPath('');
         gltfLoader.setPath('');
@@ -580,11 +513,18 @@
         camera.add(lobbyDisplayGroup);
         lobbyDisplayGroup.visible = false;
 
-        gltfLoader.load('tm_phoenix_v2-_csgo_terrorist_characters.glb', function (gltf) {
-            let lobbyChar = gltf.scene;
-            lobbyChar.scale.set(0.022, 0.022, 0.022);
+        // 🌟 大厅角色使用 FBX
+        fbxLoader.load('Walking.fbx', function (object) {
+            let lobbyChar = object;
+            lobbyChar.scale.set(0.012, 0.012, 0.012); // Mixamo 模型通常比较大
             lobbyChar.position.set(0, -1.5, 0);
-            bindAnimations(gltf, lobbyChar);
+            
+            const mixer = new THREE.AnimationMixer(lobbyChar);
+            if(object.animations.length > 0) {
+                const action = mixer.clipAction(object.animations[0]);
+                action.play();
+            }
+            mixers.push(mixer);
             lobbyDisplayGroup.add(lobbyChar);
         });
 
@@ -593,34 +533,50 @@
         let localAnimState = 'idle'; 
 
         // ==========================================
-        // 🌟 终极修复 1: 给自己的第 3 人称模型装上武器并绑定到手骨！
+        // 🌟 终极修复：本地玩家 FBX 骨骼与多重动画组装
         // ==========================================
-        gltfLoader.load('tm_phoenix_v2-_csgo_terrorist_characters.glb', function (gltf) {
-            myBody = gltf.scene;
-            myBody.scale.set(0.022, 0.022, 0.022);
+        fbxLoader.load('Walking.fbx', function (object) {
+            myBody = object;
+            myBody.scale.set(0.012, 0.012, 0.012);
             myBody.position.set(0, -1.25, 0);
             myBody.rotation.y = Math.PI;
-            bindAnimations(gltf, myBody);
+
+            const mixer = new THREE.AnimationMixer(myBody);
+            myBody.userData.mixer = mixer;
+            myBody.userData.actions = {};
+            myBody.userData.currentAnim = 'idle';
+            mixers.push(mixer);
+
+            // 1. 把本体自带的动作设为跑步
+            if(object.animations.length > 0) {
+                myBody.userData.actions['run'] = mixer.clipAction(object.animations[0]);
+            }
+
+            // 2. 加载其他各种你下载的动作
+            loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'idle', 'Idle.fbx'); // ⚠️ 你必须下载一个 Idle.fbx
+            loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'jump', 'Walking To Dying.fbx'); // 暂时代替跳跃
+            loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'crouch', 'Crouch Walking.fbx'); 
+            loadFBXAnim(fbxLoader, mixer, myBody.userData.actions, 'back', 'Walking Backwards.fbx'); 
 
             let localWeaponGroup = new THREE.Group();
             localWeaponGroup.name = "WeaponGroup";
             
-            // 🔎 核心修复：遍历寻找右手骨骼
+            // 🔎 寻找 Mixamo 手部骨骼 (通常叫 mixamorigRightHand)
             let rightHandBone = null;
             myBody.traverse(function(child) {
                 if (child.isBone) {
                     const boneName = child.name.toLowerCase();
-                    if (boneName.includes('hand_r') || boneName.includes('r_hand') || boneName.includes('righthand') || boneName.includes('valvebiped.bip01_r_hand')) {
+                    if (boneName.includes('righthand') || boneName.includes('right_hand')) {
                         rightHandBone = child;
                     }
                 }
             });
 
-            // 将武器组绑定到手骨上，而不是脚底！
+            // 绑定武器组
             if (rightHandBone) {
                 rightHandBone.add(localWeaponGroup);
             } else {
-                myBody.add(localWeaponGroup);
+                myBody.add(localWeaponGroup); // 没找到就绑脚底
             }
 
             gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function(wGltf) {
@@ -678,7 +634,9 @@
             else loadedGunModel = model;
         });
 
-        // 第一人称真实手臂动画引擎
+        // ==========================================
+        // 🌟 修复：第一人称手臂 (放大并放中间)
+        // ==========================================
         let fpsHands = null;
         let fpsMixer = null;
         let fpsActions = {};
@@ -686,10 +644,8 @@
 
         function playFpsAnim(animName, duration = 0.2) {
             if (!fpsMixer || !fpsActions[animName] || currentFpsAnim === animName) return;
-            
             let prev = fpsActions[currentFpsAnim];
             let next = fpsActions[animName];
-            
             if (next) {
                 if (animName === 'shoot' || animName === 'reload') {
                     next.reset();
@@ -698,7 +654,6 @@
                 } else {
                     next.setLoop(THREE.LoopRepeat, Infinity);
                 }
-                
                 next.play();
                 if (prev && prev !== next) prev.crossFadeTo(next, duration, true);
             }
@@ -707,16 +662,27 @@
 
         gltfLoader.load('animated_fps_hands_rifle_animation_pack.glb', function (gltf) {
             fpsHands = gltf.scene;
-            fpsHands.scale.set(0.015, 0.015, 0.015); 
-            fpsHands.position.set(0.1, -0.5, -0.4); 
+            fpsHands.scale.set(0.03, 0.03, 0.03); // 调大了
+            fpsHands.position.set(0.1, -0.6, -0.8); // 往前推
             fpsHands.rotation.y = Math.PI - 0.1;
             
             fpsMixer = new THREE.AnimationMixer(fpsHands);
 
-            fpsActions.idle = findAnim(fpsMixer, gltf, ['idle', 'stand'], 0);
-            fpsActions.run = findAnim(fpsMixer, gltf, ['run', 'walk', 'move'], 1);
-            fpsActions.shoot = findAnim(fpsMixer, gltf, ['shoot', 'fire', 'recoil'], 2);
-            fpsActions.reload = findAnim(fpsMixer, gltf, ['reload', 'mag'], 3);
+            // GLTF 里的老式寻找动画函数
+            function findFpsAnim(keywords, fallbackIdx) {
+                if (!gltf.animations) return null;
+                for (let i = 0; i < gltf.animations.length; i++) {
+                    if (keywords.some(kw => gltf.animations[i].name.toLowerCase().includes(kw))) {
+                        return fpsMixer.clipAction(gltf.animations[i]);
+                    }
+                }
+                return fpsMixer.clipAction(gltf.animations[fallbackIdx || 0]);
+            }
+
+            fpsActions.idle = findFpsAnim(['idle', 'stand'], 0);
+            fpsActions.run = findFpsAnim(['run', 'walk', 'move'], 1);
+            fpsActions.shoot = findFpsAnim(['shoot', 'fire', 'recoil'], 2);
+            fpsActions.reload = findFpsAnim(['reload', 'mag'], 3);
 
             if (fpsActions.idle) fpsActions.idle.play();
             currentFpsAnim = 'idle';
@@ -901,28 +867,46 @@
                             if (!remotePlayers[uid]) {
                                 remotePlayers[uid] = "loading";
                                 
-                                gltfLoader.load('tm_phoenix_v2-_csgo_terrorist_characters.glb', function (gltf) {
+                                // ==========================================
+                                // 🌟 修复：联机玩家加载 FBX 骨骼与多动画
+                                // ==========================================
+                                fbxLoader.load('Walking.fbx', function (object) {
                                     if (remotePlayers[uid] === undefined) return; 
                                     
                                     let networkPlayer = new THREE.Group();
-                                    let networkChar = gltf.scene;
-                                    networkChar.scale.set(0.022, 0.022, 0.022);
+                                    let networkChar = object;
+                                    networkChar.scale.set(0.012, 0.012, 0.012);
                                     
-                                    bindAnimations(gltf, networkChar);
+                                    const mixer = new THREE.AnimationMixer(networkChar);
+                                    networkChar.userData.mixer = mixer;
+                                    networkChar.userData.actions = {};
+                                    networkChar.userData.currentAnim = 'idle';
+                                    mixers.push(mixer);
 
+                                    if(object.animations.length > 0) {
+                                        networkChar.userData.actions['run'] = mixer.clipAction(object.animations[0]);
+                                    }
+
+                                    loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'idle', 'Idle.fbx');
+                                    loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'jump', 'Walking To Dying.fbx'); 
+                                    loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'crouch', 'Crouch Walking.fbx'); 
+                                    loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'back', 'Walking Backwards.fbx'); 
+
+                                    // 给队友/敌人染色
                                     networkChar.traverse((child) => {
                                         if (child.isMesh) {
                                             child.userData.isPlayerBody = true; 
-                                            if (data[uid].team === 'T') child.material.color.setHex(0xffcccc); 
-                                            else if (data[uid].team === 'CT') child.material.color.setHex(0xccccff);
+                                            // Mixamo材质比较复杂，安全起见我们加上基本的漫反射颜色调整
+                                            if (child.material) {
+                                                child.material = child.material.clone();
+                                                if (data[uid].team === 'T') child.material.color.setHex(0xffcccc); 
+                                                else if (data[uid].team === 'CT') child.material.color.setHex(0xccccff);
+                                            }
                                         }
                                     });
 
                                     networkPlayer.add(networkChar);
 
-                                    // ==========================================
-                                    // 🌟 终极修复 2: 联机玩家武器绑定到手骨
-                                    // ==========================================
                                     let remoteWeaponGroup = new THREE.Group();
                                     remoteWeaponGroup.name = "WeaponGroup";
                                     
@@ -930,7 +914,7 @@
                                     networkChar.traverse((child) => {
                                         if (child.isBone) {
                                             const boneName = child.name.toLowerCase();
-                                            if (boneName.includes('hand_r') || boneName.includes('r_hand') || boneName.includes('righthand') || boneName.includes('valvebiped.bip01_r_hand')) {
+                                            if (boneName.includes('righthand') || boneName.includes('right_hand')) {
                                                 remoteHandBone = child;
                                             }
                                         }
@@ -945,7 +929,7 @@
                                     gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function(wGltf) {
                                         let rUsp = wGltf.scene;
                                         rUsp.scale.set(1.5, 1.5, 1.5); 
-                                        rUsp.position.set(0, 0, 0); // 归零
+                                        rUsp.position.set(0, 0, 0); 
                                         rUsp.name = 'usp';
                                         rUsp.visible = false;
                                         remoteWeaponGroup.add(rUsp);
@@ -954,7 +938,7 @@
                                     gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function(wGltf) {
                                         let rAwp = wGltf.scene;
                                         rAwp.scale.set(1.25, 1.25, 1.25);
-                                        rAwp.position.set(0, 0, 0); // 归零
+                                        rAwp.position.set(0, 0, 0); 
                                         rAwp.name = 'awp';
                                         rAwp.visible = false;
                                         remoteWeaponGroup.add(rAwp);
@@ -991,7 +975,7 @@
                                     rp.team = p.team;
                                     if(rp.model) {
                                         rp.model.traverse((child) => {
-                                            if (child.isMesh && child.userData.isPlayerBody) {
+                                            if (child.isMesh && child.userData.isPlayerBody && child.material) {
                                                 if (rp.team === 'T') child.material.color.setHex(0xffcccc);
                                                 else if (rp.team === 'CT') child.material.color.setHex(0xccccff);
                                             }
@@ -1029,7 +1013,6 @@
         document.getElementById('btn-view').addEventListener('click', () => {
             isTPS = !isTPS;
             
-            // 🌟 视角切换核心：完美控制 1/3 人称武器与身体的可见性
             if (myBody) myBody.visible = isTPS;
             if (loadedGunModel) loadedGunModel.visible = !isTPS;
             if (fpsHands) fpsHands.visible = !isTPS; 
@@ -1329,7 +1312,6 @@
                 if (myBody) {
                     switchAnim(myBody.userData, localAnimState);
                     
-                    // 🌟 让本地视角的第3人称模型实时显示手中武器
                     let wGroup = myBody.getObjectByName("WeaponGroup");
                     if (wGroup) {
                         wGroup.children.forEach(child => {
