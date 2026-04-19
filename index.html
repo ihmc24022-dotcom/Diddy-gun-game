@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh">
 <head>
@@ -447,17 +448,14 @@
         const normArms = textureLoader.load('bare_arm_133_normal.png');
         const normGloves = textureLoader.load('t_base_fullfinger_glove_normal.png');
 
-        // 🌟 2. 核心穿衣函数（包含修复头部消失和透明度的终极补丁）
+        // 🌟 2. 核心穿衣函数
         function applyTexturesToModel(child) {
             if (child.isMesh && child.material) {
-                // 克隆材质以防多个部位共享同一个导致贴图混乱
                 child.material = child.material.clone();
-                
                 const matName = (child.material.name || "").toLowerCase();
                 const meshName = (child.name || "").toLowerCase();
                 const targetName = matName + " " + meshName;
 
-                // 判断部位
                 if (targetName.includes('balaclava') || targetName.includes('head') || targetName.includes('mask')) {
                     child.material.map = texBalaclava;
                     child.material.normalMap = normBalaclava;
@@ -473,15 +471,11 @@
                     child.material.normalMap = normGloves;
                 }
 
-                // --- 🌟 修复头部抽搐/消失的核心参数 ---
-                child.material.transparent = false; // 强制关闭透明度，防止模型半透明隐藏
-                child.material.depthWrite = true;   // 强制深度写入
-                child.material.depthTest = true;    // 开启深度测试
-                child.material.alphaTest = 0.5;     // 处理边缘抗锯齿
-                child.material.side = THREE.DoubleSide; // 双面渲染，防止头套内侧消失
-                // ---------------------------------
-
-                // 强制将基础颜色设为纯白，防止模型本身发黑/发灰影响贴图
+                child.material.transparent = false; 
+                child.material.depthWrite = true;   
+                child.material.depthTest = true;    
+                child.material.alphaTest = 0.5;     
+                child.material.side = THREE.DoubleSide; 
                 child.material.color.setHex(0xffffff);
                 child.material.needsUpdate = true;
             }
@@ -504,7 +498,6 @@
             });
         }
 
-        // 🌟 极度稳定的动画切换器 (添加了 0.2s 平滑过渡)
         function switchAnim(userData, targetAnim) {
             if (!userData || !userData.actions) return;
             if (userData.currentAnim === targetAnim) return;
@@ -577,17 +570,12 @@
         camera.add(lobbyDisplayGroup);
         lobbyDisplayGroup.visible = false;
 
-        // 🌟 大厅角色
         fbxLoader.load('FabConvert.com_tm_phoenix_v2-_csgo_terrorist_characters.fbx', function (object) {
             let lobbyChar = object;
             lobbyChar.scale.set(0.048, 0.048, 0.048); 
             lobbyChar.position.set(0, -1.5, 0);
             
-            lobbyChar.traverse((child) => { 
-                // 🌟 关闭视锥体剔除，防止模型转头时消失
-                if (child.isMesh) child.frustumCulled = false;
-                applyTexturesToModel(child); 
-            });
+            lobbyChar.traverse((child) => { applyTexturesToModel(child); });
 
             const mixer = new THREE.AnimationMixer(lobbyChar);
             fbxLoader.load('Gunplay.fbx', (anim) => {
@@ -629,9 +617,7 @@
             
             let rightHandBone = null;
             myBody.traverse(function(child) {
-                // 🌟 关闭视锥体剔除，防止部分身体突然消失
                 if (child.isMesh) child.frustumCulled = false;
-                
                 applyTexturesToModel(child);
 
                 if (child.isBone) {
@@ -650,7 +636,8 @@
 
             gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function(wGltf) {
                 let rUsp = wGltf.scene;
-                rUsp.scale.set(1.5, 1.5, 1.5); 
+                // 🌟 修复隐形武器：放大 30 倍来抵消人物模型 0.048 的缩小
+                rUsp.scale.set(30, 30, 30); 
                 rUsp.position.set(0, 0, 0); 
                 rUsp.name = 'usp';
                 rUsp.visible = false;
@@ -659,7 +646,8 @@
 
             gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function(wGltf) {
                 let rAwp = wGltf.scene;
-                rAwp.scale.set(1.25, 1.25, 1.25);
+                // 🌟 修复隐形武器：放大 25 倍
+                rAwp.scale.set(25, 25, 25);
                 rAwp.position.set(0, 0, 0); 
                 rAwp.name = 'awp';
                 rAwp.visible = false;
@@ -956,7 +944,7 @@
                                     networkChar.traverse((child) => {
                                         if (child.isMesh) {
                                             child.userData.isPlayerBody = true; 
-                                            child.frustumCulled = false; // 🌟 关闭视锥体剔除
+                                            child.frustumCulled = false; 
                                         }
                                         applyTexturesToModel(child);
                                     });
@@ -984,7 +972,8 @@
 
                                     gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function(wGltf) {
                                         let rUsp = wGltf.scene;
-                                        rUsp.scale.set(1.5, 1.5, 1.5); 
+                                        // 🌟 修复联机玩家隐形武器
+                                        rUsp.scale.set(30, 30, 30); 
                                         rUsp.position.set(0, 0, 0); 
                                         rUsp.name = 'usp';
                                         rUsp.visible = false;
@@ -993,7 +982,8 @@
 
                                     gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function(wGltf) {
                                         let rAwp = wGltf.scene;
-                                        rAwp.scale.set(1.25, 1.25, 1.25);
+                                        // 🌟 修复联机玩家隐形武器
+                                        rAwp.scale.set(25, 25, 25);
                                         rAwp.position.set(0, 0, 0); 
                                         rAwp.name = 'awp';
                                         rAwp.visible = false;
@@ -1339,19 +1329,22 @@
             for (let mixer of mixers) { 
                 mixer.update(delta); 
                 
-                // --- 🌟 核心修复：强制所有的骨骼动画在原地播放 (去除 Root Motion) ---
                 if (mixer.getRoot()) {
                     mixer.getRoot().traverse(child => {
                         if (child.isBone) {
                             const bName = child.name.toLowerCase();
+                            // 🌟 保持原地运动，防止瞬移
                             if (bName.includes('hips') || bName.includes('root') || bName.includes('pelvis')) {
                                 child.position.x = 0;
                                 child.position.z = 0;
                             }
+                            // 🌟 颈椎康复代码：强制修正断颈和转头，让头部保持平视
+                            if (bName.includes('neck') || bName.includes('head')) {
+                                child.rotation.x = 0; 
+                            }
                         }
                     });
                 }
-                // -------------------------------------------------------------
             }
             if (fpsMixer) fpsMixer.update(delta);
             
