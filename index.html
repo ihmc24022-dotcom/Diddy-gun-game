@@ -426,6 +426,58 @@
         const clock = new THREE.Clock();
         let mixers = [];
 
+        // ==========================================
+        // 🌟 1. 加载所有贴图文件并设置正确的色彩空间
+        // ==========================================
+        const textureLoader = new THREE.TextureLoader();
+
+        const texBalaclava = textureLoader.load('tm_phoenix_v2_balaclava_variantA_baseColor.png');
+        const texBody = textureLoader.load('tm_phoenix_v2_body_variantE_baseColor.png');
+        const texLegs = textureLoader.load('tm_phoenix_v2_legs_variantB_baseColor.png');
+        const texArms = textureLoader.load('bare_arm_133_baseColor.png');
+        const texGloves = textureLoader.load('t_base_fullfinger_glove_baseColor.png');
+
+        texBalaclava.colorSpace = THREE.SRGBColorSpace;
+        texBody.colorSpace = THREE.SRGBColorSpace;
+        texLegs.colorSpace = THREE.SRGBColorSpace;
+        texArms.colorSpace = THREE.SRGBColorSpace;
+        texGloves.colorSpace = THREE.SRGBColorSpace;
+
+        const normBalaclava = textureLoader.load('tm_phoenix_v2_balaclava_variantA_normal.png');
+        const normArms = textureLoader.load('bare_arm_133_normal.png');
+        const normGloves = textureLoader.load('t_base_fullfinger_glove_normal.png');
+
+        // 🌟 2. 核心穿衣函数（根据材质/网格名称自动贴图）
+        function applyTexturesToModel(child) {
+            if (child.isMesh && child.material) {
+                // 克隆材质以防多个部位共享同一个导致贴图混乱
+                child.material = child.material.clone();
+                
+                const matName = (child.material.name || "").toLowerCase();
+                const meshName = (child.name || "").toLowerCase();
+                const targetName = matName + " " + meshName;
+
+                if (targetName.includes('balaclava') || targetName.includes('head')) {
+                    child.material.map = texBalaclava;
+                    child.material.normalMap = normBalaclava;
+                } else if (targetName.includes('body') || targetName.includes('torso') || targetName.includes('upper')) {
+                    child.material.map = texBody;
+                } else if (targetName.includes('leg') || targetName.includes('pant') || targetName.includes('lower')) {
+                    child.material.map = texLegs;
+                } else if (targetName.includes('arm')) {
+                    child.material.map = texArms;
+                    child.material.normalMap = normArms;
+                } else if (targetName.includes('glove') || targetName.includes('hand')) {
+                    child.material.map = texGloves;
+                    child.material.normalMap = normGloves;
+                }
+
+                // 强制将基础颜色设为纯白，防止模型本身发黑/发灰影响贴图
+                child.material.color.setHex(0xffffff);
+                child.material.needsUpdate = true;
+            }
+        }
+
         // 🌟 提取 FBX 动画的超级安全函数
         function loadFBXAnim(loader, mixer, actionsDict, animName, fileName, clamp = false) {
             loader.load(fileName, (animObj) => {
@@ -516,12 +568,15 @@
         camera.add(lobbyDisplayGroup);
         lobbyDisplayGroup.visible = false;
 
-        // 🌟 大厅角色使用新转换的 CSGO FBX
+        // 🌟 大厅角色：修正尺寸 + 贴图
         fbxLoader.load('FabConvert.com_tm_phoenix_v2-_csgo_terrorist_characters.fbx', function (object) {
             let lobbyChar = object;
-            lobbyChar.scale.set(0.012, 0.012, 0.012); 
+            // 修正比例：原来是 0.012，现在改为 1.0 (如果还是觉得小可以改成 1.2 或 1.5)
+            lobbyChar.scale.set(1.0, 1.0, 1.0); 
             lobbyChar.position.set(0, -1.5, 0);
             
+            lobbyChar.traverse((child) => { applyTexturesToModel(child); });
+
             const mixer = new THREE.AnimationMixer(lobbyChar);
             // 加载待机动作给大厅角色
             fbxLoader.load('Stop Walking With Rifle.fbx', (anim) => {
@@ -536,11 +591,12 @@
         let localAnimState = 'idle'; 
 
         // ==========================================
-        // 🌟 本地玩家：加载新的主模型与 7 个新动作
+        // 🌟 本地玩家：修正尺寸 + 贴图
         // ==========================================
         fbxLoader.load('FabConvert.com_tm_phoenix_v2-_csgo_terrorist_characters.fbx', function (object) {
             myBody = object;
-            myBody.scale.set(0.012, 0.012, 0.012);
+            // 修正比例
+            myBody.scale.set(1.0, 1.0, 1.0);
             myBody.position.set(0, -1.25, 0);
             myBody.rotation.y = Math.PI;
 
@@ -562,9 +618,11 @@
             let localWeaponGroup = new THREE.Group();
             localWeaponGroup.name = "WeaponGroup";
             
-            // 🔎 寻找手部骨骼，Mixamo 的骨骼通常带有 mixamorig 前缀
+            // 穿衣 & 寻找手部骨骼
             let rightHandBone = null;
             myBody.traverse(function(child) {
+                applyTexturesToModel(child);
+
                 if (child.isBone) {
                     const boneName = child.name.toLowerCase();
                     if (boneName.includes('righthand') || boneName.includes('right_hand')) {
@@ -861,14 +919,15 @@
                                 remotePlayers[uid] = "loading";
                                 
                                 // ==========================================
-                                // 🌟 联机玩家加载新模型与动画
+                                // 🌟 联机玩家：修正尺寸 + 贴图
                                 // ==========================================
                                 fbxLoader.load('FabConvert.com_tm_phoenix_v2-_csgo_terrorist_characters.fbx', function (object) {
                                     if (remotePlayers[uid] === undefined) return; 
                                     
                                     let networkPlayer = new THREE.Group();
                                     let networkChar = object;
-                                    networkChar.scale.set(0.012, 0.012, 0.012);
+                                    // 修正比例
+                                    networkChar.scale.set(1.0, 1.0, 1.0);
                                     
                                     const mixer = new THREE.AnimationMixer(networkChar);
                                     networkChar.userData.mixer = mixer;
@@ -884,16 +943,12 @@
                                     loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'dying2', 'Walking To Dying (2).fbx', true);
                                     loadFBXAnim(fbxLoader, mixer, networkChar.userData.actions, 'dying3', 'Walking To Dying (3).fbx', true);
 
-                                    // 染色
+                                    // 穿衣染色
                                     networkChar.traverse((child) => {
                                         if (child.isMesh) {
                                             child.userData.isPlayerBody = true; 
-                                            if (child.material) {
-                                                child.material = child.material.clone();
-                                                if (data[uid].team === 'T') child.material.color.setHex(0xffcccc); 
-                                                else if (data[uid].team === 'CT') child.material.color.setHex(0xccccff);
-                                            }
                                         }
+                                        applyTexturesToModel(child);
                                     });
 
                                     networkPlayer.add(networkChar);
@@ -961,19 +1016,6 @@
                                 rp.targetPos.set(p.x || 0, p.y !== undefined ? p.y - 1.25 : 0, p.z || 0);
                                 rp.targetRotY = (p.rotY || 0) + Math.PI;
                                 rp.health = p.health !== undefined ? p.health : 100;
-                                
-                                if (rp.team !== p.team) {
-                                    rp.team = p.team;
-                                    if(rp.model) {
-                                        rp.model.traverse((child) => {
-                                            if (child.isMesh && child.userData.isPlayerBody && child.material) {
-                                                if (rp.team === 'T') child.material.color.setHex(0xffcccc);
-                                                else if (rp.team === 'CT') child.material.color.setHex(0xccccff);
-                                            }
-                                        });
-                                    }
-                                }
-                                
                                 rp.equippedGun = p.equippedGun || 'usp';
 
                                 let targetAnim = p.anim || 'idle';
