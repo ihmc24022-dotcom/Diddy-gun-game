@@ -447,15 +447,11 @@
         const normArms = textureLoader.load('bare_arm_133_normal.png');
         const normGloves = textureLoader.load('t_base_fullfinger_glove_normal.png');
 
-        // 🌟 2. 核心穿衣函数（适配盲猜 Mesh 编号机制，解决银色模型问题）
+        // 🌟 2. 核心穿衣函数（已修复变色Bug）
         function applyTexturesToModel(child) {
             if (child.isMesh && child.material) {
                 
                 const processMaterial = (mat, meshName) => {
-                    // 控制台会打印出每个部位的真实名字，方便我们以后调试
-                    console.log("正在贴图的部件:", meshName);
-
-                    // 👇 核心匹配逻辑：兼容原始带有特定名字的骨骼，同时也兼容被转换器强行重命名为 "mesh-X" 的骨骼
                     if (meshName === 'mesh' || meshName.includes('body') || meshName.includes('torso')) {
                         mat.map = texBody;
                     } else if (meshName === 'mesh-1' || meshName.includes('balaclava') || meshName.includes('head') || meshName.includes('mask')) {
@@ -470,15 +466,24 @@
                         mat.map = texGloves;
                         mat.normalMap = normGloves;
                     } else {
-                        // 兜底机制：如果全都不匹配，默认给它穿衣服
                         mat.map = texBody;
                     }
 
-                    // 修复头部消失的核心参数：去掉了导致问题的 alphaTest
+                    // 🌟 颜色闪烁/变黑的终极修复：
+                    // 1. 关闭由于视角导致的光照反转 (使用 FrontSide)
+                    mat.side = THREE.FrontSide;
+                    // 2. 如果导入的模型自带金属反光，强制抹除，防止反射黑色的天空
+                    if (mat.isMeshStandardMaterial) {
+                        mat.metalness = 0.0;
+                        mat.roughness = 0.9;
+                    }
+                    if (mat.isMeshPhongMaterial) {
+                        mat.shininess = 0;
+                    }
+
                     mat.transparent = false; 
                     mat.depthWrite = true;   
                     mat.depthTest = true;    
-                    mat.side = THREE.DoubleSide; 
                     mat.color.setHex(0xffffff);
                     mat.needsUpdate = true;
                     
@@ -487,7 +492,6 @@
 
                 const currentMeshName = (child.name || "").toLowerCase();
 
-                // 兼容处理：应对某些模型将所有材质打包成一个数组的情况
                 if (Array.isArray(child.material)) {
                     child.material = child.material.map(m => processMaterial(m.clone(), currentMeshName));
                 } else {
@@ -496,11 +500,18 @@
             }
         }
 
-        // 🌟 提取 FBX 动画的超级安全函数
+        // 🌟 3. 提取动画的超级函数（已修复断颈Bug）
         function loadFBXAnim(loader, mixer, actionsDict, animName, fileName, clamp = false) {
             loader.load(fileName, (animObj) => {
                 if(animObj.animations.length > 0) {
-                    const action = mixer.clipAction(animObj.animations[0]);
+                    let clip = animObj.animations[0];
+                    
+                    // 🌟 终极颈椎病修复大法：
+                    // 我们直接用代码强行从动画文件里，把所有关于“脖子(Neck)”和“头(Head)”的扭曲动作删掉！
+                    // 这样即使 Mixamo 动作再奇怪，人物也会保持默认健康的脖子姿态。
+                    clip.tracks = clip.tracks.filter(track => !track.name.toLowerCase().includes('neck') && !track.name.toLowerCase().includes('head'));
+
+                    const action = mixer.clipAction(clip);
                     if (clamp) {
                         action.setLoop(THREE.LoopOnce, 1);
                         action.clampWhenFinished = true;
@@ -596,9 +607,7 @@
             });
 
             const mixer = new THREE.AnimationMixer(lobbyChar);
-            fbxLoader.load('Gunplay.fbx', (anim) => {
-                mixer.clipAction(anim.animations[0]).play();
-            });
+            loadFBXAnim(fbxLoader, mixer, { 'idle': {} }, 'idle', 'Gunplay.fbx');
             mixers.push(mixer);
             lobbyDisplayGroup.add(lobbyChar);
         });
@@ -654,7 +663,6 @@
 
             gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function(wGltf) {
                 let rUsp = wGltf.scene;
-                // 手枪模型按比例放大以匹配人物
                 rUsp.scale.set(25, 25, 25); 
                 rUsp.position.set(0, 0, 0); 
                 rUsp.name = 'usp';
@@ -1344,7 +1352,7 @@
             for (let mixer of mixers) { 
                 mixer.update(delta); 
                 
-                // --- 🌟 核心修复：强制所有的骨骼动画在原地播放 (去除 Root Motion) ---
+                // 强制所有的骨骼动画在原地播放 (去除 Root Motion)
                 if (mixer.getRoot()) {
                     mixer.getRoot().traverse(child => {
                         if (child.isBone) {
@@ -1354,11 +1362,9 @@
                                 child.position.x = 0;
                                 child.position.z = 0;
                             }
-                            // 移除强制的颈椎扭转，让模型自然播放动作
                         }
                     });
                 }
-                // -------------------------------------------------------------
             }
             if (fpsMixer) fpsMixer.update(delta);
             
@@ -1385,7 +1391,7 @@
                 } else if (moveInput.x !== 0 || moveInput.y < -0.1) {
                     localAnimState = 'crouch'; // 往前/左右 暂时代替跑步
                 } else {
-                    localAnimState = 'idle'; // 待机 (对应刚上传的 Gunplay.fbx)
+                    localAnimState = 'idle'; // 待机
                 }
 
                 if (myBody) {
