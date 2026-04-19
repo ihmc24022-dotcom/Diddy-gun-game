@@ -467,7 +467,6 @@
         let mixers = [];
 
         // 🌟 终极防 T-pose 动画加载核心
-        // 如果找不到匹配名字的动画，强行跳过第 0 号动作（通常是死板的 T-pose）
         function findAnim(mixer, gltf, keywords, fallbackIndex) {
             if (!gltf.animations || gltf.animations.length === 0) return null;
             for (let i = 0; i < gltf.animations.length; i++) {
@@ -594,7 +593,7 @@
         let localAnimState = 'idle'; 
 
         // ==========================================
-        // 🌟 核心修复 1: 给自己的第 3 人称模型装上武器！
+        // 🌟 终极修复 1: 给自己的第 3 人称模型装上武器并绑定到手骨！
         // ==========================================
         gltfLoader.load('tm_phoenix_v2-_csgo_terrorist_characters.glb', function (gltf) {
             myBody = gltf.scene;
@@ -605,13 +604,29 @@
 
             let localWeaponGroup = new THREE.Group();
             localWeaponGroup.name = "WeaponGroup";
-            myBody.add(localWeaponGroup);
+            
+            // 🔎 核心修复：遍历寻找右手骨骼
+            let rightHandBone = null;
+            myBody.traverse(function(child) {
+                if (child.isBone) {
+                    const boneName = child.name.toLowerCase();
+                    if (boneName.includes('hand_r') || boneName.includes('r_hand') || boneName.includes('righthand') || boneName.includes('valvebiped.bip01_r_hand')) {
+                        rightHandBone = child;
+                    }
+                }
+            });
+
+            // 将武器组绑定到手骨上，而不是脚底！
+            if (rightHandBone) {
+                rightHandBone.add(localWeaponGroup);
+            } else {
+                myBody.add(localWeaponGroup);
+            }
 
             gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function(wGltf) {
                 let rUsp = wGltf.scene;
                 rUsp.scale.set(1.5, 1.5, 1.5); 
-                rUsp.position.set(0.5, 1.5, 1.0); 
-                rUsp.rotation.y = Math.PI;
+                rUsp.position.set(0, 0, 0); 
                 rUsp.name = 'usp';
                 rUsp.visible = false;
                 localWeaponGroup.add(rUsp);
@@ -620,8 +635,7 @@
             gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function(wGltf) {
                 let rAwp = wGltf.scene;
                 rAwp.scale.set(1.25, 1.25, 1.25);
-                rAwp.position.set(0.5, 1.5, 1.0);
-                rAwp.rotation.y = Math.PI;
+                rAwp.position.set(0, 0, 0); 
                 rAwp.name = 'awp';
                 rAwp.visible = false;
                 localWeaponGroup.add(rAwp);
@@ -906,15 +920,32 @@
 
                                     networkPlayer.add(networkChar);
 
+                                    // ==========================================
+                                    // 🌟 终极修复 2: 联机玩家武器绑定到手骨
+                                    // ==========================================
                                     let remoteWeaponGroup = new THREE.Group();
                                     remoteWeaponGroup.name = "WeaponGroup";
-                                    networkPlayer.add(remoteWeaponGroup);
+                                    
+                                    let remoteHandBone = null;
+                                    networkChar.traverse((child) => {
+                                        if (child.isBone) {
+                                            const boneName = child.name.toLowerCase();
+                                            if (boneName.includes('hand_r') || boneName.includes('r_hand') || boneName.includes('righthand') || boneName.includes('valvebiped.bip01_r_hand')) {
+                                                remoteHandBone = child;
+                                            }
+                                        }
+                                    });
+
+                                    if (remoteHandBone) {
+                                        remoteHandBone.add(remoteWeaponGroup);
+                                    } else {
+                                        networkPlayer.add(remoteWeaponGroup);
+                                    }
 
                                     gltfLoader.load('pistol__usp_no_silencer_weapon_model_cs2.glb?v=2', function(wGltf) {
                                         let rUsp = wGltf.scene;
                                         rUsp.scale.set(1.5, 1.5, 1.5); 
-                                        rUsp.position.set(0.5, 1.5, 1.0); 
-                                        rUsp.rotation.y = Math.PI;
+                                        rUsp.position.set(0, 0, 0); // 归零
                                         rUsp.name = 'usp';
                                         rUsp.visible = false;
                                         remoteWeaponGroup.add(rUsp);
@@ -923,8 +954,7 @@
                                     gltfLoader.load('rifle__awp_weapon_model_cs2.glb', function(wGltf) {
                                         let rAwp = wGltf.scene;
                                         rAwp.scale.set(1.25, 1.25, 1.25);
-                                        rAwp.position.set(0.5, 1.5, 1.0);
-                                        rAwp.rotation.y = Math.PI;
+                                        rAwp.position.set(0, 0, 0); // 归零
                                         rAwp.name = 'awp';
                                         rAwp.visible = false;
                                         remoteWeaponGroup.add(rAwp);
