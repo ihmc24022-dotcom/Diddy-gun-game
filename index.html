@@ -447,7 +447,7 @@
         const normArms = textureLoader.load('bare_arm_133_normal.png');
         const normGloves = textureLoader.load('t_base_fullfinger_glove_normal.png');
 
-        // 🌟 2. 核心穿衣函数（已修复视角变黑/变色 Bug）
+        // 🌟 2. 核心穿衣函数（已修复视角变色 Bug）
         function applyTexturesToModel(child) {
             if (child.isMesh && child.material) {
                 
@@ -469,8 +469,7 @@
                         mat.map = texBody;
                     }
 
-                    // 🌟 视角变色的终极修复：
-                    // 使用 FrontSide，并且如果材质有光反射属性，强制抹除
+                    // 修复视角旋转变黑的参数
                     mat.side = THREE.FrontSide;
                     if (mat.isMeshStandardMaterial) {
                         mat.metalness = 0.0;
@@ -499,24 +498,25 @@
             }
         }
 
-        // 🌟 3. 提取动画的超级函数（已修复断颈 Bug 和 180 度翻转 Bug）
+        // 🌟 3. 提取动画的超级函数（包含断颈修复 + 脊椎 90 度骨骼扭曲修复）
         function loadFBXAnim(loader, mixer, actionsDict, animName, fileName, clamp = false) {
             loader.load(fileName, (animObj) => {
                 if(animObj.animations.length > 0) {
                     let clip = animObj.animations[0];
                     
-                    // 🌟 1. 断颈修复：彻底过滤掉脖子和头部的动画轨迹
+                    // 1. 断颈修复：彻底过滤掉脖子和头部的动画轨迹
                     clip.tracks = clip.tracks.filter(track => 
                         !track.name.toLowerCase().includes('neck') && 
                         !track.name.toLowerCase().includes('head')
                     );
 
-                    // 🌟 2. 全身 180 度翻转修复：修改根骨骼四元数
+                    // 2. 脊椎 90 度扭曲修复：强行旋转脊椎的四元数
                     clip.tracks.forEach(track => {
                         if (track.name.toLowerCase().includes('.quaternion')) {
                             const boneName = track.name.toLowerCase();
-                            // 只对主干/骨盆进行翻转修正
-                            if (boneName.includes('hips') || boneName.includes('root') || boneName.includes('pelvis')) {
+                            
+                            // 针对上半身根骨骼（脊椎 Spine, 胸部 Chest）进行 90 度扭转修正
+                            if (boneName.includes('spine') || boneName.includes('chest')) {
                                 for (let i = 0; i < track.values.length; i += 4) {
                                     let q = new THREE.Quaternion(
                                         track.values[i], 
@@ -524,8 +524,10 @@
                                         track.values[i+2], 
                                         track.values[i+3]
                                     );
-                                    // 给动画的骨盆加上 180 度(Math.PI)的 Y 轴旋转
-                                    let offset = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+                                    
+                                    // 💡 重点：这里默认加了 90 度的纠正 (Math.PI / 2)
+                                    // 如果你发现他向着另一边扭了，把这里改成 -Math.PI / 2 即可！
+                                    let offset = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
                                     q.multiply(offset); 
                                     
                                     track.values[i] = q.x;
@@ -650,7 +652,7 @@
             myBody.scale.set(0.048, 0.048, 0.048);
             myBody.position.set(0, -1.25, 0);
             
-            // 🌟 彻底清除人为添加的基础反转！配合上面动画里 180 度四元数修正
+            // 取消了之前的反向
             myBody.rotation.y = 0;
 
             const mixer = new THREE.AnimationMixer(myBody);
@@ -1044,7 +1046,6 @@
                                     let pr = data[uid].rotY || 0;
                                     
                                     networkPlayer.position.set(px, py, pz); 
-                                    // 🌟 彻底清除人为添加的基础反转！配合上面动画里 180 度四元数修正
                                     networkPlayer.rotation.y = pr;
                                     
                                     scene.add(networkPlayer);
@@ -1063,7 +1064,6 @@
                             } else if (remotePlayers[uid] !== "loading") {
                                 let rp = remotePlayers[uid];
                                 rp.targetPos.set(p.x || 0, p.y !== undefined ? p.y - 1.25 : 0, p.z || 0);
-                                // 🌟 同步更新：取消基础反转
                                 rp.targetRotY = (p.rotY || 0);
                                 rp.health = p.health !== undefined ? p.health : 100;
                                 rp.equippedGun = p.equippedGun || 'usp';
