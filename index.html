@@ -447,7 +447,7 @@
         const normArms = textureLoader.load('bare_arm_133_normal.png');
         const normGloves = textureLoader.load('t_base_fullfinger_glove_normal.png');
 
-        // 🌟 2. 核心穿衣函数（已修复视角变色 Bug）
+        // 🌟 2. 核心穿衣函数（已保留视角变色修复）
         function applyTexturesToModel(child) {
             if (child.isMesh && child.material) {
                 
@@ -498,45 +498,20 @@
             }
         }
 
-        // 🌟 3. 提取动画的超级函数（包含断颈修复 + 脊椎 90 度骨骼扭曲修复）
+        // 🌟 3. 提取动画的超级函数（终极“物理疗法”：直接抹除所有上半身扭曲）
         function loadFBXAnim(loader, mixer, actionsDict, animName, fileName, clamp = false) {
             loader.load(fileName, (animObj) => {
                 if(animObj.animations.length > 0) {
                     let clip = animObj.animations[0];
                     
-                    // 1. 断颈修复：彻底过滤掉脖子和头部的动画轨迹
-                    clip.tracks = clip.tracks.filter(track => 
-                        !track.name.toLowerCase().includes('neck') && 
-                        !track.name.toLowerCase().includes('head')
-                    );
-
-                    // 2. 脊椎 90 度扭曲修复：强行旋转脊椎的四元数
-                    clip.tracks.forEach(track => {
-                        if (track.name.toLowerCase().includes('.quaternion')) {
-                            const boneName = track.name.toLowerCase();
-                            
-                            // 针对上半身根骨骼（脊椎 Spine, 胸部 Chest）进行 90 度扭转修正
-                            if (boneName.includes('spine') || boneName.includes('chest')) {
-                                for (let i = 0; i < track.values.length; i += 4) {
-                                    let q = new THREE.Quaternion(
-                                        track.values[i], 
-                                        track.values[i+1], 
-                                        track.values[i+2], 
-                                        track.values[i+3]
-                                    );
-                                    
-                                    // 💡 重点：这里默认加了 90 度的纠正 (Math.PI / 2)
-                                    // 如果你发现他向着另一边扭了，把这里改成 -Math.PI / 2 即可！
-                                    let offset = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
-                                    q.multiply(offset); 
-                                    
-                                    track.values[i] = q.x;
-                                    track.values[i+1] = q.y;
-                                    track.values[i+2] = q.z;
-                                    track.values[i+3] = q.w;
-                                }
-                            }
-                        }
+                    // 🌟 终极修复：彻底过滤掉脖子(neck)、头(head)、脊椎(spine)和胸部(chest)的动画轨迹！
+                    // 这样上半身绝对不可能再向左或向右乱扭了，永远笔直朝向正前方，和腿部完全对齐！
+                    clip.tracks = clip.tracks.filter(track => {
+                        let name = track.name.toLowerCase();
+                        return !name.includes('neck') && 
+                               !name.includes('head') && 
+                               !name.includes('spine') && 
+                               !name.includes('chest');
                     });
 
                     const action = mixer.clipAction(clip);
@@ -652,7 +627,7 @@
             myBody.scale.set(0.048, 0.048, 0.048);
             myBody.position.set(0, -1.25, 0);
             
-            // 取消了之前的反向
+            // 保持原本的模型朝向
             myBody.rotation.y = 0;
 
             const mixer = new THREE.AnimationMixer(myBody);
