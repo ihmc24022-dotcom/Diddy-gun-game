@@ -447,7 +447,7 @@
         const normArms = textureLoader.load('bare_arm_133_normal.png');
         const normGloves = textureLoader.load('t_base_fullfinger_glove_normal.png');
 
-        // 🌟 2. 核心穿衣函数（已修复变色Bug）
+        // 🌟 2. 核心穿衣函数（已修复视角变黑/变色 Bug）
         function applyTexturesToModel(child) {
             if (child.isMesh && child.material) {
                 
@@ -469,10 +469,9 @@
                         mat.map = texBody;
                     }
 
-                    // 🌟 颜色闪烁/变黑的终极修复：
-                    // 1. 关闭由于视角导致的光照反转 (使用 FrontSide)
+                    // 🌟 视角变色的终极修复：
+                    // 使用 FrontSide，并且如果材质有光反射属性，强制抹除
                     mat.side = THREE.FrontSide;
-                    // 2. 如果导入的模型自带金属反光，强制抹除，防止反射黑色的天空
                     if (mat.isMeshStandardMaterial) {
                         mat.metalness = 0.0;
                         mat.roughness = 0.9;
@@ -500,16 +499,43 @@
             }
         }
 
-        // 🌟 3. 提取动画的超级函数（已修复断颈Bug）
+        // 🌟 3. 提取动画的超级函数（已修复断颈 Bug 和 180 度翻转 Bug）
         function loadFBXAnim(loader, mixer, actionsDict, animName, fileName, clamp = false) {
             loader.load(fileName, (animObj) => {
                 if(animObj.animations.length > 0) {
                     let clip = animObj.animations[0];
                     
-                    // 🌟 终极颈椎病修复大法：
-                    // 我们直接用代码强行从动画文件里，把所有关于“脖子(Neck)”和“头(Head)”的扭曲动作删掉！
-                    // 这样即使 Mixamo 动作再奇怪，人物也会保持默认健康的脖子姿态。
-                    clip.tracks = clip.tracks.filter(track => !track.name.toLowerCase().includes('neck') && !track.name.toLowerCase().includes('head'));
+                    // 🌟 1. 断颈修复：彻底过滤掉脖子和头部的动画轨迹
+                    clip.tracks = clip.tracks.filter(track => 
+                        !track.name.toLowerCase().includes('neck') && 
+                        !track.name.toLowerCase().includes('head')
+                    );
+
+                    // 🌟 2. 全身 180 度翻转修复：修改根骨骼四元数
+                    clip.tracks.forEach(track => {
+                        if (track.name.toLowerCase().includes('.quaternion')) {
+                            const boneName = track.name.toLowerCase();
+                            // 只对主干/骨盆进行翻转修正
+                            if (boneName.includes('hips') || boneName.includes('root') || boneName.includes('pelvis')) {
+                                for (let i = 0; i < track.values.length; i += 4) {
+                                    let q = new THREE.Quaternion(
+                                        track.values[i], 
+                                        track.values[i+1], 
+                                        track.values[i+2], 
+                                        track.values[i+3]
+                                    );
+                                    // 给动画的骨盆加上 180 度(Math.PI)的 Y 轴旋转
+                                    let offset = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+                                    q.multiply(offset); 
+                                    
+                                    track.values[i] = q.x;
+                                    track.values[i+1] = q.y;
+                                    track.values[i+2] = q.z;
+                                    track.values[i+3] = q.w;
+                                }
+                            }
+                        }
+                    });
 
                     const action = mixer.clipAction(clip);
                     if (clamp) {
@@ -520,7 +546,7 @@
                     if(animName === 'idle') actionsDict[animName].play(); 
                 }
             }, undefined, (err) => {
-                console.warn("⚠️ 找不到动画文件: " + fileName + "。");
+                console.warn("⚠️ 找不到动画文件: " + fileName);
             });
         }
 
@@ -623,7 +649,9 @@
             myBody = object;
             myBody.scale.set(0.048, 0.048, 0.048);
             myBody.position.set(0, -1.25, 0);
-            myBody.rotation.y = Math.PI;
+            
+            // 🌟 彻底清除人为添加的基础反转！配合上面动画里 180 度四元数修正
+            myBody.rotation.y = 0;
 
             const mixer = new THREE.AnimationMixer(myBody);
             myBody.userData.mixer = mixer;
@@ -942,9 +970,6 @@
                             if (!remotePlayers[uid]) {
                                 remotePlayers[uid] = "loading";
                                 
-                                // ==========================================
-                                // 🌟 联机玩家
-                                // ==========================================
                                 fbxLoader.load('FabConvert.com_tm_phoenix_v2-_csgo_terrorist_characters.fbx', function (object) {
                                     if (remotePlayers[uid] === undefined) return; 
                                     
@@ -1019,7 +1044,8 @@
                                     let pr = data[uid].rotY || 0;
                                     
                                     networkPlayer.position.set(px, py, pz); 
-                                    networkPlayer.rotation.y = pr + Math.PI;
+                                    // 🌟 彻底清除人为添加的基础反转！配合上面动画里 180 度四元数修正
+                                    networkPlayer.rotation.y = pr;
                                     
                                     scene.add(networkPlayer);
                                     
@@ -1027,7 +1053,7 @@
                                         model: networkPlayer, 
                                         charModel: networkChar, 
                                         targetPos: new THREE.Vector3(px, py, pz), 
-                                        targetRotY: pr + Math.PI, 
+                                        targetRotY: pr, 
                                         health: data[uid].health || 100, 
                                         team: data[uid].team,
                                         equippedGun: data[uid].equippedGun || 'usp',
@@ -1037,12 +1063,12 @@
                             } else if (remotePlayers[uid] !== "loading") {
                                 let rp = remotePlayers[uid];
                                 rp.targetPos.set(p.x || 0, p.y !== undefined ? p.y - 1.25 : 0, p.z || 0);
-                                rp.targetRotY = (p.rotY || 0) + Math.PI;
+                                // 🌟 同步更新：取消基础反转
+                                rp.targetRotY = (p.rotY || 0);
                                 rp.health = p.health !== undefined ? p.health : 100;
                                 rp.equippedGun = p.equippedGun || 'usp';
 
                                 let targetAnim = p.anim || 'idle';
-                                // 远程玩家如果没血了，播放死亡动画
                                 if (rp.health <= 0) targetAnim = 'dying2';
                                 
                                 if (rp.charModel) {
@@ -1352,7 +1378,6 @@
             for (let mixer of mixers) { 
                 mixer.update(delta); 
                 
-                // 强制所有的骨骼动画在原地播放 (去除 Root Motion)
                 if (mixer.getRoot()) {
                     mixer.getRoot().traverse(child => {
                         if (child.isBone) {
@@ -1383,15 +1408,15 @@
 
                 // 🌟 动作状态判断逻辑
                 if (playerContainer.position.y < -4) {
-                    localAnimState = 'dying2'; // 掉出地图死亡
+                    localAnimState = 'dying2'; 
                 } else if (!isGrounded) {
-                    localAnimState = 'turn180'; // 暂时代替跳跃
+                    localAnimState = 'turn180'; 
                 } else if (moveInput.y > 0.1) {
-                    localAnimState = 'back'; // 后退
+                    localAnimState = 'back'; 
                 } else if (moveInput.x !== 0 || moveInput.y < -0.1) {
-                    localAnimState = 'crouch'; // 往前/左右 暂时代替跑步
+                    localAnimState = 'crouch'; 
                 } else {
-                    localAnimState = 'idle'; // 待机
+                    localAnimState = 'idle'; 
                 }
 
                 if (myBody) {
